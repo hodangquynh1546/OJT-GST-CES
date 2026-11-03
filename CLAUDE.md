@@ -1,0 +1,70 @@
+# CLAUDE.md
+
+Hướng dẫn cho Claude Code khi làm việc trong repository này.
+
+## 1. Giới thiệu dự án
+
+**School Fund Management** – hệ thống quản lý quỹ lớp học sinh (thu, chi, theo dõi số dư và minh bạch quỹ lớp).
+
+Trạng thái: mới khởi tạo cấu trúc thư mục, chưa có project .NET/Angular, chưa có database.
+
+## 2. Tài liệu chuẩn
+
+- **`training-doc.md`** là tài liệu chuẩn quy định Tech Stack, phiên bản và kiến trúc. Luôn đọc file này trước khi tạo hoặc thay đổi project, package, kiến trúc.
+- **Không** chỉnh sửa, di chuyển, đổi tên hoặc xóa `training-doc.md`.
+- **Không** tự ý thay đổi công nghệ, phiên bản hoặc kiến trúc khác với tài liệu này. Nếu cần thay đổi, hỏi người dùng trước.
+
+## 3. Tech Stack (tóm tắt – chi tiết xem `training-doc.md`)
+
+| Tầng | Công nghệ chính |
+|---|---|
+| Frontend | Angular ^20.3, TypeScript ~5.9, RxJS, Kendo UI for Angular 23.3.0 |
+| Backend | .NET 10 (`net10.0`), ASP.NET Core Web API, Asp.Versioning, FluentValidation, Swashbuckle, Serilog |
+| Database | PostgreSQL, EF Core 10.0.4, Npgsql provider |
+| AuthN / AuthZ | Cơ chế xác thực tự thiết kế; phân quyền theo permission (`RequirePermission`), không theo role |
+
+## 4. Kiến trúc
+
+Clean Architecture, một artifact – một origin (Api phục vụ luôn SPA):
+
+```text
+Angular UI --/api--> Api --> Application --> Domain
+                      |           ^
+                      +--DI--> Infrastructure (EF Core) --> PostgreSQL
+```
+
+- **Domain**: entity, rule; không phụ thuộc project/NuGet nào.
+- **Application**: service theo feature, DTO, interface (port). Phụ thuộc Domain.
+- **Infrastructure**: cài đặt port (EF Core, query). Phụ thuộc Application, Domain.
+- **Api**: controller, middleware, validation, authZ, host SPA. Chỉ tham chiếu Infrastructure để đăng ký DI.
+- Mã tổ chức theo feature (`Features/` ở backend, `src/app/features/` ở frontend).
+
+## 5. Cấu trúc thư mục
+
+| Thư mục | Mục đích |
+|---|---|
+| `backend/` | Chứa workspace .NET (`{ProjectName}API/` theo `training-doc.md`) – chưa khởi tạo |
+| `frontend/` | Chứa workspace Angular (`{ProjectName}UI/` theo `training-doc.md`) – chưa khởi tạo |
+| `docs/requirements/` | Yêu cầu nghiệp vụ, user story |
+| `docs/business-analysis/` | Phân tích nghiệp vụ, use case, quy trình |
+| `docs/architecture/` | Thiết kế kiến trúc, quyết định kỹ thuật (ADR) |
+| `docs/database/` | Thiết kế CSDL, ERD |
+| `docs/api/` | Đặc tả API |
+| `docs/ui-design/` | Wireframe, thiết kế giao diện |
+| `.claude/skills/` | Skill dùng riêng cho Claude Code trong dự án |
+
+## 6. Quy tắc làm việc với Claude Code
+
+- Chỉ thực hiện đúng phạm vi TASK được giao; không tự mở rộng.
+- Kiểm tra hiện trạng trước khi tạo file; không ghi đè, xóa, di chuyển file có sẵn khi chưa được đồng ý.
+- Gặp xung đột hoặc thông tin không rõ: dừng lại và hỏi.
+- Không cài package, tạo project, database hoặc migration khi TASK không yêu cầu.
+- Tuân thủ cấu hình build trong `training-doc.md` (Nullable bật, `TreatWarningsAsErrors`).
+- Sau mỗi TASK: báo cáo file đã tạo/sửa và xác nhận các giới hạn đã tuân thủ.
+
+## 7. Quy tắc Git
+
+- Nhánh chính: `main`. Làm việc trên nhánh `feature/<tên>`, không commit trực tiếp lên `main`.
+- Claude Code **không** tự commit hoặc push; chỉ làm khi người dùng yêu cầu rõ ràng.
+- Commit message ngắn gọn, mô tả đúng thay đổi (ví dụ: `feat: ...`, `fix: ...`, `docs: ...`, `chore: ...`).
+- Không commit secret, connection string, license key (Kendo) hoặc file build.

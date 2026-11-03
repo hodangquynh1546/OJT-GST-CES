@@ -1,0 +1,55 @@
+# ===== OS / Editor =====
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# ===== .NET =====
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+[Ll]og/
+[Ll]ogs/
+.vs/
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
+artifacts/
+TestResults/
+[Tt]est[Rr]esult*/
+coverage/
+*.coverage
+*.coveragexml
+appsettings.*.local.json
+appsettings.Local.json
+
+# ===== Angular / Node =====
+node_modules/
+dist/
+out-tsc/
+.angular/
+.sass-cache/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+/frontend/**/playwright-report/
+/frontend/**/test-results/
+
+# ===== Secrets / Environment =====
+.env
+.env.*
+!.env.example
+kendo-ui-license.txt
+*.pfx
+
+# ===== Claude Code (local only) =====
+.claude/settings.local.json
