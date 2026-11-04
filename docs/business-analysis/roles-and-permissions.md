@@ -29,7 +29,7 @@
 - Do **Quản trị phân công**, ghi rõ **lớp và năm học**, cho một lớp – năm học đã kết thúc. Có thể là **thủ quỹ cũ** còn được phân công hoặc **người khác** do Quản trị chỉ định.
 - **Trách nhiệm:** xác nhận nhận tiền thu hộ, kể cả thu hộ sau khóa sổ (D-43); lập biên bản chênh lệch nếu không khớp (D-44).
 - **Quyền mặc định:** `CashHandover.Confirm`, xem báo cáo của lớp – năm học được giao (D-52). Xuất báo cáo cần được cấp `Report.Export`.
-- **Không** mặc nhiên có toàn bộ quyền Thủ quỹ. Chỉ được thu nợ cũ khi được cấp riêng quyền thu tương ứng. Ba nhóm quyền xác nhận bàn giao, xem báo cáo, thu nợ được **tách riêng** (D-45).
+- **Không** mặc nhiên có toàn bộ quyền Thủ quỹ. Chỉ được thu nợ cũ khi được cấp riêng quyền thu tương ứng. Ba nhóm quyền xác nhận bàn giao, xem báo cáo, thu nợ được **tách riêng** (D-45). 
 
 ### 1.5 Phụ huynh
 - **Trách nhiệm:** nộp tiền, báo chuyển khoản, theo dõi khoản nộp của con và tình hình quỹ.
