@@ -1,127 +1,134 @@
-# Quyết định nghiệp vụ & Câu hỏi cần xác nhận
+# Quyết định & Câu hỏi cần xác nhận
 
-> Phiên bản: 0.7 · Ngày: 2026-11-03
-> Các quyết định được chủ dự án xác nhận qua 6 lần duyệt cùng ngày 2026-11-03: lần 1 (D-01 → D-21), lần 2 (D-22 → D-28, điều chỉnh D-20), lần 3 (D-29 → D-35), lần 4 (D-36 → D-42, điều chỉnh D-33), lần 5 (D-43 → D-49, làm rõ D-41), lần 6 (D-50 → D-58, điều chỉnh D-28, D-44).
+> Phiên bản: 2.0 · 2026-11-05 – mô hình **Giáo viên · Học sinh · Phụ huynh** (D-24 → D-33, mục 1b); B1 → P1, X-01, X-02 đã chốt (mục 4). v1.2 · 2026-11-04 (PO duyệt D-10, D-11, D-12, Q-11, Q-12, B2–B7). D-01 → D-58 và Q-01 → Q-56 của phạm vi quỹ toàn trường không còn hiệu lực (Git history `f6cecab`).
 
 ## 1. Quyết định đã chốt
 
-### 1.1 Phạm vi, tài khoản, vai trò
-
-| Mã | Từ câu hỏi | Quyết định |
-|---|---|---|
-| D-01 | Q-01 | Một trường, nhiều lớp. Có 4 vai trò: Quản trị hệ thống, GVCN, Thủ quỹ, Phụ huynh |
-| D-02 | Q-02 | Quỹ quản lý theo năm học |
-| D-03 | Q-14, F-1 | Tài khoản tạo qua lời mời email: Quản trị mời GVCN, GVCN mời phụ huynh. Đăng nhập bằng email + mật khẩu |
-| D-04 | Q-04 | Một phụ huynh có thể có nhiều con; một học sinh có thể có nhiều phụ huynh |
-| D-05 | Q-03, F-2 | Mỗi lớp có một thủ quỹ, là phụ huynh của lớp, do GVCN phân công trên hệ thống |
-| D-06 | Q-15 | Chỉ hỗ trợ tiếng Việt |
-| D-22 | Q-20 | Quản trị tạo năm học, tạo lớp và gán GVCN |
-| D-23 | Q-20 | Quản trị cập nhật học sinh khi chuyển lớp hoặc lên lớp |
-| D-33 | Q-24 | Quản trị được **xem** báo cáo quỹ của tất cả lớp; quyền xem báo cáo không cho phép tạo, sửa, duyệt hoặc hủy giao dịch. **Đã bổ sung bởi D-41** |
-| D-41 | Q-31 | Quản trị được **xuất Excel / PDF** các báo cáo thuộc phạm vi quyền xem. Quyền xem / xuất báo cáo **không** tự động cấp quyền xem danh tính phụ huynh / học sinh trong từng biên nhận. `Receipt.View` là permission riêng, **không** cấp cho Quản trị khi chưa có quyết định riêng. **Làm rõ bởi D-46:** giới hạn danh tính chỉ áp dụng cho biên nhận / chứng từ chia sẻ cho phụ huynh, không cấm báo cáo nội bộ của Quản trị |
-| D-46 | Q-35 | Quản trị được xem **tên học sinh** trong báo cáo thu, báo cáo số dư cá nhân và lịch sử thao tác **nếu có permission tương ứng**. Không tự động cấp quyền xem danh tính trong biên nhận. Việc xem thông tin chi tiết được kiểm soát bằng permission và có **lịch sử truy cập** |
-
-### 1.2 Thu, miễn giảm, tiền thừa
-
-| Mã | Từ câu hỏi | Quyết định |
-|---|---|---|
-| D-07 | Q-06, F-3 | Cả GVCN và thủ quỹ được tạo đợt thu |
-| D-08 | Q-07 | Cho nộp nhiều lần và nộp một phần |
-| D-09 | Q-07, F-4 | Tiền nộp thừa thành số dư riêng của học sinh, tự động trừ vào đợt thu sau; có thể hoàn trả |
-| D-10 | Q-09, F-5 | Miễn giảm do GVCN duyệt, bắt buộc có lý do; hỗ trợ miễn toàn phần và giảm một phần |
-| D-11 | Q-08 | Chuyển khoản do thủ quỹ xác nhận thủ công kèm ảnh biên lai; chưa tích hợp ngân hàng |
-| D-12 | Q-10 | Nhắc nộp tiền bằng thông báo trong hệ thống |
-| D-13 | Q-19, F-9 | Có thu khác (không gắn học sinh); không cần duyệt nhưng bắt buộc ghi nguồn và có chứng từ |
-| D-21 | Phát sinh từ D-09 | Hoàn trả: thủ quỹ lập phiếu hoàn trả, GVCN duyệt |
-| D-34 | Q-25 | Mỗi đợt thu bắt buộc có tên, số tiền, hạn nộp và ít nhất một học sinh (BR-REC-01) |
-
-### 1.3 Chi & số dư khả dụng
-
-| Mã | Từ câu hỏi | Quyết định |
-|---|---|---|
-| D-15 | Q-05 | Mọi phiếu chi phải được GVCN duyệt mới tính vào quỹ |
-| D-16 | Q-17 | Phiếu chi bắt buộc có chứng từ |
-| D-17 | Q-18 | Không cho chi vượt số dư quỹ |
-| D-18 | Q-11, F-6 | Quản trị tạo danh mục chi chung; thủ quỹ được tạo danh mục riêng cho lớp |
-| D-47 | Q-36 | **Giữ chỗ số dư cá nhân:** phiếu hoàn trả giữ chỗ ngay khi được tạo và chuyển sang chờ duyệt. Số dư cá nhân khả dụng = số dư thực tế − số đang giữ chỗ. Bị từ chối / hủy: giải phóng. Hoàn trả hoàn tất: giảm số dư thực tế. Không cho nhiều phiếu hoàn trả vượt số dư khả dụng |
-| D-40 | Q-30 | **Số dư khả dụng** = số dư quỹ − các khoản **giữ chỗ** (phiếu chi và chuyển quỹ đang chờ duyệt). Khi duyệt: giữ chỗ thành giao dịch chính thức. Khi bị từ chối / hủy: giữ chỗ được giải phóng. Không cho tạo giao dịch làm tổng đã dùng + giữ chỗ vượt số dư quỹ. Phải xử lý trường hợp nhiều yêu cầu được tạo đồng thời |
-
-### 1.4 Báo cáo, chốt sổ, chuyển lớp, chuyển quỹ
-
-| Mã | Từ câu hỏi | Quyết định |
-|---|---|---|
-| D-14 | Q-16 | Học sinh chuyển lớp / nghỉ học: lưu lại lịch sử |
-| D-19 | Q-12, F-7 | Phụ huynh xem sổ thu chi, khoản nộp của con, chứng từ chi; phần thu chỉ hiện tổng theo đợt, không có tên; không xem nợ của phụ huynh khác |
-| D-20 | Q-13, F-8 | GVCN chốt sổ cuối năm; công nợ chưa thanh toán đi sang năm học sau. **Đã điều chỉnh bởi D-25:** số dư quỹ lớp không tự động chuyển |
-| D-24 | Q-20 | Công nợ và số dư riêng của học sinh đi theo học sinh sang lớp mới / năm học mới |
-| D-25 | Q-20 | Số dư quỹ lớp giữ lịch sử tại lớp và năm học phát sinh, không tự động chuyển sang lớp khác |
-| D-26 | Q-20 | Chuyển số dư quỹ giữa các lớp là nghiệp vụ riêng, có ghi nhận và phê duyệt |
-| D-29 | Q-21 | Chuyển quỹ: GVCN lớp chuyển lập đề nghị, Quản trị phê duyệt, GVCN lớp nhận được thông báo; lớp nhận không bắt buộc xác nhận |
-| D-30 | Q-22 | Cho phép chuyển quỹ sau khi khóa sổ (ngoại lệ): chứng từ điều chỉnh riêng; không sửa / ghi đè giao dịch đã khóa; lưu người thực hiện, người phê duyệt, thời gian, lý do, lịch sử; báo cáo phân biệt trước / sau khóa sổ |
-
-### 1.5 Công nợ cũ, thu hộ, bàn giao tiền
-
-| Mã | Từ câu hỏi | Quyết định |
-|---|---|---|
-| D-31 | Q-23 (1) | Công nợ cũ đi theo học sinh. Thủ quỹ lớp mới có thể thu hộ; khoản thu ghi vào quỹ lớp – năm học phát sinh công nợ, không thành khoản thu mới của lớp hiện tại; lưu người thu hộ và lớp – năm học sở hữu công nợ |
-| D-32 | Q-23 (2) | Tiền thừa là số dư cá nhân của học sinh, không thuộc quỹ lớp. Khi chuyển lớp, bàn giao cho thủ quỹ lớp mới bằng chứng từ bàn giao riêng. Không dùng nghiệp vụ chuyển quỹ; không cộng vào số dư quỹ lớp |
-| D-36 | Q-26 | Cho phép **thu hộ công nợ cũ sau khi năm học đã khóa sổ** (ngoại lệ thứ hai). Không mở khóa / sửa giao dịch đã khóa. Ghi bằng **chứng từ thu hộ bổ sung**, liên kết với khoản công nợ và lớp – năm học phát sinh. Lưu người thu, thời gian thu, người xác nhận, thông tin bàn giao tiền thực tế. Báo cáo phân biệt trước / sau khóa sổ |
-| D-37 | Q-27 | Tiền thu hộ ghi sổ vào quỹ lớp – năm học gốc. **Tiền thực tế** phải bàn giao về **người giữ quỹ của lớp gốc** hoặc người được Quản trị phân công, bằng chứng từ (người giao, người nhận, số tiền, thời gian). **Quản trị phân công người giữ quỹ** cho lớp – năm học đã kết thúc. Không mặc định tiền quỹ cũ do thủ quỹ lớp mới quản lý. Phân biệt số tiền ghi sổ với người đang thực tế giữ tiền |
-| D-38 | Q-28 | Bàn giao tiền thừa: **thủ quỹ lớp cũ lập**, **thủ quỹ lớp mới xác nhận** đã nhận. Không bắt buộc GVCN duyệt **nếu số tiền khớp** số dư trên hệ thống. Lưu người bàn giao, người nhận, số tiền, thời gian, trạng thái. Khi chưa hoàn tất: số dư **chưa được tự trừ** vào đợt thu lớp mới; chỉ sau khi người nhận xác nhận mới dùng được |
-| D-43 | Q-32 | **Xác nhận nhận tiền thu hộ** (kể cả sau khóa sổ) là **người giữ quỹ của lớp gốc** khi thực tế nhận tiền: năm học chưa kết thúc → thủ quỹ hiện tại của lớp gốc; đã kết thúc → người được Quản trị phân công. **Người thu hộ không được tự xác nhận** bàn giao của mình. Lưu người xác nhận, thời gian, số tiền thực nhận. `CashHandover.Confirm` chỉ cấp cho người nhận tiền được phân công |
-| D-44 | Q-33 | **Chênh lệch khi bàn giao tiền:** không tự động điều chỉnh số dư. Lập **biên bản** ghi số dự kiến, số thực nhận, chênh lệch, lý do, người bàn giao / người nhận; cho đính kèm minh chứng. Bàn giao chuyển trạng thái **`Discrepancy`**, chưa hoàn tất. GVCN lớp gốc xem xét và đề xuất xử lý; nếu lớp gốc đã khóa sổ hoặc không còn GVCN phụ trách → Quản trị phê duyệt phương án. Chỉ ghi điều chỉnh sau khi được phê duyệt. Không sửa trực tiếp chứng từ gốc đã khóa sổ |
-| D-45 | Q-34 | **Người giữ quỹ lớp cũ:** là thủ quỹ cũ còn được phân công hoặc người khác do Quản trị chỉ định; phân công rõ lớp và năm học. Có quyền xác nhận bàn giao và xem báo cáo trong phạm vi được giao. Chỉ được thu nợ cũ khi có quyền thu tương ứng. Không mặc nhiên có toàn bộ quyền Thủ quỹ. Tách riêng `CashHandover.Confirm`, quyền xem báo cáo và quyền thu nợ |
-| D-48 | Q-37 | **Giữ chỗ khoản nợ:** phiếu thu đang chờ xác nhận giữ chỗ khoản nợ tương ứng. Số nợ còn có thể thu = nợ chưa thanh toán − nợ đang giữ chỗ. Bị từ chối / hủy: giải phóng. Xác nhận thành công: cập nhật nợ còn lại. Thu vượt nợ cũ: phần vượt vào **số dư cá nhân** theo D-09, không vào quỹ lớp. Ví dụ: nợ cũ 500.000 đ, thực thu 600.000 đ → 500.000 đ trả nợ cũ, 100.000 đ thành số dư cá nhân |
-| D-39 | Q-29 | Thủ quỹ lớp mới thu hộ công nợ cũ của học sinh đang học lớp mình. **Thủ quỹ lớp cũ vẫn được thu** khoản công nợ thuộc lớp cũ nếu còn được phân công và có permission tương ứng. Phải **chống thu trùng** một khoản công nợ. Mỗi khoản thu liên kết với công nợ gốc. Đổi người phụ trách không làm mất lịch sử |
-
-### 1.6 Quy tắc thông lệ & điểm suy ra đã xác nhận
-
-| Mã | Nội dung |
+| Mã | Quyết định |
 |---|---|
-| D-27 | 6 quy tắc thông lệ: BR-GEN-02, BR-GEN-03, BR-GEN-04, BR-REC-02, BR-EXP-04, BR-RPT-04 |
-| D-28 | 7 điểm suy ra: BR-CLS-02, BR-CLS-03, BR-EXP-05, BR-REC-07 (người đề nghị), BR-ACC-05, BR-ACC-06, BR-ACC-09 |
-| D-35 | 3 điểm suy ra: liên kết phụ huynh đi theo học sinh và xem lịch sử lớp cũ; phiếu chuyển quỹ ghi ở hai lớp, liên kết một giao dịch; chuyển quỹ không vượt số dư khả dụng |
-| D-49 | 5 điểm suy ra: (1) khi năm học chưa kết thúc, thủ quỹ hiện tại là người giữ quỹ của lớp và có `CashHandover.Confirm` trong phạm vi được giao; (2) lớp đã kết thúc năm học phải có người giữ quỹ được phân công mới **hoàn tất** được bàn giao tiền thu hộ; (3) sửa số tiền phiếu chi chờ duyệt thì giữ chỗ cập nhật theo số mới **sau khi kiểm tra hợp lệ**; (4) khi chuyển lớp, số dư cá nhân chuyển sang **chờ bàn giao sau khi việc chuyển lớp được xác nhận**, không dùng được ở lớp mới trước khi bàn giao hoàn tất; (5) Quản trị có `Collection.View`, `Expense.View`, nhưng không mặc nhiên có `Receipt.View` hay quyền xem danh tính trong biên nhận |
-| D-42 | 3 điểm suy ra: (1) thủ quỹ chỉ xem công nợ cũ của học sinh đang học lớp mình; (2) không mặc định cấp `Receipt.View` cho Quản trị, tách khỏi quyền xem báo cáo; (3) thu hộ ghi vào sổ quỹ lớp gốc, lớp thu hộ chỉ hiển thị "Đã thu hộ", không tính vào số dư quỹ lớp thu hộ |
+| D-01 | Hệ thống quản lý **một quỹ lớp**; không quản lý trường, năm học, nhiều lớp, phê duyệt. *(Sửa 2026-11-04: có 3 vai trò – xem D-13)* *(Sửa 2026-11-05: một giáo viên quản lý **nhiều quỹ** – D-25; vẫn không quản lý trường / năm học / phê duyệt)* |
+| D-02 | Thủ quỹ đầu tiên và quỹ được tạo bằng lệnh quản trị trên server; không đăng ký công khai *(Thay bằng D-24, 2026-11-05: giáo viên tự đăng ký; lệnh server chỉ còn `create-teacher`, `reset-password`, `disable-account`, `enable-account`)* |
+| D-03 | Khoản chi lớn hơn số dư **vẫn được lưu**; hệ thống cảnh báo số dư âm |
+| D-04 | Tháng chỉ là kỳ báo cáo; số dư cộng dồn; số dư cuối tháng trước = số dư đầu tháng sau |
+| D-05 | Thu / chi lưu là có hiệu lực ngay – không có yêu cầu, phiếu, duyệt, xác nhận |
+| D-06 | Đăng nhập bằng cookie session, mật khẩu băm PBKDF2 |
+| D-07 | Ngày nghiệp vụ theo giờ Asia/Ho_Chi_Minh |
+| D-08 | Thiết kế database cũ được thay bằng baseline `InitialClassFund`; tài liệu ghi đè tại chỗ |
+| D-13 | *(Thay bằng D-26, 2026-11-05)* **3 vai trò**: Thủ quỹ (quản lý), GVCN (chỉ xem toàn bộ), Phụ huynh (chỉ xem dữ liệu công khai). Phân quyền theo permission ở backend. Phụ huynh không có chức năng nộp tiền, báo chuyển khoản hay đề nghị chi (task 2026-11-04; trả lời Q-05) |
+| D-14 | Hủy giao dịch **bắt buộc có lý do** (task 2026-11-04: "hủy có lý do") |
+| D-15 | Thiết kế UI/UX v2 thay thế toàn bộ trên Design Canvas hiện có (cùng link), đổi tên dự án thành "Quỹ Lớp – UI/UX 3 vai trò" *(2026-11-05: Canvas đổi tên thành "Quỹ Lớp – UI/UX Giáo viên · Học sinh · Phụ huynh", cùng link – D-24 → D-34)* |
+| D-10 | *(Duyệt 2026-11-04 – trước đó là quyết định tạm ở mục 2)* *(Người cấp tài khoản đổi thành GVCN – D-27, D-28, 2026-11-05; nguyên tắc mật khẩu tạm giữ nguyên)* Thành viên được tạo với **mật khẩu tạm ngẫu nhiên**, bắt buộc đổi ở lần đăng nhập đầu; không ghi mật khẩu rõ vào log |
+| D-11 | *(Duyệt 2026-11-04; **giữ nguyên** 2026-11-05 – xem mục 1c)* Một quỹ có thể có **nhiều thủ quỹ**; mỗi thao tác ghi xác định đúng người thực hiện; **không khóa / hạ quyền thủ quỹ hoạt động cuối cùng**; lưu lịch sử thay đổi và người thực hiện |
+| D-12 | *(Duyệt 2026-11-04)* Phụ huynh xem báo cáo **mọi tháng**, chỉ dữ liệu công khai; không có thao tác công bố tháng |
+| D-16 | *(Thay bằng D-29, 2026-11-05: không còn "đổi vai trò"; GVCN phân công / thu hồi thủ quỹ)* *(Trả lời Q-11, 2026-11-04)* Người có `Member.Manage` **đổi được vai trò** thành viên; không tự đổi vai trò của chính mình; không hạ quyền thủ quỹ hoạt động cuối cùng; nhật ký ghi vai trò cũ / mới, người thực hiện, thời điểm; quyền luôn xác định lại từ dữ liệu backend |
+| D-17 | *(Trả lời Q-12, 2026-11-04; áp dụng cho học sinh chưa phân công – 2026-11-05)* Phụ huynh chỉ thấy **họ tên và vai trò** của thủ quỹ / GVCN; không email, số điện thoại, liên hệ cá nhân |
+| D-18 | *(B2)* Khoản **công khai** đã hủy: phụ huynh thấy nhãn "Đã hủy" và ngày hủy (lọc trạng thái "Đã hủy"); không tính vào số dư. Lý do hủy và người hủy **không** hiện cho phụ huynh (giữ nguyên tắc không lộ thông tin nội bộ – xem mục 3, X-02) |
+| D-19 | *(B3)* Thêm `UpdatedBy`, `CancelledBy` (nullable) vào `FundTransaction`, `UpdatedBy` vào `FundMember`; dữ liệu cũ được điền từ `AuditLog` nếu có, không sửa giá trị khác |
+| D-20 | *(B4)* Tổng thu / chi trên Tổng quan là **cộng dồn từ khi lập quỹ**; số liệu tháng hiện tại hiển thị ở nhóm riêng có nhãn rõ |
+| D-21 | *(B5)* Không thêm ghi chú nhận diện học sinh / thành viên trong v1.1 |
+| D-22 | *(B6)* Bộ lọc danh mục của phụ huynh chỉ gồm danh mục **đang hiện** và có **ít nhất một khoản công khai** (đang hiệu lực hoặc đã hủy); ô "Khoản khác" luôn hiện, không phụ thuộc bộ lọc |
+| D-23 | *(B7)* Giữ hành vi backend: mật khẩu đúng nhưng tài khoản bị khóa → thông báo "Tài khoản đang bị khóa, liên hệ thủ quỹ"; sai mật khẩu → thông báo chung *(Sửa 2026-11-05: "… liên hệ giáo viên chủ nhiệm")* |
 
-### 1.7 Quyết định lần 6 (đóng Q-38 → Q-46)
+## 1b. Quyết định 2026-11-05 – Mô hình Giáo viên · Học sinh · Phụ huynh
 
-| Mã | Từ câu hỏi | Quyết định |
-|---|---|---|
-| D-50 | Q-38 | **Duyệt phương án xử lý chênh lệch:** GVCN lớp gốc duyệt; lớp đã khóa sổ hoặc không còn GVCN phụ trách → Quản trị duyệt. **Người đề xuất không tự duyệt.** Bị từ chối: chênh lệch vẫn chưa xử lý, không làm thay đổi số dư. (Điều chỉnh D-44: GVCN lớp gốc là người **duyệt**, người đề xuất: Q-47) |
-| D-51 | Q-39 | **4 phương án xử lý chênh lệch:** sửa sai trước ghi nhận, bàn giao bổ sung, ghi nhận thiếu hụt, ghi nhận tiền thừa. Mỗi phương án có chứng từ, người duyệt và ảnh hưởng số dư riêng. Không sửa trực tiếp chứng từ gốc đã hoàn tất (ảnh hưởng số dư cụ thể của từng phương án: Q-48) |
-| D-52 | Q-40 | Quản trị có `Collection.View`, `Expense.View` toàn trường và **được xem danh tính học sinh trong báo cáo nội bộ**. Người giữ quỹ xem báo cáo theo lớp – năm học được phân công. Xuất báo cáo cần `Report.Export`. Không mặc nhiên cấp `Receipt.View` |
-| D-53 | Q-41 | **Phiếu hoàn trả** chỉ `Completed` sau khi **thủ quỹ xác nhận đã thực tế trả tiền** và lưu minh chứng. GVCN duyệt chỉ đưa phiếu sang **chờ thực hiện hoàn trả** |
-| D-54 | Q-42 | **Không cho tạo phiếu thanh toán nợ** khi số nợ còn có thể thu = 0. Nếu thực tế đã nhận tiền: ghi nhận theo nghiệp vụ **số dư cá nhân**. Thu vượt nợ: tách phần thanh toán nợ và phần tiền thừa |
-| D-55 | Q-43 | Tiền vượt nợ (kể cả do thủ quỹ lớp cũ thu) thuộc **số dư cá nhân**, không thuộc quỹ lớp cũ. Thủ quỹ lớp cũ lập **bàn giao số dư cá nhân**; thủ quỹ lớp mới xác nhận; chỉ sau khi xác nhận mới khả dụng tại lớp mới |
-| D-56 | Q-44 | **Quản trị xác nhận** việc chuyển lớp; không có bước xác nhận riêng từ GVCN lớp mới. Bàn giao số dư cá nhân là nghiệp vụ riêng |
-| D-57 | Q-45 | **Hủy chứng từ:** người tạo được hủy chứng từ của mình khi **còn chờ xử lý**; người duyệt được **từ chối**. Chứng từ **đã duyệt nhưng chưa hoàn tất** phải có **quy trình hủy riêng**. Chứng từ **đã hoàn tất** không được xóa / sửa trực tiếp; phải tạo **chứng từ điều chỉnh** hoặc **đảo giao dịch** có liên kết chứng từ gốc. (Điều chỉnh D-27/D-28: "hủy phiếu đã duyệt / hợp lệ" nay thực hiện bằng đảo giao dịch; người tạo / duyệt: Q-49) |
-| D-58 | Q-46 | Người thu **đồng thời là** người giữ quỹ lớp gốc: **không cần** bàn giao tiền thu hộ vì không có chuyển giao vật lý. Phiếu thu và thông tin người giữ tiền vẫn phải được ghi nhận |
+PO duyệt cả 4 đề xuất (tài khoản học sinh, phụ huynh, thủ quỹ, migration) kèm điều kiện bổ sung. Cột "Trạng thái" = **trạng thái triển khai**; mọi quyết định đều **đã chốt**. 2026-11-05: mã nguồn cũ đã xóa → tất cả **Not Implemented** (xem [implementation-status.md](../implementation/implementation-status.md)). UI: Canvas.
 
-## 2. Câu hỏi đã chốt (lưu vết)
+| Mã | Quyết định | Thay / sửa | Trạng thái |
+|---|---|---|---|
+| D-24 | **Giáo viên tự đăng ký**: họ tên, email, mật khẩu, xác nhận mật khẩu. Tài khoản luôn là *Giáo viên* – request không chọn được vai trò. Không tạo quỹ mặc định. Chưa có xác minh email (xem PD-01) | Thay D-02 | Not Implemented |
+| D-25 | Một giáo viên **quản lý nhiều quỹ** và tự tạo quỹ. Quỹ mới có danh mục mặc định, trạng thái **"Chưa phân công thủ quỹ"** | Sửa D-01 | Not Implemented |
+| D-26 | Vai trò **trong từng quỹ** suy ra từ dữ liệu, không lưu và không nhận từ client: **GVCN** = người phụ trách quỹ (`Fund.OwnerUserId`) – xem toàn bộ (kể cả khoản không công khai, ghi chú, lý do hủy, người thực hiện), quản lý thông tin quỹ, học sinh, phụ huynh, phân công thủ quỹ; **không** thêm / sửa / hủy giao dịch, **không** quản lý danh mục. **Thủ quỹ** = học sinh của quỹ có phân công đang hiệu lực – quản lý thu chi và danh mục, chỉ xem danh sách thành viên. **Học sinh** chưa phân công và **phụ huynh** – chỉ dữ liệu công khai | Thay D-13 | Not Implemented |
+| D-27 | **Tài khoản học sinh**: không bắt buộc email. GVCN cấp **tên đăng nhập + mật khẩu tạm** sinh ngẫu nhiên an toàn, chỉ hiển thị **một lần**, không lưu / ghi log dạng rõ; bắt buộc đổi ở lần đăng nhập đầu. Học sinh **chưa kích hoạt** (chưa đổi mật khẩu tạm) không được phân công thủ quỹ. Học sinh chưa phân công chỉ xem dữ liệu công khai. Học sinh thuộc **đúng một quỹ** | Sửa D-10 | Not Implemented |
+| D-28 | **Phụ huynh**: một tài khoản / email, liên kết được nhiều học sinh ở nhiều quỹ; v1 mỗi học sinh **một** email phụ huynh. Email đã có tài khoản phụ huynh → chỉ tạo liên kết, không tạo tài khoản mới. Chưa có → tạo tài khoản với mật khẩu tạm ngẫu nhiên, hiển thị **một lần** cho GVCN tự chuyển; bắt buộc đổi ở lần đầu. **Không** giả định email đã được gửi. GVCN đóng màn hình là không xem lại được mật khẩu. Email đang thuộc tài khoản giáo viên / học sinh → từ chối (`parent.email_in_use`). Phụ huynh **không** nhận quyền thủ quỹ khi con là thủ quỹ | Sửa D-10 | Not Implemented |
+| D-29 | **Thủ quỹ**: một quỹ có thể có **nhiều thủ quỹ** (giữ D-11). GVCN phân công / thu hồi. Đổi người: phân công người mới thành công **trước**, rồi thu hồi người cũ. **Không** thu hồi được thủ quỹ cuối cùng của quỹ đã có thủ quỹ (`treasurer.last`). Lưu lịch sử phân công / thu hồi, người thực hiện, thời điểm. Thủ quỹ chỉ xem danh sách thành viên – không tạo tài khoản, không đổi vai trò. GVCN quản lý thông tin quỹ; thủ quỹ quản lý danh mục | Thay D-16 | Not Implemented |
+| D-30 | **Migration dữ liệu cũ**: người phụ trách cũ (`OwnerUserId`) trở thành **GVCN** của quỹ; quỹ thành "Chưa phân công thủ quỹ"; **không** giữ người lớn cũ làm thủ quỹ; không xóa giao dịch, AuditLog, dữ liệu; migration bổ sung, giữ dữ liệu. Người phụ trách cũ chỉ ghi chép lại được khi có học sinh được phân công thủ quỹ (thực chất: chính học sinh đó ghi) | – | Not Implemented (thiết kế migration `TeacherStudentParent`) |
+| D-31 | Phạm vi tài khoản: **giáo viên** và **phụ huynh** có thể liên quan nhiều quỹ; **học sinh** đúng một quỹ. Quy tắc "mỗi tài khoản thuộc đúng một quỹ" của v1.2 hết hiệu lực (xem mục 1c) | Thay quy tắc ở FR §3, BR-13 | Not Implemented |
+| D-32 | API theo quỹ: `/api/v1/funds/{fundId}/…`. Không dùng đường dẫn cũ `/fund`, `/transactions`, `/categories` (của R1, đã xóa). Quyền xác định từ phiên đăng nhập + dữ liệu, không từ `teacherId` / `role` gửi lên | – | Not Implemented |
+| D-33 | Không có Email Service: hệ thống **không gửi** email; response liên kết phụ huynh có `emailSent = false`; UI ghi rõ "Hệ thống không gửi email – hãy tự chuyển thông tin" | – | Not Implemented; UI: Canvas |
+| D-34 | **Đăng nhập không chọn vai trò**: một ô "Email hoặc tên đăng nhập" + mật khẩu; hệ thống tự xác định loại tài khoản và vai trò trong từng quỹ (2026-11-05) | Sửa FR-13 | Not Implemented; UI: Canvas |
+| D-35 | **Xóa mã nguồn** Backend / Frontend cũ (2026-11-05); giai đoạn hiện tại chỉ hoàn thiện Docs + Canvas làm Source of Truth | – | Đã thực hiện |
 
-| Mã | Kết quả |
-|---|---|
-| Q-01 → Q-19, F-1 → F-9 | D-01 → D-21 |
-| Q-20 | D-22 → D-26 |
-| Q-21 · Q-22 · Q-23 · Q-24 · Q-25 | D-29 · D-30 · D-31, D-32 · D-33 · D-34 |
-| Q-26 · Q-27 · Q-28 · Q-29 · Q-30 · Q-31 | D-36 · D-37 · D-38 · D-39 · D-40 · D-41 |
-| Q-32 · Q-33 · Q-34 · Q-35 · Q-36 · Q-37 | D-43 · D-44 · D-45 · D-46 · D-47 · D-48 |
-| Q-38 · Q-39 · Q-40 · Q-41 · Q-42 · Q-43 · Q-44 · Q-45 · Q-46 | D-50 · D-51 · D-52 · D-53 · D-54 · D-55 · D-56 · D-57 · D-58 |
+### 1c. Đối chiếu D-11 (yêu cầu của PO)
+
+- **D-11 đã duyệt** (mục 1) chỉ gồm: một quỹ có thể có **nhiều thủ quỹ**; mỗi thao tác ghi xác định đúng người thực hiện; không khóa / hạ quyền thủ quỹ hoạt động cuối cùng; lưu lịch sử. **Không** có quy tắc "mỗi tài khoản thuộc đúng một quỹ".
+- Quy tắc "mỗi tài khoản thuộc đúng 1 quỹ với 1 vai trò" chỉ nằm ở **D-11 bản tạm** (mục 2, trước khi duyệt) và bị dẫn sai nguồn là "D-11" ở: `functional-requirements.md` §3, `business-rules-and-processes.md` BR-13, `data-dictionary.md` (`FundMember.UserId UNIQUE`), `database-design-decisions.md` DD-16. **Mâu thuẫn tài liệu** – đã sửa nguồn trong các file đó.
+- Áp dụng quyết định 2026-11-05: **giữ** phần "nhiều thủ quỹ / không thu hồi thủ quỹ cuối cùng / lưu lịch sử" (D-11 → D-29); quy tắc "một tài khoản một quỹ" **chỉ còn** cho học sinh (D-31).
+- Mâu thuẫn khác được xử lý: D-02 (đăng ký) → D-24; D-10 (ai cấp tài khoản) → D-27/D-28; D-13 (GVCN chỉ xem) → D-26 (GVCN quản lý con người nhưng không ghi thu chi); D-16 (đổi vai trò) → D-29.
+
+### 1d. Cần PO quyết định (Pending Decision)
+
+| Mã | Vấn đề | Đang làm | Phương án |
+|---|---|---|---|
+| PD-01 | Đăng ký giáo viên **chưa xác minh email**: người khác có thể đăng ký trước bằng email của một phụ huynh → GVCN không tạo được tài khoản phụ huynh cho email đó (`parent.email_in_use`) | Chấp nhận rủi ro, ghi nhận | Thêm xác minh email khi có Email Service |
+| PD-02 | Phụ huynh quên mật khẩu | Chỉ người vận hành (`reset-password`); GVCN **không** đặt lại được vì phụ huynh có thể thuộc quỹ của giáo viên khác | GVCN của học sinh liên kết được đặt lại khi tài khoản chưa kích hoạt |
+| PD-03 | GVCN khóa / mở khóa tài khoản học sinh | Chưa có trong ứng dụng (chỉ lệnh server) | Thêm thao tác trên Chi tiết học sinh |
+| PD-04 | Học sinh rời lớp / chuyển lớp | Chưa có; không xóa học sinh | Đánh dấu "đã rời", thu hồi thủ quỹ, khóa tài khoản |
+| PD-05 | Chuyển quỹ cho giáo viên khác (đổi GVCN) | Chưa có | Lệnh vận hành hoặc màn hình chuyển giao |
+| PD-06 | Thu hồi thủ quỹ khi tài khoản học sinh đó bị khóa / đặt lại mật khẩu (thủ quỹ "tạm không hoạt động") | Phân công vẫn còn; học sinh không thao tác được tới khi đổi mật khẩu / mở khóa; quy tắc thủ quỹ cuối cùng chỉ đếm phân công | Đếm cả trạng thái tài khoản như BR-19 cũ |
+
+## 2. Quyết định tạm – áp dụng phương án đề xuất, chờ PO xác nhận
+
+Người dùng chưa chọn phương án cho các câu hỏi dưới đây (2026-11-04), nên thiết kế đang dùng phương án đề xuất. **Cập nhật 2026-11-04 (lượt 2):** D-10, D-11, D-12 đã được duyệt và chuyển lên mục 1 (giữ dòng gốc dưới đây để lưu lịch sử). D-09 vẫn chờ, gắn với B1.
+
+| Mã | Quyết định tạm | Phương án khác | Ảnh hưởng nếu đổi |
+|---|---|---|---|
+| D-09 | **Công khai theo từng giao dịch**: cờ `IsPublic`, mặc định bật; dữ liệu đã có được coi là công khai. Phụ huynh thấy số dư và tổng thật; khoản không công khai gộp thành dòng "Khoản khác (không công khai chi tiết)" | (a) Công khai tất cả, chỉ ẩn ghi chú; (b) Công bố theo tháng; (c) Kết hợp (b) với cờ từng khoản | Cột `IsPublic`, ô tick trên T-01, truy vấn phạm vi công khai |
+| D-10 | **Thủ quỹ tạo tài khoản** GVCN / phụ huynh / thủ quỹ khác. Hệ thống sinh mật khẩu tạm hiển thị **một lần**; người dùng bắt buộc đổi mật khẩu khi đăng nhập lần đầu. Không gửi email | (a) Liên kết mời có hạn; (b) Chỉ tạo bằng lệnh server | Màn hình T-02, cột `MustChangePassword`, API `/members` |
+| D-11 | **Một quỹ có thể có nhiều thủ quỹ**, luôn còn ít nhất 1 thủ quỹ đang hoạt động; **mỗi tài khoản thuộc đúng 1 quỹ** với 1 vai trò | Đúng 1 thủ quỹ; hoặc 1 tài khoản thuộc nhiều quỹ | Ràng buộc `UQ_FundMember_UserId`, quy tắc `member.last_treasurer` |
+| D-12 | Phụ huynh xem được **báo cáo của mọi tháng** (bản công khai); không có thao tác "công bố tháng" | Chỉ tháng thủ quỹ đã công bố | Thêm bảng / cờ công bố tháng |
 
 ## 3. Câu hỏi còn mở
 
-Phát sinh khi đối chiếu D-50 → D-58 với tài liệu hiện có và khi thiết kế database. "Đề xuất của BA" chỉ là gợi ý, **chưa phải quyết định**; thiết kế database hiện dùng đề xuất này làm **giả định tạm** (đánh dấu trong [database-design-decisions.md](../database/database-design-decisions.md)).
+| Mã | Câu hỏi | Đang làm | Phương án khác |
+|---|---|---|---|
+| Q-01 | Quỹ đã có tiền trước khi dùng ứng dụng: nhập **số dư ban đầu** thế nào? | Ghi một khoản thu "Số dư chuyển sang", danh mục "Thu khác" | Thêm trường số dư ban đầu |
+| Q-02 | Có cho ghi giao dịch **ngày trong tương lai**? | Không | Cho phép |
+| Q-03 | Có cần **khóa tháng** đã báo cáo? | Không khóa; sửa tháng cũ thì các tháng sau tự tính lại | Khóa theo tháng |
+| Q-04 | Có cần danh sách **học sinh đã đóng quỹ**? | Không; ghi trong nội dung / ghi chú | Danh sách học sinh + đánh dấu theo đợt |
+| Q-06 | **Đính kèm ảnh hóa đơn**? | Không | 1 ảnh / giao dịch |
+| Q-07 | **Quên mật khẩu** tự phục vụ? | Thủ quỹ đặt lại mật khẩu tạm cho thành viên; thủ quỹ quên mật khẩu → thủ quỹ khác hoặc người vận hành (`reset-password`) đặt lại | Email đặt lại |
+| Q-08 | **Xuất báo cáo** Excel / PDF / in? | Không | Xuất báo cáo tháng |
+| Q-09 | Danh mục mặc định có phù hợp? | Thu: "Đóng quỹ", "Thu khác". Chi: "Văn phòng phẩm", "Sinh hoạt, liên hoan", "Khen thưởng", "Chi khác" | Danh sách khác |
+| Q-10 | Có **khôi phục** giao dịch đã hủy? | Không | Cho khôi phục |
+| Q-11 | Có cần **đổi vai trò** của một thành viên (ví dụ phụ huynh thành thủ quỹ)? | ~~Không trong v1.1~~ → **Đã trả lời: có** (D-16) | – |
+| Q-12 | Phụ huynh có được thấy **tên thủ quỹ / GVCN** trong thông tin quỹ? | **Đã trả lời** (D-17): họ tên + vai trò, không liên hệ | – |
 
-| Mã | Câu hỏi | Chỗ trống / mâu thuẫn | Đề xuất của BA | Trạng thái |
-|---|---|---|---|---|
-| Q-47 | **Ai đề xuất** phương án xử lý chênh lệch? | D-44 nói GVCN lớp gốc đề xuất; D-50 nói GVCN lớp gốc duyệt và người đề xuất không tự duyệt → GVCN không thể vừa đề xuất vừa duyệt | Người nhận bàn giao (người lập biên bản) đề xuất; GVCN lớp gốc (hoặc Quản trị) duyệt | Mở |
-| Q-48 | **Ảnh hưởng số dư** của 4 phương án (D-51), nhất là: thiếu hụt làm giảm quỹ lớp gốc hay số dư cá nhân, có ghi nợ cho người bàn giao không; tiền thừa ghi tăng vào đâu | D-51 nói "ảnh hưởng số dư riêng" nhưng chưa nêu cụ thể | Sửa sai: không đổi số dư · Bàn giao bổ sung: không đổi số dư, chỉ hoàn tất bàn giao · Thiếu hụt: giảm quỹ lớp gốc (bàn giao tiền thu hộ) hoặc giảm số dư cá nhân (bàn giao tiền thừa) · Tiền thừa: tăng tương ứng ở cùng đối tượng | Mở |
-| Q-49 | (a) **Quy trình hủy riêng** cho chứng từ đã duyệt nhưng chưa hoàn tất (phiếu hoàn trả chờ thực hiện): ai đề nghị, ai duyệt? (b) **Đảo giao dịch** cho từng loại chứng từ đã hoàn tất (phiếu thu, thu khác, phiếu chi, miễn giảm, chuyển quỹ, hoàn trả): ai tạo, ai duyệt? | D-57 yêu cầu quy trình riêng nhưng chưa nêu người thực hiện | (a) Thủ quỹ đề nghị, GVCN duyệt. (b) Giữ nguyên người có quyền "hủy" trước đây: thủ quỹ tạo đảo phiếu thu / thu khác (GVCN duyệt); GVCN tạo đảo phiếu chi / miễn giảm / hoàn trả (Quản trị duyệt); chuyển quỹ: GVCN lớp chuyển tạo, Quản trị duyệt | Mở |
-| Q-50 | **Phiếu chi** đã duyệt có cần bước "thủ quỹ xác nhận đã chi tiền" như phiếu hoàn trả (D-53) không? | D-53 thêm bước thực hiện cho hoàn trả, phiếu chi chưa có | Không: phiếu chi hoàn tất khi GVCN duyệt (giữ D-15) | Mở |
-| Q-51 | **Miễn giảm** được duyệt khi học sinh đã nộp một phần / đủ: phần đã nộp vượt số phải nộp mới xử lý thế nào? | Chưa có quy tắc; miễn giảm có thể làm số đã nộp lớn hơn số phải nộp | Chặn: số miễn giảm ≤ nợ chưa thanh toán − nợ đang giữ chỗ | Mở |
-| Q-52 | Đảo giao dịch / ghi nhận thiếu hụt có được làm **số dư quỹ lớp âm** không (ví dụ đảo phiếu thu sau khi tiền đã chi)? | D-17 chỉ cấm phiếu chi vượt số dư | Không cho âm: chặn đảo / thiếu hụt nếu vượt số dư khả dụng; phải xử lý bằng nghiệp vụ khác | Mở |
-| Q-53 | Một phiếu thu có được nộp cho **nhiều học sinh** (anh chị em) không? | Chưa quy định | Không: mỗi phiếu thu cho một học sinh; phụ huynh nhiều con lập nhiều phiếu | Mở |
-| Q-54 | Một chênh lệch có được xử lý bằng **nhiều phương án kết hợp** (ví dụ bàn giao bổ sung một phần + ghi nhận thiếu hụt phần còn lại) không? | D-51 liệt kê phương án, chưa nói có kết hợp | Có: nhiều phương án đã duyệt cộng lại bằng đúng số chênh lệch thì chênh lệch mới được đóng | Mở |
-| Q-55 | **Miễn giảm do GVCN đề nghị** thì ai duyệt? | BR-REC-07 cho GVCN vừa đề nghị vừa duyệt, nhưng nguyên tắc phân quyền 2 yêu cầu người lập ≠ người duyệt (phát sinh khi thiết kế CHECK `ApprovedBy <> CreatedBy`) | Quản trị duyệt khi người đề nghị là GVCN | Mở |
-| Q-56 | Học sinh **chuyển lớp khi đang có phiếu hoàn trả chờ** (chờ duyệt / chờ thực hiện) ở lớp cũ: phiếu xử lý tiếp ở lớp cũ hay hủy để lớp mới lập lại? | D-38 / D-56 chưa nói trường hợp này (phát sinh khi thiết kế `PendingHandoverAmount`) | Xử lý tiếp ở lớp cũ (vẫn giữ chỗ); chỉ phần số dư còn lại chuyển sang chờ bàn giao | Mở |
+## 4. Chờ PO xác nhận (lượt 2026-11-04)
+
+> **Cập nhật 2026-11-05:** PO đã chốt **B1 = P1** (bảo vệ nội dung, chấp nhận số tiền suy ra được; cảnh báo trên form – D-09 chốt theo P1), **X-01** = phạm vi toàn bộ lịch sử quỹ, **X-02** = không hiện lý do / người hủy cho phụ huynh (và học sinh chưa phân công). Phần dưới giữ để lưu lịch sử.
+
+### B1 – Không để lộ số tiền khoản ẩn duy nhất trong tháng
+
+**Vì sao chưa áp dụng được.**
+- Phụ huynh được xem (đã chốt):
+  - số dư hiện tại chính xác;
+  - số dư đầu / cuối từng tháng (D-12);
+  - từng khoản công khai.
+- Từ đó luôn tính được tổng khoản ẩn của tháng: `(cuối tháng − đầu tháng) − (thu công khai − chi công khai)`.
+- Nếu tháng chỉ có **một** khoản ẩn, tổng này chính là số tiền của khoản đó.
+- Ngoài ra, phụ huynh xem số dư trước và sau thời điểm thủ quỹ ghi cũng biết ngay số tiền.
+- ⇒ Không thể vừa giữ số dư chính xác theo thời gian thực, vừa bảo đảm tuyệt đối không suy ra được số tiền.
+
+| Phương án | Riêng tư | Đối chiếu báo cáo |
+|---|---|---|
+| **P1 (đề xuất)**: Bảo vệ *nội dung*, chấp nhận *số tiền* suy ra được. <br>• Giữ dòng "Khoản khác" theo tháng, không có số lượng, ngày, danh mục. <br>• Form thủ quỹ cảnh báo khi tắt công khai: "Số tiền vẫn tính vào số dư phụ huynh thấy; đây là khoản không công khai duy nhất trong tháng nên phụ huynh có thể suy ra số tiền". | Nội dung, ghi chú, ngày, danh mục, số lượng được bảo vệ. Số tiền suy ra được nếu chỉ có 1 khoản; thủ quỹ được báo trước | Đầy đủ: mọi số tổng của phụ huynh khớp báo cáo thủ quỹ |
+| **P2**: Ngưỡng k = 2. <br>• Tháng có < 2 khoản ẩn cùng loại thì phần ẩn **dồn sang** dòng "Khoản khác (gộp nhiều tháng)" cho tới khi đủ ngưỡng. <br>• Tổng thu / chi tháng của phụ huynh chỉ gồm khoản công khai + phần đã đủ ngưỡng. | Không suy ra được qua báo cáo tháng. **Vẫn suy ra được** qua số dư hiện tại (xem trước / sau) | Tổng tháng của phụ huynh ≠ báo cáo thủ quỹ; chỉ số dư cộng dồn khớp. Cần giải thích trên giao diện |
+| **P3**: Phụ huynh chỉ thấy số dư và báo cáo đến **hết tháng trước**, kết hợp P2. | Mạnh nhất: không xem được biến động trong tháng | Số liệu trễ tối đa 1 tháng; trái với "số dư hiện tại" của phạm vi |
+
+Đề xuất **P1**: đơn giản, minh bạch, đối chiếu được, thủ quỹ chủ động quyết định. Chờ PO chọn; D-09 chỉ chốt sau B1.
+
+### X-01 – Phạm vi "có giao dịch công khai" trong B6
+Đang hiểu là "trong toàn bộ lịch sử quỹ" (danh sách ổn định). Phương án khác: chỉ trong kỳ đang lọc.
+
+### X-02 – Lý do hủy với phụ huynh (B2)
+B2 không nói rõ. Đang **không** hiện lý do / người hủy cho phụ huynh, vì lý do có thể chứa thông tin nội bộ. Nếu muốn hiện, cần quy ước lý do hủy là thông tin công khai.
+
+## 5. Lịch sử thay đổi tài liệu
+
+| Ngày | Thay đổi |
+|---|---|
+| 2026-11-04 | v1.0 – D-01 → D-08, Q-01 → Q-10 |
+| 2026-11-04 | v1.1 – thêm D-13 → D-15 (chốt), D-09 → D-12 (tạm), Q-11, Q-12; Q-05 đã trả lời |
+| 2026-11-04 | v1.2 – D-10, D-11, D-12 duyệt; Q-11 → D-16; Q-12 → D-17; B2 → B7 → D-18 → D-23; thêm mục 4 (B1, X-01, X-02 chờ xác nhận). Không xóa dòng cũ |
+| 2026-11-05 | v2.0 – mô hình Giáo viên · Học sinh · Phụ huynh: D-24 → D-33 (mục 1b), đối chiếu D-11 (mục 1c), PD-01 → PD-06 (mục 1d); ghi nhận B1 = P1, X-01, X-02 đã chốt; đánh dấu D-01, D-02, D-10, D-13, D-16, D-23 bị thay / sửa. Không xóa dòng cũ |
+| 2026-11-05 | v2.1 – thêm D-34 (đăng nhập không chọn vai trò), D-35 (xóa mã nguồn); trạng thái D-24 → D-33 → Not Implemented |

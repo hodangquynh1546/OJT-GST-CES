@@ -1,223 +1,53 @@
-# Wireframes (low-fidelity)
+# Wireframes
 
-> Phiên bản: 0.1 (bản nháp, chờ duyệt) · Ngày: 2026-11-03
-> Wireframe ASCII chỉ thể hiện bố cục và thứ tự thông tin; màu, khoảng cách và kiểu chữ theo Kendo Theme Default. Ký hiệu: `[Nút]`, `[▾ chọn]`, `( ) / (•)` radio, `[ ] / [x]` checkbox, `░` vùng vô hiệu.
+> v3.1 · 2026-11-05 · Bản chuẩn là các artboard tương tác trên Design Canvas: https://claude.ai/artifact/D5JVqKkBFqQhmcp5spfw6Y. File này chỉ tóm tắt bố cục. Trạng thái triển khai: **Not Implemented**.
 
-## W-01 Khung ứng dụng – desktop
+## Desktop (≥ 1024)
 ```text
-┌──────────────────────────────────────────────────────────────────────────────────────┐
-│ ☰  SCHOOL FUND   [Phạm vi: Thủ quỹ · 6A / 2026-2027      ▾]   [Việc cần xử lý ③] [🔔②] [Bình ▾] │
-├───────────────────┬──────────────────────────────────────────────────────────────────┤
-│ ▣ Tổng quan       │ Lớp 6A / 2026-2027 › Tổng quan                                   │
-│ ✚ Ghi thu         │                                                                  │
-│ ⇄ Xác nhận CK  ②  │   (nội dung màn hình)                                            │
-│ ▤ Đợt thu         │                                                                  │
-│ ↓ Thu khác        │                                                                  │
-│ ↑ Phiếu chi       │                                                                  │
-│ ↺ Hoàn trả        │                                                                  │
-│ ⇆ Bàn giao        │                                                                  │
-│ ▦ Sổ quỹ          │                                                                  │
-│ ▥ Báo cáo         │                                                                  │
-└───────────────────┴──────────────────────────────────────────────────────────────────┘
+┌ AppHeader: Quỹ Lớp | Quỹ lớp 5A · Đổi quỹ ▾ (GVCN / PH) [nhãn vai trò]       [Người dùng ▾] ┐
+├ AppNav ─────────────────┬ Nội dung (max 1200) ─────────────────────────────────────────────┤
+│ Quỹ của tôi (G / PH)    │ Tiêu đề trang                      [+ Khoản thu][+ Khoản chi] (T) │
+│ Tổng quan               │ [banner vai trò / "Chưa phân công thủ quỹ"]                       │
+│ Thu chi                 │ Cộng dồn: [Số dư][Tổng thu][Tổng chi]                             │
+│ Báo cáo                 │ Tháng này: [Thu][Chi][Chênh lệch]                                 │
+│ Học sinh & PH (G)       │ ┌ Giao dịch gần đây ─────────┐┌ Biểu đồ 3 tháng ┐                │
+│ Phân công thủ quỹ (G)   │ │ ngày · nội dung · ±tiền    │└ Thông tin quỹ ──┘                │
+│ Thông tin quỹ (G)       │                                                                  │
+│ Danh mục / Thành viên(T)│                                                                  │
+└─────────────────────────┴──────────────────────────────────────────────────────────────────┘
+G-01: lưới thẻ quỹ [tên · trạng thái thủ quỹ · số dư · học sinh · thủ quỹ] + dialog "Tạo quỹ".
+G-02: [tìm][chip lọc] bảng học sinh → drawer phải 460px (thông tin · tài khoản · phụ huynh · thủ quỹ) → dialog mật khẩu tạm một lần.
+G-03: thẻ "Đang là thủ quỹ" [Thu hồi] + bảng lịch sử; dialog radio chọn học sinh đã kích hoạt.
+S-02: [bộ lọc] [bảng | panel chi tiết 340px (Sửa / Hủy chỉ thủ quỹ)].
+A-02: thẻ đăng nhập 400px: [Email hoặc tên đăng nhập][Mật khẩu][Đăng nhập] · link Đăng ký giáo viên.
 ```
 
-## W-02 Khung ứng dụng – mobile (thủ quỹ)
+## Mobile (< 768; thiết kế 360 / 390 / 430)
 ```text
-┌──────────────────────────────┐
-│ ☰  Thủ quỹ · 6A/2026-2027 ▾ 🔔│
-├──────────────────────────────┤
-│                              │
-│   (nội dung)                 │
-│                              │
-├──────────────────────────────┤
-│ ▣ Tổng quan ✚ Ghi thu ⇄ Chờ ③ ⋯ │  ← thanh đáy cố định
-└──────────────────────────────┘
+┌ Tiêu đề màn hình                [nhãn vai trò] ┐
+│ GVCN: [+ Tạo quỹ / + Thêm học sinh / + Phân công] │
+│ Thủ quỹ / HS / PH: ┌ Số dư (nền xanh) ┐ [Thu][Chi] │
+│ Danh sách thẻ …                                 │
+│                                  (+) FAB (T)    │
+├ GVCN: Quỹ | Học sinh | Thủ quỹ | Thu chi        ┤
+├ Khác: Tổng quan | Thu chi | Báo cáo | Khác/Tài khoản ┤
 ```
+Chạm vào thẻ → bottom sheet chi tiết. Mọi dialog desktop → bottom sheet; mật khẩu tạm hiện trong sheet một lần.
 
-## W-03 TRS-01 Tổng quan thủ quỹ
-```text
-┌ Quỹ lớp 6A / 2026-2027 ───────────────────────────┐  ┌ Tiền tôi đang giữ ─────────────────┐
-│ Số dư         12.400.000 đ                        │  │ Quỹ lớp 6A          12.400.000 đ    │
-│ Đang giữ chỗ   1.250.000 đ  (2 phiếu chi chờ)     │  │ Thu hộ chưa bàn giao   250.000 đ    │
-│ ───────────────────────────                       │  │   → 5B / 2025-2026  [Bàn giao]      │
-│ KHẢ DỤNG      11.150.000 đ                        │  │ Số dư cá nhân HS       300.000 đ    │
-└───────────────────────────────────────────────────┘  └─────────────────────────────────────┘
-┌ Việc chờ ────────────────────────────────────────────────────────────────────────────┐
-│ ② Chuyển khoản chờ xác nhận   ① Bàn giao chờ tôi nhận   ① Hoàn trả chờ thực hiện     │
-└──────────────────────────────────────────────────────────────────────────────────────┘
-┌ Đợt thu đang mở ─────────────────────────────────────────────────────────────────────┐
-│ Quỹ HK1      ██████████░░  32/38 HS   hạn 15/10/2026                                 │
-│ Tham quan    ████░░░░░░░░  14/38 HS   hạn 30/11/2026                                 │
-└──────────────────────────────────────────────────────────────────────────────────────┘
-                                                                         [ ✚ Ghi thu ]
-```
+## Ma trận artboard
 
-## W-04 TRS-02 Ghi phiếu thu (thu hộ nợ cũ)
-```text
-Ghi phiếu thu
-1. Học sinh   [🔍 Nguyễn An – HS0123 (7A/2027-2028)        ▾]
+| Màn hình | GVCN | Thủ quỹ | Học sinh | Phụ huynh | Mobile |
+|---|---|---|---|---|---|
+| Đăng ký / đăng nhập / mật khẩu tạm | `TeacherRegister`, `Login` | `Login`, `ChangePasswordRequired` | như thủ quỹ | như thủ quỹ | `MobileAuth`, `Mobile360Auth` |
+| Quỹ của tôi / của con | `FundList` | – | – | `FundListParent` | `MobileTeacherAdmin`, `MobileParentFunds` |
+| Tổng quan | `OverviewTeacher` | `Overview` | `OverviewStudent` | `OverviewParent` | `MobileTeacher`, `Mobile`, `MobileStudent`, `MobileParent` |
+| Thu chi + chi tiết | `LedgerTeacher` | `Ledger` | `LedgerStudent` | `LedgerParent` | tab Thu chi |
+| Báo cáo | `ReportsTeacher` | `Reports` | `ReportsStudent` | `ReportsParent` | tab Báo cáo |
+| Thêm / sửa / hủy | – | `TransactionForm`, `TxDialog` | – | – | sheet |
+| Học sinh & phụ huynh | `Students` | – | – | – | `MobileTeacherStudents`, `Mobile360Teacher` |
+| Phân công thủ quỹ | `Treasurers` | – | – | – | `MobileTeacherTreasurers`, `Mobile430Teacher` |
+| Thông tin quỹ / Danh mục / Thành viên | `FundSettingsTeacher` | `FundSettings`, `Members` | – | – | "Khác" |
+| Tài khoản | `AccountTeacher` | `Account` | `AccountStudent` | `AccountParent` | "Khác" / "Tài khoản" |
+| Trạng thái | `States` | | | | `MobileStates` |
 
-2. Khoản nợ
-┌───┬──────────────────────────────┬───────────┬──────────┬──────────┬──────────────┐
-│   │ Đợt thu                      │ Phải nộp  │ Đã nộp   │ Chờ XN   │ Còn có thể thu│
-├───┼──────────────────────────────┼───────────┼──────────┼──────────┼──────────────┤
-│[x]│ Quỹ HK1 (7A)                 │ 400.000   │ 0        │ 0        │ 400.000      │
-│[x]│ Quỹ HK2  ⟨Nợ cũ – 6A/2026-2027⟩⟨Sau khóa sổ⟩ │ 300.000 │ 100.000 │ 0 │ 200.000  │
-│░░░│ Tham quan (7A)               │ 150.000   │ 0        │ 150.000  │ 0  (đang chờ XN)│
-└───┴──────────────────────────────┴───────────┴──────────┴──────────┴──────────────┘
-
-3. Số tiền nhận  [   700.000 ] đ    Hình thức (•) Tiền mặt ( ) Chuyển khoản   Ngày [03/11/2027]
-   Phân bổ:  Quỹ HK1 (7A) [400.000]   Quỹ HK2 – nợ cũ [200.000]
-
-4. Ảnh hưởng
-   ✔ Trả nợ quỹ 7A / 2027-2028 ............ 400.000 đ
-   ✔ Trả nợ quỹ 6A / 2026-2027 (thu hộ) ... 200.000 đ   → cần bàn giao về Dung (người giữ quỹ 6A)
-   ✔ Vào số dư cá nhân của An ............. 100.000 đ
-
-5. Ghi chú [__________________]   Đính kèm [Chọn file]
-                                                        [Hủy]  [ Lưu phiếu thu ]
-```
-
-## W-05 COM-06 Việc cần xử lý (GVCN)
-```text
-Việc cần xử lý
-[ Phiếu chi ② ] [ Hoàn trả ① ] [ Miễn giảm ① ] [ Phương án chênh lệch ① ]
-┌──────────┬───────────────────────┬────────────┬──────────┬────────────┬──────────────────┐
-│ Ngày     │ Nội dung              │ Số tiền    │ Người lập│ Khả dụng   │                  │
-├──────────┼───────────────────────┼────────────┼──────────┼────────────┼──────────────────┤
-│ 02/11    │ Mua phần thưởng HK1   │ 850.000    │ Bình     │ 11.150.000 │ [Xem] [Duyệt]    │
-│ 01/11    │ Nước uống họp PH      │ 400.000    │ Bình     │            │ [Xem] [Duyệt]    │
-└──────────┴───────────────────────┴────────────┴──────────┴────────────┴──────────────────┘
-```
-
-## W-06 FND-06 Chi tiết chứng từ (phiếu chi đã duyệt)
-```text
-Phiếu chi  ⟨Đã duyệt⟩                                            [ ↺ Đảo giao dịch ]
-┌ Thông tin ───────────────────────────┐  ┌ Ảnh hưởng tiền ───────────────────────┐
-│ Nội dung: Mua phần thưởng HK1         │  │ Quỹ 6A / 2026-2027:  − 850.000 đ      │
-│ Danh mục: Khen thưởng                 │  │ Số dư sau giao dịch: 11.550.000 đ     │
-│ Người nhận: Nhà sách ABC              │  └───────────────────────────────────────┘
-│ Ngày chi: 02/11/2026                  │  ┌ Đính kèm ─────────────────────────────┐
-│ Số tiền: 850.000 đ                    │  │ 🖼 hoa-don-0211.jpg                    │
-└───────────────────────────────────────┘  └───────────────────────────────────────┘
-┌ Lịch sử ─────────────────────────────────────────────────────────────────────────┐
-│ ● 02/11 08:10  Bình    Tạo & gửi duyệt                                          │
-│ ● 02/11 20:45  Cô Hoa  Duyệt                                                    │
-└──────────────────────────────────────────────────────────────────────────────────┘
-┌ Chứng từ liên kết ─ (chưa có) ───────────────────────────────────────────────────┐
-```
-
-## W-07 FND-07 Biên bản chênh lệch
-```text
-Biên bản chênh lệch – Bàn giao tiền thu hộ  ⟨Chưa xử lý⟩
-Từ: Chi (thủ quỹ 7A)  →  Đến: Dung (người giữ quỹ 6A / 2026-2027 – đã khóa sổ)
-Dự kiến 200.000 đ · Thực nhận 180.000 đ · Chênh lệch  − 20.000 đ (thiếu)
-Lý do: "Thiếu 1 tờ 20.000"   Minh chứng: 🖼 bien-ban.jpg
-Đã xử lý ███░░░░░░░  0 / 20.000 đ          Người duyệt: Quản trị (lớp gốc đã khóa sổ)
-
-Phương án
-┌─────────────────────┬──────────┬───────────────────────┬──────────┬──────────┬───────────┐
-│ Loại                │ Số tiền  │ Mô tả                 │ Đề xuất  │ Trạng thái│          │
-├─────────────────────┼──────────┼───────────────────────┼──────────┼──────────┼───────────┤
-│ Ghi nhận thiếu hụt  │ 20.000   │ Không xác định được…  │ Dung     │ ⟨Đã đề xuất⟩ │[Duyệt][Từ chối]│
-└─────────────────────┴──────────┴───────────────────────┴──────────┴──────────┴───────────┘
-                                                                [ ✚ Đề xuất phương án ]
-```
-
-## W-08 TCH-05 Chốt sổ năm học
-```text
-Chốt sổ – Lớp 6A / 2026-2027
- ① Kiểm tra chứng từ chờ ──── ② Đối chiếu ──── ③ Xác nhận
-┌──────────────────────────────────────────────────────────────┐
-│ ✔ Phiếu chi chờ duyệt ............ 0                         │
-│ ✖ Phiếu thu chờ xác nhận ......... 1   [Xử lý →]             │
-│ ✔ Chuyển quỹ chờ duyệt ........... 0                         │
-│ ✔ Miễn giảm chờ duyệt ............ 0                         │
-│ ✔ Bàn giao chờ xác nhận / chênh lệch 0                       │
-│ ✔ Đảo giao dịch chờ duyệt ........ 0                         │
-└──────────────────────────────────────────────────────────────┘
-                                         ░[Tiếp tục]░  (còn 1 chứng từ chờ)
-```
-
-## W-09 ADM-05 Chuyển lớp / lên lớp – bước kiểm tra ảnh hưởng
-```text
- ① Chọn học sinh ──── ② Kiểm tra ảnh hưởng ──── ③ Xác nhận
-Lớp nguồn 6A / 2026-2027 → Lớp đích [7A / 2027-2028 ▾]   Loại (•) Lên lớp ( ) Chuyển giữa năm   Hiệu lực [01/09/2027]
-┌──────────────┬──────────────────────┬──────────────────────┬──────────────────────────┐
-│ Học sinh     │ Nợ chưa thanh toán   │ Số dư cá nhân        │ Ghi chú                  │
-├──────────────┼──────────────────────┼──────────────────────┼──────────────────────────┤
-│ Nguyễn An    │ 200.000 (giữ ở 6A)   │ 0                    │                          │
-│ Trần Bảo     │ 0                    │ 150.000 → chờ bàn giao│                          │
-│ Lê Chi       │ 0                    │ 80.000 (50.000 giữ chỗ│ Hoàn trả đang chờ (Q-56) │
-└──────────────┴──────────────────────┴──────────────────────┴──────────────────────────┘
-ⓘ Nợ cũ vẫn thuộc quỹ lớp gốc. Số dư cá nhân chỉ dùng được ở lớp mới sau khi bàn giao xong.
-                                                       [Quay lại]  [ Tiếp tục → Xác nhận ]
-```
-
-## W-10 PAR-01 Trang chủ phụ huynh – mobile
-```text
-┌──────────────────────────────┐
-│ ☰  Phụ huynh · Nguyễn An ▾ 🔔│
-├──────────────────────────────┤
-│ ┌ An – Lớp 7A / 2027-2028 ┐  │
-│ └─────────────────────────┘  │
-│ ┌ CẦN NỘP ─────────────────┐ │
-│ │      600.000 đ            │ │
-│ │ Quỹ HK1 400.000 · hạn 15/11│ │
-│ │ ⚠ Nợ cũ 6A: 200.000 – quá hạn│
-│ │ [  Báo chuyển khoản  ]    │ │
-│ └───────────────────────────┘ │
-│ ┌ Đang chờ xác nhận ────────┐ │
-│ │ 150.000 đ · Tham quan     │ │
-│ └───────────────────────────┘ │
-│ ┌ Số dư cá nhân của An ─────┐ │
-│ │ 0 đ                       │ │
-│ └───────────────────────────┘ │
-│ ┌ Quỹ lớp 7A ───────────────┐ │
-│ │ 8.300.000 đ   [Xem sổ lớp]│ │
-│ └───────────────────────────┘ │
-├──────────────────────────────┤
-│ ⌂ Trang chủ  ▤ Khoản nộp  ⇪ Báo CK  ▦ Sổ lớp │
-└──────────────────────────────┘
-```
-
-## W-11 PAR-03 Báo chuyển khoản – mobile
-```text
-┌──────────────────────────────┐
-│ ←  Báo chuyển khoản          │
-├──────────────────────────────┤
-│ Khoản nộp                    │
-│ [x] Quỹ HK1 (7A)   400.000   │
-│ [x] Nợ cũ 6A – HK2 200.000   │
-│ Số tiền đã chuyển            │
-│ [            600.000 ] đ     │
-│ Ngày chuyển  [03/11/2027 📅] │
-│ Ảnh biên lai *               │
-│ [ 📷 Chụp ảnh / chọn ảnh ]   │
-│ Ghi chú [______________]     │
-│ ┌ Ảnh hưởng ───────────────┐ │
-│ │ Trả nợ 600.000 đ          │ │
-│ │ Vào số dư cá nhân 0 đ     │ │
-│ └───────────────────────────┘ │
-│ [        Gửi        ]        │
-└──────────────────────────────┘
-```
-
-## W-12 PAR-04 Sổ thu chi lớp – mobile
-```text
-┌──────────────────────────────┐
-│ ←  Sổ thu chi lớp 7A         │
-│ Số dư quỹ: 8.300.000 đ       │
-│ [Tháng 11/2027 ▾]            │
-├──────────────────────────────┤
-│ THU (tổng theo đợt)          │
-│ Quỹ HK1 ........ 12.800.000  │
-│ Thu khác (tài trợ)  500.000  │
-├──────────────────────────────┤
-│ CHI                          │
-│ 02/11 Phần thưởng HK1        │
-│       − 850.000   [🖼 Chứng từ]│
-│ 01/11 Nước uống họp PH       │
-│       − 400.000   [🖼 Chứng từ]│
-└──────────────────────────────┘
-```
+Artboard S-01 có tweak `viewState` (normal / loading / empty / error / negative / unassigned).
