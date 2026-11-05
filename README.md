@@ -23,8 +23,8 @@ Clean Architecture gồm các tầng **Api → Application → Domain**, với *
 
 ```text
 .
-├── backend/        # Mã nguồn .NET (chưa khởi tạo)
-├── frontend/       # Mã nguồn Angular (chưa khởi tạo)
+├── backend/SchoolFundAPI/   # Workspace .NET: SchoolFund.sln, src/, tests/
+├── frontend/SchoolFundUI/   # Workspace Angular: src/app/{core,shared,features}, e2e/
 ├── docs/           # Tài liệu: requirements, business-analysis, architecture, database, api, ui-design
 ├── .claude/skills/ # Skill cho Claude Code
 ├── CLAUDE.md       # Hướng dẫn cho Claude Code
@@ -34,6 +34,30 @@ Clean Architecture gồm các tầng **Api → Application → Domain**, với *
 ### Trạng thái hiện tại
 
 - [x] Khởi tạo cấu trúc thư mục dự án
-- [ ] Phân tích yêu cầu nghiệp vụ
-- [ ] Khởi tạo project backend (.NET) và frontend (Angular)
-- [ ] Thiết kế database
+- [x] Phân tích yêu cầu nghiệp vụ
+- [x] Thiết kế database (`docs/database`, chưa có migration)
+- [x] Khởi tạo project backend (.NET) và frontend (Angular) – Codebase Foundation
+- [ ] Triển khai các feature nghiệp vụ
+
+Chi tiết: [`docs/implementation/implementation-status.md`](docs/implementation/implementation-status.md).
+
+### Chạy dự án
+
+Cần .NET SDK 10, Node.js 22, Chrome và PostgreSQL. Không commit connection string hay license key.
+
+```bash
+# Backend: http://localhost:5286, Swagger ở /swagger (Development)
+cd backend/SchoolFundAPI
+dotnet user-secrets --project src/SchoolFund.Api set "ConnectionStrings:App" "<connection string>"
+dotnet run --project src/SchoolFund.Api
+dotnet test
+
+# Frontend: http://localhost:4200, /api chuyển tới backend
+cd frontend/SchoolFundUI
+npm install
+npm start
+npm test
+npm run e2e
+```
+
+`npm run build` đưa SPA vào `wwwroot` của `SchoolFund.Api`, khi đó Api phục vụ cả SPA và `/api` trên cùng origin. Kendo cần license key lúc build: đặt `KENDO_UI_LICENSE` rồi chạy `npm run license`.

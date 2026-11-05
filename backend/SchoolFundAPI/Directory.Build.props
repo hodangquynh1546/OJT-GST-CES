@@ -1,0 +1,10 @@
+<Project>
+  <!-- Cấu hình build chung theo training-doc.md: net10.0, Nullable bật, warnings as errors. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+</Project>

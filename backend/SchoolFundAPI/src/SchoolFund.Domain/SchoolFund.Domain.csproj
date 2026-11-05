@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Domain không có project reference hay NuGet nào (training-doc.md mục 2c). -->
+
+</Project>

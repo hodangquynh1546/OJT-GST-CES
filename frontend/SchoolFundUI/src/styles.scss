@@ -1,0 +1,88 @@
+// Token lấy từ Design Canvas v3.1 (docs/ui-design/ui-design-overview.md).
+:root {
+  --sf-primary: #1d5fa8;
+  --sf-primary-dark: #164a83;
+  --sf-primary-tint: #e3eefa;
+  --sf-income: #1e7a3c;
+  --sf-expense: #b3261e;
+  --sf-text: #1f2328;
+  --sf-text-muted: #59636e;
+  --sf-border: #d8dee4;
+  --sf-border-strong: #c4ccd4;
+  --sf-surface: #ffffff;
+  --sf-background: #f6f8fa;
+  --sf-subtle: #eef1f4;
+  --sf-success-fg: #1e5c33;
+  --sf-success-bg: #e6f4ea;
+  --sf-warning-fg: #6b4500;
+  --sf-warning-bg: #fff4d6;
+  --sf-danger-fg: #8f1d17;
+  --sf-danger-bg: #fde8e7;
+
+  --sf-role-teacher: #5b2a86;
+  --sf-role-teacher-tint: #f1e8fb;
+  --sf-role-treasurer: #1d5fa8;
+  --sf-role-treasurer-tint: #e3eefa;
+  --sf-role-student: #7a4b00;
+  --sf-role-student-tint: #fff1d6;
+  --sf-role-parent: #1e5c33;
+  --sf-role-parent-tint: #e6f4ea;
+
+  --sf-header-height: 56px;
+  --sf-nav-width: 232px;
+  --sf-nav-width-compact: 64px;
+  --sf-tabbar-height: 60px;
+
+  --kendo-color-primary: var(--sf-primary);
+  --kendo-color-primary-hover: var(--sf-primary-dark);
+  --kendo-color-primary-active: var(--sf-primary-dark);
+  --kendo-color-primary-emphasis: var(--sf-primary);
+  --kendo-font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--sf-background);
+  color: var(--sf-text);
+  font-family: var(--kendo-font-family);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 24px;
+  line-height: 32px;
+}
+
+a {
+  color: var(--sf-primary);
+}
+
+a:hover {
+  color: var(--sf-primary-dark);
+}
+
+.sf-card {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--sf-border);
+  border-radius: 8px;
+  background: var(--sf-surface);
+}
+
+.sf-muted {
+  color: var(--sf-text-muted);
+}
+
+.sf-money {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}

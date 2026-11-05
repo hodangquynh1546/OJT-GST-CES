@@ -43,6 +43,7 @@ yarn-error.log*
 pnpm-debug.log*
 /frontend/**/playwright-report/
 /frontend/**/test-results/
+/backend/**/wwwroot/
 
 # ===== Secrets / Environment =====
 .env
