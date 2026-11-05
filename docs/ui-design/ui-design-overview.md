@@ -1,145 +1,57 @@
-# UI/UX Design – Tổng quan
+# UI/UX – Tổng quan
 
-> Phiên bản: 0.1 (bản nháp, chờ duyệt) · Ngày: 2026-11-03
-> Căn cứ: BA v0.7 (D-01 → D-58), Database Design v0.1. Công nghệ (theo `training-doc.md`, không thay đổi): **Angular ^20.3**, TypeScript ~5.9, RxJS ~7.8, **Kendo UI for Angular 23.3.0**, **Kendo Theme Default ^14.3.0**.
-> Tài liệu này **không** chứa code Angular; tên route, component Kendo và cấu trúc thư mục chỉ để định hướng triển khai.
+> Phiên bản: **3.1 · 2026-11-05** · Mô hình **Giáo viên · Học sinh · Phụ huynh** (D-24 → D-33) · Angular 20.3 + Kendo UI 23.3.0 (Default Theme, tùy biến màu).
+> Thiết kế chuẩn (Source of Truth cho UI): Design Canvas **"Quỹ Lớp – UI/UX Giáo viên · Học sinh · Phụ huynh"** – https://claude.ai/artifact/D5JVqKkBFqQhmcp5spfw6Y (version `1793847333-84a2`).
+> Trạng thái triển khai: **Not Implemented** – chưa có frontend; mã nguồn backend / frontend cũ đã xóa ngày 2026-11-05 (xem [implementation-status.md](../implementation/implementation-status.md)). Canvas là prototype tương tác, không gọi API thật.
+> Bản 2.x (3 vai trò Thủ quỹ người lớn / GVCN chỉ xem / Phụ huynh) đã bị thay thế, xem Git history.
 
-## 1. Bộ tài liệu
+## 1. Vai trò trên giao diện
 
-| Tài liệu | Nội dung |
-|---|---|
-| [ui-design-overview.md](ui-design-overview.md) | Nguyên tắc, bố cục, quy ước hiển thị, ánh xạ Kendo, phân quyền trên UI |
-| [sitemap-and-navigation.md](sitemap-and-navigation.md) | Cây màn hình, route, menu theo vai trò, phạm vi làm việc |
-| [screen-specifications.md](screen-specifications.md) | Đặc tả 41 màn hình + 10 hộp thoại: dữ liệu, thao tác, permission, trạng thái |
-| [user-flows.md](user-flows.md) | 14 luồng sử dụng chính |
-| [wireframes.md](wireframes.md) | Wireframe ASCII cho màn hình quan trọng (desktop + mobile) |
-| [ui-open-questions.md](ui-open-questions.md) | Câu hỏi UI và giả định tạm |
-
-## 2. Nhóm người dùng
-
-| Nhóm | Vai trò BA | Thiết bị chính (đề xuất – UQ-10) | Mục tiêu chính trên UI |
+| Vai trò | Màu nhận diện | Có tài khoản bằng | Màn hình chính |
 |---|---|---|---|
-| **Admin** | Quản trị hệ thống | Desktop | Thiết lập năm học / lớp / tài khoản, chuyển lớp, duyệt chuyển quỹ, xem báo cáo toàn trường |
-| **GVCN** | Giáo viên chủ nhiệm | Desktop + mobile | Quản lý lớp, duyệt (chi, hoàn trả, miễn giảm, chênh lệch), chốt sổ |
-| **Treasurer** | Thủ quỹ (là phụ huynh) | **Mobile** + desktop | Ghi thu nhanh, xác nhận chuyển khoản, lập chi, bàn giao |
-| **Parent** | Phụ huynh | **Mobile** | Xem khoản phải nộp của con, báo chuyển khoản, xem sổ thu chi lớp |
-| *Người giữ quỹ lớp cũ* | `FundCustodian` (D-45) – không nằm trong 4 nhóm yêu cầu nhưng đã có trong BA | Mobile + desktop | Xác nhận nhận tiền thu hộ, xem báo cáo lớp được giao |
+| GVCN (giáo viên) | tím `#5b2a86` | Tự đăng ký (A-01) | G-01 Quỹ của tôi, G-02 Học sinh & phụ huynh, G-03 Phân công thủ quỹ, G-04 Thông tin quỹ, S-01 → S-03 xem đầy đủ (không ghi) |
+| Thủ quỹ (học sinh được phân công) | xanh `#1d5fa8` | GVCN cấp | S-01 → S-03 + T-01 thêm / sửa / hủy, T-02 Danh mục, T-03 Thành viên (chỉ xem) |
+| Học sinh | nâu `#7a4b00` | GVCN cấp | S-01 → S-03 bản công khai |
+| Phụ huynh | xanh lá `#1e5c33` | GVCN liên kết email | G-01 Quỹ của con, S-01 → S-03 bản công khai |
 
-Một tài khoản có thể có nhiều vai trò, ví dụ phụ huynh kiêm thủ quỹ, hoặc GVCN của nhiều lớp. UI dùng **phạm vi làm việc** để chuyển giữa các vai trò (mục 5).
+## 2. Cấu trúc Canvas (51 artboard, 8 trang)
 
-## 3. Nguyên tắc UX
-
-| # | Nguyên tắc | Áp dụng |
-|---|---|---|
-| 1 | **Ba con số luôn đi cùng nhau**: số dư – đang giữ chỗ – **khả dụng** (khả dụng nổi bật nhất) | Thẻ số dư quỹ, số dư cá nhân, số nợ còn có thể thu (D-40, D-47, D-48) |
-| 2 | **Không trộn ba loại tiền** trên cùng một con số: quỹ lớp, công nợ, số dư cá nhân là ba khối tách biệt, có nhãn và màu riêng | BR-GEN-06, BR-RPT-07 |
-| 3 | **Nợ cũ luôn có nhãn nguồn**: "Nợ cũ – 6A / 2026-2027"; lớp thu hộ chỉ thấy "Đã thu hộ" | D-31, D-42 |
-| 4 | **Xem trước ảnh hưởng tiền trước khi lưu**: form thu hiển thị "trả nợ X đ · vào số dư cá nhân Y đ"; form chi hiển thị khả dụng còn lại | D-48, D-54, D-40 |
-| 5 | **Trạng thái luôn bằng chữ + màu** (không chỉ màu) | Chip trạng thái (mục 6.3) |
-| 6 | **Hành động theo quyền và trạng thái**: không có permission ⇒ **ẩn**; có permission nhưng điều kiện chưa đủ ⇒ **hiện, vô hiệu + lý do** (tooltip) | Mục 4 |
-| 7 | **Thao tác không đảo ngược phải xác nhận** và yêu cầu lý do khi BA bắt buộc (từ chối, hủy, đảo, chốt sổ) | DLG-07, DLG-08, DLG-06, TCH-05 |
-| 8 | **Không có nút "Xóa"** cho chứng từ tài chính; chỉ "Hủy" (khi còn chờ) hoặc "Đảo giao dịch" (khi đã hoàn tất) | D-57 |
-| 9 | **Chứng từ có dòng thời gian** (ai, lúc nào, làm gì) và danh sách chứng từ liên kết (đảo, bàn giao, biên bản) | FND-06; `DocumentStatusHistory` |
-| 10 | **Mobile-first cho phụ huynh và thủ quỹ**: thao tác chính hoàn thành bằng một tay, ≤ 3 bước | PAR-*, TRS-02, TRS-03 |
-
-## 4. Phân quyền trên UI
-
-- **Server là nơi quyết định quyền**: UI chỉ phản ánh quyền. Mọi thao tác đều được API kiểm tra lại bằng `[RequirePermission]` + phạm vi.
-- Sau khi đăng nhập, UI nhận **danh sách permission theo phạm vi** (toàn trường / từng lớp / từng học sinh). Từ danh sách này UI dựng menu, ẩn / hiện nút và bảo vệ route bằng guard (permission + phạm vi).
-- **Ẩn** khi không có permission; **vô hiệu kèm lý do** khi có permission nhưng nghiệp vụ chưa cho phép. Ví dụ:
-  - Nút "Duyệt" bị vô hiệu với người đã lập phiếu: "Bạn là người lập phiếu này".
-  - Nút "Lập phiếu chi" bị vô hiệu khi quỹ đã khóa sổ.
-- **Danh tính học sinh**:
-  - Phụ huynh không bao giờ thấy tên học sinh khác hay công nợ của gia đình khác. Phần thu của sổ quỹ chỉ hiện **tổng theo đợt** (D-19).
-  - Báo cáo có tên học sinh hiển thị cho người có `Report.ViewStudentIdentity`, kèm dải thông báo "Lượt xem này được ghi lại" (D-46, D-52). Quản trị không có `Receipt.View` nên màn hình chi tiết phiếu thu của Quản trị **ẩn** thông tin người nộp.
-- **Phạm vi dữ liệu** luôn hiển thị rõ ở thanh trên: lớp – năm học đang làm việc, hoặc con đang xem.
-
-## 5. Phạm vi làm việc (context)
-
-| Người dùng | Phạm vi chọn được | Mặc định |
-|---|---|---|
-| Admin | "Toàn trường" + (khi xem báo cáo) chọn năm học → lớp | Toàn trường |
-| GVCN | Các lớp mình chủ nhiệm (theo năm học) | Lớp năm học hiện tại |
-| Thủ quỹ | Lớp mình làm thủ quỹ; đồng thời là phụ huynh → thêm "Chế độ phụ huynh" | Lớp làm thủ quỹ (UQ-03) |
-| Người giữ quỹ | Các lớp – năm học được giao | Lớp đầu tiên có bàn giao chờ xác nhận |
-| Phụ huynh | Từng con (D-04) | Con đầu tiên (UQ-02) |
-
-Bộ chọn phạm vi là một `kendo-dropdownlist` ở AppBar, nhóm theo vai trò (ví dụ: "GVCN · 6A / 2026-2027", "Thủ quỹ · 7B / 2026-2027", "Phụ huynh · Nguyễn An"). Khi đổi phạm vi, UI chuyển sang trang chủ của phạm vi đó.
-
-## 6. Quy ước hiển thị
-
-### 6.1 Tiền & ngày (D-06, NFR-05)
-- Chỉ tiếng Việt. Locale `vi-VN`, dùng dữ liệu CLDR `vi` của `@progress/kendo-angular-intl`.
-- **Tiền**: số nguyên, phân cách hàng nghìn bằng dấu chấm, hậu tố "đ" (ví dụ `1.250.000 đ`). Nhập bằng `kendo-numerictextbox` với `format="n0"`, `decimals=0`, `min=1`, tắt nút tăng giảm (`spinners=false`), căn phải.
-- **Ngày**: `dd/MM/yyyy` (`kendo-datepicker`). Thời điểm: `dd/MM/yyyy HH:mm`.
-- Số âm không xuất hiện trong số dư (DB chặn); bút toán giảm trong sổ quỹ hiển thị dấu "−" màu đỏ.
-
-### 6.2 Khối số dư
-
-| Khối | Nhãn | Màu nhấn (Kendo themeColor) |
-|---|---|---|
-| Quỹ lớp | "Quỹ lớp 6A / 2026-2027" – Số dư · Đang giữ chỗ · **Khả dụng** | `primary` |
-| Công nợ | "Còn phải nộp" · "Đang chờ xác nhận" · "Còn có thể thu" | `warning` |
-| Số dư cá nhân | "Số dư cá nhân của học sinh" · "Đang giữ chỗ hoàn trả" · "Chờ bàn giao" · **Khả dụng** | `tertiary` |
-
-### 6.3 Chip trạng thái (`kendo-chip`, `fillMode="solid"`)
-
-| Trạng thái | Nhãn tiếng Việt | themeColor |
-|---|---|---|
-| `PendingApproval`, `PendingConfirmation`, `Proposed` | Chờ duyệt / Chờ xác nhận / Đã đề xuất | `warning` |
-| `AwaitingPayment` | Chờ thực hiện hoàn trả | `info` |
-| `Approved`, `Confirmed`, `Completed`, `Resolved` | Đã duyệt / Đã xác nhận / Hoàn tất / Đã xử lý | `success` |
-| `Rejected` | Bị từ chối | `error` |
-| `Discrepancy`, `Open` (biên bản) | Có chênh lệch / Chưa xử lý | `error` |
-| `Cancelled` | Đã hủy | `base` |
-| (suy ra) có đảo giao dịch đã duyệt | Đã đảo | `base` + biểu tượng liên kết |
-| `ClassFund.Closed` | Đã khóa sổ | `dark` |
-| Bút toán `IsPostClose` | Sau khóa sổ | `info` (outline) |
-
-### 6.4 Tình trạng nộp (suy ra – BR-REC-06)
-Chưa nộp · Nộp một phần · Đã nộp đủ · Được miễn · Quá hạn (kết hợp với tình trạng chưa đủ).
-
-## 7. Bố cục & component Kendo
-
-| Thành phần | Kendo for Angular 23.3.0 | Ghi chú |
-|---|---|---|
-| Khung ứng dụng | `kendo-appbar` (trên) + `kendo-drawer` (menu trái; `mode="push"` trên desktop, `overlay` trên mobile) | |
-| Điều hướng phụ | `kendo-breadcrumb`, `kendo-tabstrip` | |
-| Danh sách | `kendo-grid` (lọc, sắp xếp, phân trang phía server, xuất Excel `kendo-grid-excel` / PDF `kendo-grid-pdf`) | Trên mobile: `kendo-listview` dạng thẻ |
-| Thẻ số liệu | `kendo-card` | Dashboard, khối số dư |
-| Biểu đồ | `kendo-chart` (cột: thu / chi theo tháng; tròn: chi theo danh mục) | Dashboard, báo cáo |
-| Form | `kendo-formfield`, `kendo-label`, `kendo-textbox`, `kendo-textarea`, `kendo-numerictextbox`, `kendo-datepicker`, `kendo-dropdownlist`, `kendo-combobox` (tìm học sinh), `kendo-multiselect` | Lỗi hiển thị bằng `kendo-formerror` |
-| Đính kèm | `kendo-fileselect` (chọn ảnh từ camera trên mobile) | Biên lai, chứng từ, minh chứng |
-| Hộp thoại | `kendo-dialog` (xác nhận, lý do), `kendo-window` (form phụ trên desktop) | |
-| Phản hồi | `kendo-notification` (toast), `kendo-loader`, `kendo-skeleton` | |
-| Quy trình nhiều bước | `kendo-stepper` | Chốt sổ, chuyển lớp |
-| Dòng thời gian | `kendo-timeline` | Lịch sử chứng từ |
-| Huy hiệu | `kendo-badge` | Số việc chờ, thông báo chưa đọc |
-
-Theme: **Kendo Theme Default ^14.3.0**. Màu thương hiệu của trường (nếu có) chỉ thay biến màu chính của theme (UQ-09); không đổi theme.
-
-## 8. Xử lý lỗi & trạng thái
-
-| Tình huống | UI |
+| Trang | Artboard |
 |---|---|
-| Đang tải | `kendo-skeleton` cho thẻ / lưới |
-| Danh sách rỗng | Thông điệp + hành động chính (ví dụ "Chưa có đợt thu. Tạo đợt thu") |
-| Lỗi validate (FluentValidation) | Gắn vào từng field bằng `kendo-formerror`; tóm tắt ở đầu form |
-| **Xung đột** (chứng từ đã được người khác xử lý, số dư thay đổi – 409) | Hộp thoại: "Dữ liệu đã thay đổi. Tải lại để xem trạng thái mới nhất"; không tự gửi lại |
-| **Vượt số khả dụng** | Thông báo tại field số tiền kèm số khả dụng hiện tại |
-| Gửi trùng | Nút gửi bị khóa sau lần bấm đầu; mỗi lần mở form có một khóa chống gửi trùng (`IdempotencyKey`) |
-| Không có quyền / ngoài phạm vi | COM-07 |
-| Quỹ đã khóa sổ | Dải thông báo `dark` "Năm học đã khóa sổ – chỉ xem"; ẩn các hành động thường, chỉ hiện các ngoại lệ đã chốt (D-30, D-36, D-50) |
+| 00 · Thiết kế & phân quyền | D-01 `Main` (phạm vi, ma trận quyền, danh mục màn hình, quyết định, trạng thái triển khai) · D-02 `Sitemap` · D-03 `Flows` (13 luồng) |
+| 01 · Thành phần & trạng thái | `AppHeader` (4 vai trò, "Đổi quỹ" cho GVCN / phụ huynh) · `AppNav` (menu theo vai trò) · `UiSelect` · `States` · `TxDialog` |
+| 02 · Đăng ký · Đăng nhập · Tài khoản | A-01 `TeacherRegister` · A-02 `Login` · A-03 `ChangePasswordRequired` · A-04 `AccountTeacher`, `Account` (thủ quỹ), `AccountStudent`, `AccountParent` |
+| 03 · GVCN | G-01 `FundList` · S-01 `OverviewTeacher` · G-02 `Students` · G-03 `Treasurers` · G-04 `FundSettingsTeacher` · S-02 `LedgerTeacher` · S-03 `ReportsTeacher` |
+| 04 · Học sinh – Thủ quỹ | S-01 `Overview` · S-02 `Ledger` · S-03 `Reports` · T-01 `TransactionForm` · T-02 `FundSettings` (danh mục) · T-03 `Members` |
+| 05 · Học sinh (công khai) | `OverviewStudent` · `LedgerStudent` · `ReportsStudent` |
+| 06 · Phụ huynh (công khai) | G-01 `FundListParent` · `OverviewParent` · `LedgerParent` · `ReportsParent` |
+| 07 · Mobile 360 / 390 / 430 | `MobileAuth`, `Mobile360Auth` · `MobileTeacherAdmin`, `MobileTeacherStudents`, `MobileTeacherTreasurers`, `Mobile360Teacher`, `Mobile430Teacher`, `MobileTeacher` · `Mobile`, `Mobile430Treasurer` · `MobileStudent`, `Mobile430Student` · `MobileParentFunds`, `MobileParent`, `Mobile360Parent` · `MobileStates` |
 
-## 9. Khả năng truy cập & responsive
+## 3. Nguyên tắc
+1. **Đăng nhập không chọn vai trò**: một ô "Email hoặc tên đăng nhập" + mật khẩu. Sau đăng nhập, giao diện điều hướng theo `/auth/me`. Chỉ giáo viên có link đăng ký; học sinh, phụ huynh do GVCN cấp tài khoản.
+2. **Vai trò theo từng quỹ, do hệ thống xác định**. Giao diện không gửi vai trò; chỉ vẽ nút theo `permissions` của quỹ đang mở.
+3. **Không có quyền thì không vẽ nút**. Backend vẫn chặn (403 / 404). 403 lúc trang đang mở → trạng thái "Quyền của bạn vừa thay đổi".
+4. **Nhãn vai trò luôn hiện** trên header: "GVCN" / "Thủ quỹ" / "Học sinh · Công khai" / "Phụ huynh · Công khai". GVCN và phụ huynh có "Đổi quỹ".
+5. **GVCN không ghi thu chi** và không quản lý danh mục; quản lý học sinh, phụ huynh, phân công thủ quỹ, tên quỹ.
+6. **Mật khẩu tạm hiển thị một lần**: hộp thoại phải tick "Tôi đã lưu / chuyển thông tin này" mới đóng được; luôn ghi "Hệ thống không gửi email".
+7. **Thủ quỹ cuối cùng**: nút "Thu hồi" bị khóa kèm giải thích "phân công người mới trước". Quỹ chưa có thủ quỹ có banner vàng "Chưa phân công thủ quỹ".
+8. **Ghi một khoản ≤ 3 thao tác** (thủ quỹ): "+ Thêm khoản thu / chi" (mobile: nút nổi) → dialog → "Lưu".
+9. **Số dư nổi bật**; số dư âm có cảnh báo vàng, không chặn lưu. Thu / chi phân biệt bằng dấu + chữ + màu (+ `#1e7a3c` / − `#b3261e`).
+10. **Khoản không công khai**: nhãn "Không công khai" (chỉ GVCN, thủ quỹ thấy). Học sinh, phụ huynh thấy dòng gộp "Khoản khác" không có số lượng; form cảnh báo P1 (số tiền có thể suy ra).
+11. **Hủy cần lý do** và xác nhận; không có nút "Xóa" ở bất kỳ đâu.
+12. **Mật khẩu**: 8–128 ký tự, có cả chữ và số (đăng ký, đổi mật khẩu, mật khẩu tạm).
+13. **Responsive**: ≥ 1024 sidebar 232px · 768–1023 sidebar icon · < 768 thanh dưới, bảng → thẻ, dialog → bottom sheet, vùng chạm ≥ 44px. Thiết kế mobile ở 360 / 390 / 430.
+14. **Accessibility**: nút / liên kết thật, label cho mọi ô nhập, tương phản ≥ 4.5:1, `aria-current` cho menu, `role="alert"` cho lỗi, `role="radiogroup"` cho lựa chọn.
 
-- WCAG 2.1 mức AA: tương phản, nhãn cho mọi field, điều hướng bằng bàn phím (Kendo hỗ trợ sẵn), không truyền tải thông tin chỉ bằng màu.
-- Breakpoint: < 768 px (mobile: Drawer overlay, lưới chuyển thành danh sách thẻ, nút hành động chính cố định ở đáy), 768–1199 px (tablet), ≥ 1200 px (desktop).
-- Vùng chạm tối thiểu 44 × 44 px trên mobile.
+## 4. Kendo component chính
+Grid (desktop) / ListView (mobile) · Dialog / ActionSheet · Drawer (chi tiết học sinh) · DatePicker · NumericTextBox (VND, `format="n0"`) · DropDownList · Checkbox · RadioButton · TabStrip · Chart · Notification · Skeleton · Badge.
 
-## 10. Định hướng tổ chức mã (không phải code)
+## 5. Tài liệu
+[sitemap-and-navigation.md](sitemap-and-navigation.md) · [user-flows.md](user-flows.md) · [screen-specifications.md](screen-specifications.md) · [wireframes.md](wireframes.md) · [ui-open-questions.md](ui-open-questions.md)
 
-Theo `training-doc.md`: `src/app/core` (auth, guard permission/phạm vi, interceptor, điều hướng), `src/app/shared` (pipe tiền / ngày, chip trạng thái, khối số dư, dòng thời gian chứng từ, ô đính kèm), `src/app/features/`:
-- `auth`, `admin`, `class-fund` (đợt thu, sổ quỹ, báo cáo, hồ sơ tài chính học sinh)
-- `treasurer`, `homeroom`, `custodian`, `parent`
-- `documents` (chi tiết chứng từ, biên bản chênh lệch), `tasks`, `notifications`
+## 6. Lịch sử thay đổi
+| Ngày | Phiên bản | Thay đổi |
+|---|---|---|
+| 2026-11-04 | 2.0 / 2.1 | Thiết kế 3 vai trò Thủ quỹ / GVCN / Phụ huynh (đã thay thế – Git history) |
+| 2026-11-05 | 3.0 | Mô hình Giáo viên · Học sinh · Phụ huynh: thêm A-01, G-01 → G-04, màn hình học sinh, mobile GVCN 360 / 390 / 430; T-02 chỉ còn danh mục, T-03 chỉ xem |
+| 2026-11-05 | 3.1 | Đăng nhập không chọn vai trò (bỏ `LoginStudent`, `LoginParent`); trạng thái mật khẩu tạm / quỹ chưa phân công; viết lại tài liệu UI cho khớp Canvas; trạng thái triển khai = Not Implemented |
