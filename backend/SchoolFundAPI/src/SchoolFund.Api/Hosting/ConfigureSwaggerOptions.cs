@@ -8,6 +8,8 @@ namespace SchoolFund.Api.Hosting;
 /// <summary>Sinh một tài liệu OpenAPI cho mỗi phiên bản API.</summary>
 public sealed class ConfigureSwaggerOptions(IApiVersionDescriptionProvider provider) : IConfigureOptions<SwaggerGenOptions>
 {
+    private const string AntiforgeryScheme = "Antiforgery";
+
     public void Configure(SwaggerGenOptions options)
     {
         foreach (var description in provider.ApiVersionDescriptions)
@@ -18,5 +20,18 @@ public sealed class ConfigureSwaggerOptions(IApiVersionDescriptionProvider provi
                 Version = description.ApiVersion.ToString(),
             });
         }
+
+        // Nút "Authorize" để dán token antiforgery: Swagger UI tự gửi cookie, còn header X-XSRF-TOKEN phải nhập tay.
+        options.AddSecurityDefinition(AntiforgeryScheme, new OpenApiSecurityScheme
+        {
+            Type = SecuritySchemeType.ApiKey,
+            In = ParameterLocation.Header,
+            Name = ServiceRegistration.AntiforgeryHeaderName,
+            Description = "Lấy antiforgeryToken từ GET /auth/antiforgery (hoặc từ response login / register-teacher / change-password) rồi dán vào đây.",
+        });
+        options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+        {
+            [new OpenApiSecuritySchemeReference(AntiforgeryScheme, document)] = [],
+        });
     }
 }

@@ -24,6 +24,64 @@ public sealed class AccessService(IAppDb db) : IAccessService
         return new FundAccess(fundId, role, RolePermissions.For(role));
     }
 
+    public async Task<IReadOnlyList<FundMembership>> GetMembershipsAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var funds = db.Query<Fund>();
+        var students = db.Query<Student>();
+        var activeAssignments = db.Query<TreasurerAssignment>().Where(assignment => assignment.RevokedAt == null);
+
+        var owned = await db.ToListAsync(
+            funds.Where(fund => fund.OwnerUserId == userId).Select(fund => new { fund.Id, fund.Name }),
+            cancellationToken);
+
+        var asStudent = await db.ToListAsync(
+            from student in students
+            where student.UserId == userId
+            join fund in funds on student.FundId equals fund.Id
+            select new
+            {
+                fund.Id,
+                fund.Name,
+                IsTreasurer = activeAssignments.Any(assignment =>
+                    assignment.FundId == fund.Id && assignment.StudentId == student.Id),
+            },
+            cancellationToken);
+
+        var asParent = await db.ToListAsync(
+            from link in db.Query<ParentLink>()
+            where link.IsActive && link.ParentUserId == userId
+            join student in students on link.StudentId equals student.Id
+            join fund in funds on student.FundId equals fund.Id
+            select new { fund.Id, fund.Name, Child = student.FullName },
+            cancellationToken);
+
+        // Thứ tự ưu tiên vai trò theo roles-and-permissions.md mục 1: GVCN → Thủ quỹ → Học sinh → Phụ huynh.
+        var memberships = new Dictionary<Guid, FundMembership>();
+        foreach (var fund in owned)
+        {
+            memberships.TryAdd(fund.Id, Membership(fund.Id, fund.Name, FundRole.Teacher));
+        }
+
+        foreach (var row in asStudent)
+        {
+            memberships.TryAdd(row.Id, Membership(row.Id, row.Name, row.IsTreasurer ? FundRole.Treasurer : FundRole.Student));
+        }
+
+        foreach (var group in asParent.GroupBy(row => (row.Id, row.Name)))
+        {
+            var children = group.Select(row => row.Child).Order(StringComparer.CurrentCulture).ToArray();
+            memberships.TryAdd(group.Key.Id, Membership(group.Key.Id, group.Key.Name, FundRole.Parent, children));
+        }
+
+        return memberships.Values
+            .OrderBy(membership => membership.FundName, StringComparer.CurrentCulture)
+            .ThenBy(membership => membership.FundId)
+            .ToArray();
+    }
+
+    private static FundMembership Membership(Guid fundId, string fundName, FundRole role, IReadOnlyList<string>? linkedStudents = null) =>
+        new(fundId, fundName, role, RolePermissions.For(role), linkedStudents ?? []);
+
     private async Task<FundRole?> FindRoleAsync(Guid userId, Guid fundId, CancellationToken cancellationToken)
     {
         var ownerUserId = await db.FirstOrDefaultAsync(

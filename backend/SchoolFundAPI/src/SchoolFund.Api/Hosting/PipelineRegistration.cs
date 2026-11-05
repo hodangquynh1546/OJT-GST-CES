@@ -30,6 +30,7 @@ public static class PipelineRegistration
         app.UseDefaultFiles();
         app.UseStaticFiles();
         app.UseRouting();
+        app.UseRateLimiter();
         app.UseAuthentication();
         app.UseMiddleware<CurrentUserMiddleware>();
         app.UseAuthorization();

@@ -18,6 +18,8 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
 
         var (status, code, title) = exception switch
         {
+            AuthenticationFailedException authentication =>
+                (StatusCodes.Status401Unauthorized, authentication.Code, authentication.Message),
             BusinessRuleException rule => (StatusCodes.Status422UnprocessableEntity, rule.Code, rule.Message),
             NotFoundException notFound => (StatusCodes.Status404NotFound, "not_found", notFound.Message),
             ForbiddenAccessException forbidden => (StatusCodes.Status403Forbidden, forbidden.Code, forbidden.Message),

@@ -50,4 +50,32 @@ public sealed class User : Entity
     public DateTimeOffset CreatedAt { get; private set; }
 
     public DateTimeOffset? UpdatedAt { get; private set; }
+
+    public void Rename(string fullName, DateTimeOffset at)
+    {
+        FullName = fullName;
+        UpdatedAt = at;
+    }
+
+    /// <summary>Đổi mật khẩu: xóa cờ mật khẩu tạm và đổi SecurityStamp để mọi phiên cũ hết hiệu lực (BR-17, BR-18).</summary>
+    public void ChangePassword(string newPasswordHash, DateTimeOffset at)
+    {
+        PasswordHash = newPasswordHash;
+        MustChangePassword = false;
+        SecurityStamp = Guid.NewGuid().ToString("N");
+        UpdatedAt = at;
+    }
+
+    /// <summary>Băm lại mật khẩu đúng bằng tham số mới; không đổi SecurityStamp nên phiên giữ nguyên.</summary>
+    public void UpgradePasswordHash(string passwordHash) => PasswordHash = passwordHash;
+
+    /// <summary>Khóa tài khoản: mọi phiên chấm dứt ngay (BR-18).</summary>
+    public void Disable(DateTimeOffset at)
+    {
+        Status = AccountStatus.Disabled;
+        SecurityStamp = Guid.NewGuid().ToString("N");
+        UpdatedAt = at;
+    }
+
+    public void RecordSignIn(DateTimeOffset at) => LastLoginAt = at;
 }
