@@ -23,14 +23,17 @@ public sealed class AppDb(AppDbContext context) : IAppDb, IDatabaseProbe
     public Task<bool> AnyAsync<T>(IQueryable<T> query, CancellationToken cancellationToken) =>
         EntityFrameworkQueryableExtensions.AnyAsync(query, cancellationToken);
 
+    /// <exception cref="UniqueConstraintException">Vi phạm ràng buộc UNIQUE (PostgreSQL 23505).</exception>
     public async Task SaveChangesAsync(CancellationToken cancellationToken)
     {
         try
         {
             await context.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateException exception) when (
-            exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } postgres)
+        catch (DbUpdateException exception) when (exception.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.UniqueViolation,
+        } postgres)
         {
             throw new UniqueConstraintException(postgres.ConstraintName, exception);
         }

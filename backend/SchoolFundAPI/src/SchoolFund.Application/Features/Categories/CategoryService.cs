@@ -14,15 +14,16 @@ public sealed class CategoryService(
     IAppDb db,
     IAccessService accessService,
     ICurrentUser currentUser,
-    IAuditWriter auditWriter,
+    AuditTrail auditTrail,
     TimeProvider timeProvider) : ICategoryService
 {
     public const string NameTakenCode = "category.name_taken";
-    public const string CreateAction = "Category.Create";
-    public const string UpdateAction = "Category.Update";
 
     private const string NameUniqueConstraint = "UQ_Category_Fund_Type_Name";
     private const string EntityType = nameof(Category);
+
+    private Guid UserId => currentUser.UserId
+        ?? throw new InvalidOperationException("Thao tác cần người dùng đã đăng nhập.");
 
     public async Task<IReadOnlyList<CategoryResponse>> ListAsync(
         Guid fundId,
@@ -30,9 +31,7 @@ public sealed class CategoryService(
         bool includeHidden,
         CancellationToken cancellationToken)
     {
-        var userId = currentUser.UserId
-            ?? throw new InvalidOperationException("Thao tác cần người dùng đã đăng nhập.");
-        var access = await accessService.GetFundAccessAsync(userId, fundId, cancellationToken);
+        var access = await accessService.GetFundAccessAsync(UserId, fundId, cancellationToken);
 
         var categories = db.Query<Category>().Where(category => category.FundId == fundId);
         if (type is { } selectedType)
@@ -85,13 +84,13 @@ public sealed class CategoryService(
 
         var category = new Category(fundId, type, trimmedName, timeProvider.GetUtcNow());
         db.Add(category);
-        auditWriter.Record(
+        auditTrail.Record(
+            AuditActions.CategoryCreate,
             AuditCategory.Change,
-            CreateAction,
+            UserId,
             EntityType,
-            category.Id.ToString(),
-            oldValues: null,
-            new { fundId, type = type.ToString(), name = trimmedName });
+            category.Id,
+            newValues: new { fundId, type = type.ToString(), name = trimmedName });
 
         await SaveAsync(cancellationToken);
         return new CategoryCreatedResponse(category.Id);
@@ -118,11 +117,12 @@ public sealed class CategoryService(
 
         var oldValues = new { name = category.Name, isHidden = category.IsHidden };
         category.Update(trimmedName, isHidden, timeProvider.GetUtcNow());
-        auditWriter.Record(
+        auditTrail.Record(
+            AuditActions.CategoryUpdate,
             AuditCategory.Change,
-            UpdateAction,
+            UserId,
             EntityType,
-            category.Id.ToString(),
+            category.Id,
             oldValues,
             new { name = trimmedName, isHidden });
 

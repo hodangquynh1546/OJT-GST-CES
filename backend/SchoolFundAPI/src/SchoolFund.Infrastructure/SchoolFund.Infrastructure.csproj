@@ -1,6 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <!-- PasswordHasher<TUser> (PBKDF2) nằm trong shared framework ASP.NET Core, không phải NuGet. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\SchoolFund.Application\SchoolFund.Application.csproj" />
     <ProjectReference Include="..\SchoolFund.Domain\SchoolFund.Domain.csproj" />
   </ItemGroup>

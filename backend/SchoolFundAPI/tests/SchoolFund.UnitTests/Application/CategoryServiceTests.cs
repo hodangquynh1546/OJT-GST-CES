@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.Json;
 using Moq;
 using SchoolFund.Application.Common.Auditing;
@@ -21,9 +22,15 @@ public class CategoryServiceTests
         public override DateTimeOffset GetUtcNow() => Now;
     }
 
+    private sealed class NoRequestInfo : IRequestInfo
+    {
+        public string? CorrelationId => null;
+
+        public IPAddress? IpAddress => null;
+    }
+
     private readonly FakeAppDb _db = new();
     private readonly Mock<ICurrentUser> _currentUser = new();
-    private readonly Mock<IAuditWriter> _audit = new();
     private readonly CategoryService _service;
 
     private readonly User _teacher;
@@ -35,7 +42,9 @@ public class CategoryServiceTests
 
     public CategoryServiceTests()
     {
-        _service = new CategoryService(_db, new AccessService(_db), _currentUser.Object, _audit.Object, new FixedTime());
+        var time = new FixedTime();
+        var audit = new AuditTrail(_db, new NoRequestInfo(), time);
+        _service = new CategoryService(_db, new AccessService(_db), _currentUser.Object, audit, time);
 
         _teacher = AddUser(UserKind.Teacher);
         _treasurer = AddUser(UserKind.Student);
@@ -118,9 +127,13 @@ public class CategoryServiceTests
     private static void VerifyNameTaken(BusinessRuleException exception) =>
         Assert.Equal(CategoryService.NameTakenCode, exception.Code);
 
-    private void VerifyAuditCount(string action, int times) => _audit.Verify(
-        audit => audit.Record(AuditCategory.Change, action, nameof(Category), It.IsAny<string>(), It.IsAny<object?>(), It.IsAny<object?>()),
-        Times.Exactly(times));
+    private void VerifyAuditCount(string action, int times) => Assert.Equal(
+        times,
+        _db.Query<AuditLog>().Count(log =>
+            log.Action == action
+            && log.Category == AuditCategory.Change
+            && log.ActorUserId == _treasurer.Id
+            && log.EntityType == nameof(Category)));
 
     [Fact]
     public async Task Treasurer_creates_a_category_and_it_is_audited()
@@ -134,7 +147,7 @@ public class CategoryServiceTests
         Assert.Equal("Văn phòng phẩm", category.Name);
         Assert.False(category.IsHidden);
         Assert.Equal(Now, category.CreatedAt);
-        VerifyAuditCount(CategoryService.CreateAction, 1);
+        VerifyAuditCount(AuditActions.CategoryCreate, 1);
     }
 
     [Theory]
@@ -149,7 +162,7 @@ public class CategoryServiceTests
 
         VerifyNameTaken(exception);
         Assert.Single(_db.Query<Category>());
-        VerifyAuditCount(CategoryService.CreateAction, 0);
+        VerifyAuditCount(AuditActions.CategoryCreate, 0);
     }
 
     [Fact]
@@ -196,7 +209,7 @@ public class CategoryServiceTests
 
         Assert.Equal("Sinh hoạt, liên hoan", category.Name);
         Assert.Equal(Now, category.UpdatedAt);
-        VerifyAuditCount(CategoryService.UpdateAction, 1);
+        VerifyAuditCount(AuditActions.CategoryUpdate, 1);
     }
 
     [Fact]
@@ -211,7 +224,7 @@ public class CategoryServiceTests
         await UpdateAsync(category, "Photo", isHidden: false);
         Assert.False(category.IsHidden);
         Assert.Single(_db.Query<Category>());
-        VerifyAuditCount(CategoryService.UpdateAction, 2);
+        VerifyAuditCount(AuditActions.CategoryUpdate, 2);
     }
 
     [Fact]
@@ -244,7 +257,7 @@ public class CategoryServiceTests
         await UpdateAsync(category, " Photo ", isHidden: false);
 
         Assert.Null(category.UpdatedAt);
-        VerifyAuditCount(CategoryService.UpdateAction, 0);
+        VerifyAuditCount(AuditActions.CategoryUpdate, 0);
     }
 
     [Fact]
