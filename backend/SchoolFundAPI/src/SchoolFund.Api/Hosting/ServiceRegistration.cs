@@ -1,0 +1,107 @@
+using Asp.Versioning;
+using FluentValidation;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Authorization;
+using Microsoft.Extensions.Options;
+using Serilog;
+using Serilog.Formatting.Compact;
+using SchoolFund.Api.Authorization;
+using SchoolFund.Api.ErrorHandling;
+using SchoolFund.Api.Filters;
+using SchoolFund.Api.Health;
+using SchoolFund.Application.Common.Security;
+using SchoolFund.Infrastructure;
+using Swashbuckle.AspNetCore.SwaggerGen;
+
+namespace SchoolFund.Api.Hosting;
+
+public static class ServiceRegistration
+{
+    public const string SessionCookieName = "sf_session";
+    public const string AntiforgeryCookieName = "sf_xsrf";
+    public const string AntiforgeryHeaderName = "X-XSRF-TOKEN";
+
+    public static WebApplicationBuilder AddSchoolFundServices(this WebApplicationBuilder builder)
+    {
+        var services = builder.Services;
+        var connectionString = builder.Configuration.GetConnectionString("App")
+            ?? throw new InvalidOperationException(
+                "Thiếu ConnectionStrings:App. Đặt bằng user-secrets hoặc biến môi trường ConnectionStrings__App.");
+
+        services.AddSerilog((_, logger) => logger
+            .ReadFrom.Configuration(builder.Configuration)
+            .Enrich.FromLogContext()
+            .Enrich.WithMachineName()
+            .Enrich.WithThreadId()
+            .WriteTo.Async(sink => sink.Console(new CompactJsonFormatter())));
+
+        services.AddInfrastructure(connectionString);
+        services.AddExceptionHandler<GlobalExceptionHandler>();
+        services.AddHttpContextAccessor();
+        services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("database", timeout: TimeSpan.FromSeconds(5));
+        services.AddValidatorsFromAssemblyContaining<ValidationFilter>();
+
+        services.AddControllers(options =>
+            {
+                // Mặc định mọi endpoint cần đăng nhập; endpoint công khai phải khai báo [AllowAnonymous].
+                options.Filters.Add(new AuthorizeFilter());
+                options.Filters.Add<AntiforgeryFilter>();
+                options.Filters.Add<ValidationFilter>();
+            })
+            .ConfigureApiBehaviorOptions(options =>
+                options.InvalidModelStateResponseFactory = context =>
+                    ValidationFilter.ToResult(context.HttpContext, context.ModelState));
+
+        services.AddApiVersioning(options =>
+            {
+                options.DefaultApiVersion = new ApiVersion(1);
+                options.ReportApiVersions = true;
+                options.ApiVersionReader = new UrlSegmentApiVersionReader();
+            })
+            .AddMvc()
+            .AddApiExplorer(options =>
+            {
+                options.GroupNameFormat = "'v'V";
+                options.SubstituteApiVersionInUrl = true;
+            });
+
+        services.AddSwaggerGen();
+        services.AddSingleton<IConfigureOptions<SwaggerGenOptions>, ConfigureSwaggerOptions>();
+
+        var secure = builder.Environment.IsDevelopment() ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
+
+        services.AddAntiforgery(options =>
+        {
+            options.HeaderName = AntiforgeryHeaderName;
+            options.Cookie.Name = AntiforgeryCookieName;
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SameSite = SameSiteMode.Strict;
+            options.Cookie.SecurePolicy = secure;
+        });
+
+        services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+            .AddCookie(options =>
+            {
+                options.Cookie.Name = SessionCookieName;
+                options.Cookie.HttpOnly = true;
+                options.Cookie.SameSite = SameSiteMode.Strict;
+                options.Cookie.SecurePolicy = secure;
+                options.SlidingExpiration = true;
+                options.ExpireTimeSpan = TimeSpan.FromHours(8);
+                options.Events.OnRedirectToLogin = context => ApiProblems.WriteAsync(
+                    context.HttpContext, StatusCodes.Status401Unauthorized, "unauthorized", "Bạn chưa đăng nhập.");
+                options.Events.OnRedirectToAccessDenied = context => ApiProblems.WriteAsync(
+                    context.HttpContext, StatusCodes.Status403Forbidden, "forbidden", "Bạn không có quyền thực hiện thao tác này.");
+            });
+
+        services.AddAuthorization();
+        services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
+        services.AddScoped<CurrentUser>();
+        services.AddScoped<ICurrentUser>(provider => provider.GetRequiredService<CurrentUser>());
+
+        return builder;
+    }
+}

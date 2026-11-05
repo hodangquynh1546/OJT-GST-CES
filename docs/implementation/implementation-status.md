@@ -6,14 +6,14 @@
 
 | Hạng mục | Trạng thái | Ghi chú |
 |---|---|---|
-| Backend (.NET 10, Clean Architecture) | **Not Implemented** | Mã nguồn cũ (`backend/SchoolFundAPI`, R1 + R3) **đã xóa ngày 2026-11-05** theo quyết định của PO để đồng bộ lại dự án theo mô hình mới |
-| Frontend (Angular 20 + Kendo) | **Not Implemented** | Chưa từng khởi tạo; không còn thư mục `frontend` |
+| Backend (.NET 10, Clean Architecture) | **Partially Implemented** – chỉ có Codebase Foundation | `backend/SchoolFundAPI`: solution, 4 tầng, pipeline request, xử lý lỗi, `[RequirePermission]`, `GET /auth/antiforgery`, `GET /api/health`. Chưa có feature nghiệp vụ; `NoIdentityStore` từ chối mọi phiên cho tới khi có feature Auth |
+| Frontend (Angular 20 + Kendo) | **Partially Implemented** – chỉ có Codebase Foundation | `frontend/SchoolFundUI`: `core` / `shared` / `features`, route theo sitemap, guard, interceptor, AppHeader, AppNav, AppState. Các màn hình đang là trang giữ chỗ |
 | Database / migration | **Not Implemented** | Migration `InitialClassFund`, `TeacherStudentParent` bị xóa cùng mã nguồn; thiết kế giữ trong `docs/database` |
-| Test tự động | **Not Implemented** | Bộ test cũ đã xóa; kết quả cũ chỉ còn là lịch sử (mục 3) |
+| Test tự động | **Partially Implemented** | Chỉ có test của Foundation (xUnit + Moq, Karma, Playwright); test nghiệp vụ mục A của `test-cases.md` chưa viết. Kết quả cũ chỉ còn là lịch sử (mục 3) |
 | Tài liệu nghiệp vụ, DB, API, phân quyền, test case | Hoàn thiện – Source of Truth | `docs/requirements`, `docs/business-analysis`, `docs/database`, `docs/api`, `docs/testing` |
 | UI/UX | Hoàn thiện – Source of Truth (prototype) | Canvas https://claude.ai/artifact/D5JVqKkBFqQhmcp5spfw6Y, `docs/ui-design` |
 
-Giai đoạn hiện tại chỉ hoàn thiện và đồng bộ Docs + Canvas. **Không** tạo, sửa hoặc triển khai mã nguồn Backend / Frontend.
+Giai đoạn hiện tại: đã dựng Codebase Foundation (nhánh `feature/codebase`, 2026-11-05); các feature nghiệp vụ triển khai tiếp theo Docs + Canvas.
 
 ## 2. Quy ước trạng thái trong tài liệu
 
@@ -41,3 +41,4 @@ Danh sách test case R3 và tên test tương ứng: [test-cases.md](../testing/
 | 2026-11-04 | R1 triển khai (một thủ quỹ / quỹ) |
 | 2026-11-05 | R3 triển khai và kiểm thử (57 unit / 67 integration) |
 | 2026-11-05 | PO xóa toàn bộ mã nguồn Backend / Frontend; mọi hạng mục chuyển về Not Implemented; Docs + Canvas là Source of Truth |
+| 2026-11-05 | Dựng Codebase Foundation Backend / Frontend theo `training-doc.md` (nhánh `feature/codebase`) |
