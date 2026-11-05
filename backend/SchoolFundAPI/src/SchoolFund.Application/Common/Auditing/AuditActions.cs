@@ -8,4 +8,6 @@ public static class AuditActions
     public const string AuthSignIn = "Auth.SignIn";
     public const string AuthSignInFailed = "Auth.SignInFailed";
     public const string AuthPasswordChanged = "Auth.PasswordChanged";
+    public const string CategoryCreate = "Category.Create";
+    public const string CategoryUpdate = "Category.Update";
 }

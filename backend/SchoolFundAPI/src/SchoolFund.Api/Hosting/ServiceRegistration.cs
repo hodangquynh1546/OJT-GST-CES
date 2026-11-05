@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Asp.Versioning;
 using FluentValidation;
@@ -17,6 +18,7 @@ using SchoolFund.Api.Health;
 using SchoolFund.Application.Common.Auditing;
 using SchoolFund.Application.Common.Security;
 using SchoolFund.Application.Features.Auth;
+using SchoolFund.Application.Features.Categories;
 using SchoolFund.Infrastructure;
 using SchoolFund.Infrastructure.Security;
 using Swashbuckle.AspNetCore.SwaggerGen;
@@ -73,6 +75,9 @@ public static class ServiceRegistration
                 options.Filters.Add<AntiforgeryFilter>();
                 options.Filters.Add<ValidationFilter>();
             })
+            // Enum trong API là chuỗi (Income, Expense), không nhận số.
+            .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(
+                new JsonStringEnumConverter(allowIntegerValues: false)))
             .ConfigureApiBehaviorOptions(options =>
                 options.InvalidModelStateResponseFactory = context =>
                     ValidationFilter.ToResult(context.HttpContext, context.ModelState));
@@ -127,6 +132,7 @@ public static class ServiceRegistration
         services.AddScoped<IRequestInfo, HttpRequestInfo>();
         services.AddScoped<AuditTrail>();
         services.AddScoped<AuthService>();
+        services.AddScoped<ICategoryService, CategoryService>();
 
         services.AddScoped<CurrentUser>();
         services.AddScoped<ICurrentUser>(provider => provider.GetRequiredService<CurrentUser>());

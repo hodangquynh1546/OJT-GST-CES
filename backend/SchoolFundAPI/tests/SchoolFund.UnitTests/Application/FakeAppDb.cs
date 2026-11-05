@@ -7,6 +7,9 @@ internal sealed class FakeAppDb : IAppDb
 {
     private readonly Dictionary<Type, List<object>> _sets = [];
 
+    /// <summary>Giả lập database từ chối lần ghi.</summary>
+    public Exception? SaveFailure { get; set; }
+
     public IQueryable<T> Query<T>() where T : class =>
         (_sets.TryGetValue(typeof(T), out var items) ? items.Cast<T>() : []).AsQueryable();
 
@@ -32,7 +35,8 @@ internal sealed class FakeAppDb : IAppDb
     public Task<bool> AnyAsync<T>(IQueryable<T> query, CancellationToken cancellationToken) =>
         Task.FromResult(query.Any());
 
-    public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task SaveChangesAsync(CancellationToken cancellationToken) =>
+        SaveFailure is null ? Task.CompletedTask : Task.FromException(SaveFailure);
 
     public Task<T> InTransactionAsync<T>(Func<CancellationToken, Task<T>> work, CancellationToken cancellationToken) =>
         work(cancellationToken);
