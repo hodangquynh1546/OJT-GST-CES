@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using SchoolFund.Application.Common.Persistence;
 
 namespace SchoolFund.Infrastructure.Persistence;
@@ -22,7 +23,18 @@ public sealed class AppDb(AppDbContext context) : IAppDb, IDatabaseProbe
     public Task<bool> AnyAsync<T>(IQueryable<T> query, CancellationToken cancellationToken) =>
         EntityFrameworkQueryableExtensions.AnyAsync(query, cancellationToken);
 
-    public Task SaveChangesAsync(CancellationToken cancellationToken) => context.SaveChangesAsync(cancellationToken);
+    public async Task SaveChangesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (
+            exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } postgres)
+        {
+            throw new UniqueConstraintException(postgres.ConstraintName, exception);
+        }
+    }
 
     public Task<T> InTransactionAsync<T>(Func<CancellationToken, Task<T>> work, CancellationToken cancellationToken) =>
         context.Database.CreateExecutionStrategy().ExecuteAsync(

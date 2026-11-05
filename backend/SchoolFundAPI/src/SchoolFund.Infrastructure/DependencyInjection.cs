@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using SchoolFund.Application.Common.Persistence;
 using SchoolFund.Application.Common.Security;
+using SchoolFund.Application.Features.Categories;
 using SchoolFund.Infrastructure.Persistence;
 using SchoolFund.Infrastructure.Security;
 
@@ -20,6 +21,8 @@ public static class DependencyInjection
 
         services.AddScoped<ISessionStore, NoIdentityStore>();
         services.AddScoped<IAccessService, AccessService>();
+        services.AddScoped<ICategoryService, CategoryService>();
+        services.AddSingleton(TimeProvider.System);
 
         return services;
     }

@@ -17,4 +17,11 @@ public sealed class Category(Guid fundId, TransactionType type, string name, Dat
     public DateTimeOffset CreatedAt { get; private set; } = createdAt;
 
     public DateTimeOffset? UpdatedAt { get; private set; }
+
+    public void Update(string name, bool isHidden, DateTimeOffset updatedAt)
+    {
+        Name = name;
+        IsHidden = isHidden;
+        UpdatedAt = updatedAt;
+    }
 }

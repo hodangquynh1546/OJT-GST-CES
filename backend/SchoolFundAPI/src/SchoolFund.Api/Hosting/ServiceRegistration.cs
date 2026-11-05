@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Asp.Versioning;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -8,10 +9,12 @@ using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.Extensions.Options;
 using Serilog;
 using Serilog.Formatting.Compact;
+using SchoolFund.Api.Auditing;
 using SchoolFund.Api.Authorization;
 using SchoolFund.Api.ErrorHandling;
 using SchoolFund.Api.Filters;
 using SchoolFund.Api.Health;
+using SchoolFund.Application.Common.Auditing;
 using SchoolFund.Application.Common.Security;
 using SchoolFund.Infrastructure;
 using Swashbuckle.AspNetCore.SwaggerGen;
@@ -51,6 +54,9 @@ public static class ServiceRegistration
                 options.Filters.Add<AntiforgeryFilter>();
                 options.Filters.Add<ValidationFilter>();
             })
+            // Enum trong API là chuỗi (Income, Expense), không nhận số.
+            .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(
+                new JsonStringEnumConverter(allowIntegerValues: false)))
             .ConfigureApiBehaviorOptions(options =>
                 options.InvalidModelStateResponseFactory = context =>
                     ValidationFilter.ToResult(context.HttpContext, context.ModelState));
@@ -101,6 +107,7 @@ public static class ServiceRegistration
         services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
         services.AddScoped<CurrentUser>();
         services.AddScoped<ICurrentUser>(provider => provider.GetRequiredService<CurrentUser>());
+        services.AddScoped<IAuditWriter, HttpAuditWriter>();
 
         return builder;
     }
