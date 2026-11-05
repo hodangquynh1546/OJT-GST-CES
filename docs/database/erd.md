@@ -1,6 +1,6 @@
 # ERD
 
-> Phiên bản 2.0 · 2026-11-05 – thiết kế hiện hành (migration dự kiến `TeacherStudentParent`). Trạng thái triển khai: **Not Implemented** (mã nguồn cũ đã xóa ngày 2026-11-05). Thiết kế `FundMember` v1.1 / v1.2 không dùng (Git history).
+> Phiên bản 2.0 · 2026-11-05 – thiết kế hiện hành (migration `InitialClassFund` + `AddDatabaseProtections`). Trạng thái triển khai: **Implemented**. Thiết kế `FundMember` v1.1 / v1.2 không dùng (Git history).
 
 ```mermaid
 erDiagram

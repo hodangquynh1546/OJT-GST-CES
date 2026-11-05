@@ -1,6 +1,6 @@
 # Database Design – Tổng quan
 
-> Phiên bản: 2.0 · 2026-11-05 (mô hình Giáo viên · Học sinh · Phụ huynh; migration bổ sung `TeacherStudentParent` – thiết kế, **Not Implemented**: mã nguồn đã xóa ngày 2026-11-05) · 1.2 · 2026-11-04 (thiết kế `AddFundMembers` – không triển khai) · PostgreSQL 16 · EF Core 10.0.4 · Npgsql 10.0.3. Thay thế thiết kế 37 bảng của phạm vi cũ (Git history `f6cecab`).
+> Phiên bản: 2.0 · 2026-11-05 (mô hình Giáo viên · Học sinh · Phụ huynh; migration `InitialClassFund` + `AddDatabaseProtections` – **Implemented**) · 1.2 · 2026-11-04 (thiết kế `AddFundMembers` – không triển khai) · PostgreSQL 16 · EF Core 10.0.4 · Npgsql 10.0.3. Thay thế thiết kế 37 bảng của phạm vi cũ (Git history `f6cecab`).
 
 ## 1. Bộ tài liệu
 [erd.md](erd.md) · [data-dictionary.md](data-dictionary.md) · [database-constraints-and-indexes.md](database-constraints-and-indexes.md) · [financial-data-design.md](financial-data-design.md) · [database-workflows.md](database-workflows.md) · [database-design-decisions.md](database-design-decisions.md)

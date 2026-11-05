@@ -19,7 +19,7 @@ public sealed class PermissionAuthorizationHandler(
         AuthorizationHandlerContext context,
         PermissionRequirement requirement)
     {
-        if (!currentUser.IsAuthenticated)
+        if (currentUser.UserId is not { } userId)
         {
             return;
         }
@@ -30,8 +30,8 @@ public sealed class PermissionAuthorizationHandler(
         var routeFundId = httpContext.GetRouteValue(FundIdRouteKey)?.ToString();
 
         var permissions = routeFundId is null
-            ? await accessService.GetAccountPermissionsAsync(cancellationToken)
-            : await GetFundPermissionsAsync(routeFundId, cancellationToken);
+            ? await accessService.GetAccountPermissionsAsync(userId, cancellationToken)
+            : await GetFundPermissionsAsync(userId, routeFundId, cancellationToken);
 
         if (currentUser.MustChangePassword)
         {
@@ -48,15 +48,17 @@ public sealed class PermissionAuthorizationHandler(
         context.Succeed(requirement);
     }
 
-    private async Task<IReadOnlySet<string>> GetFundPermissionsAsync(string routeFundId, CancellationToken cancellationToken)
+    private async Task<IReadOnlySet<string>> GetFundPermissionsAsync(
+        Guid userId,
+        string routeFundId,
+        CancellationToken cancellationToken)
     {
         if (!Guid.TryParse(routeFundId, out var fundId))
         {
             throw new NotFoundException();
         }
 
-        var access = await accessService.GetFundAccessAsync(fundId, cancellationToken)
-            ?? throw new NotFoundException();
+        var access = await accessService.GetFundAccessAsync(userId, fundId, cancellationToken);
         return access.Permissions;
     }
 }

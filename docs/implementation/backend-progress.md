@@ -1,9 +1,9 @@
 # Backend Progress
 
-> Cập nhật: 2026-11-05 · Nhánh `feature/implementation`.
+> Cập nhật: 2026-11-05 · Nhánh `feature/codebase`.
 
 ## Trạng thái
-**Not Implemented** – toàn bộ mã nguồn Backend / Frontend đã xóa ngày 2026-11-05 theo quyết định của PO (D-35). Giai đoạn hiện tại chỉ hoàn thiện Docs + Canvas. Xem [implementation-status.md](implementation-status.md).
+**Partially Implemented** – mã nguồn cũ đã xóa (D-35) và đang làm lại: đã có Codebase Foundation, Domain Entities, `AppDbContext`, `AccessService`, migration `InitialClassFund` + `AddDatabaseProtections`. Chưa có feature nghiệp vụ. Xem [implementation-status.md](implementation-status.md).
 
 ### Historical (mã nguồn đã xóa)
 R3 – Giáo viên · Học sinh · Phụ huynh (D-24 → D-33) đã từng được cài đặt đầy đủ trước khi xóa:

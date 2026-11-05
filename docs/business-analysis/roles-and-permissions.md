@@ -2,7 +2,7 @@
 
 > Phiên bản: 2.0 · 2026-11-05 – mô hình **Giáo viên · Học sinh · Phụ huynh** (D-24 → D-33 trong [open-questions.md](../requirements/open-questions.md)). v1.2 (Thủ quỹ / GVCN / Phụ huynh qua bảng `FundMember` – **chưa từng triển khai**) nằm trong Git history.
 >
-> Trạng thái triển khai: **Not Implemented** – mã nguồn cũ (từng cài đặt đúng đặc tả này) đã xóa ngày 2026-11-05; đặc tả giữ nguyên làm Source of Truth. Xem [implementation-status.md](../implementation/implementation-status.md).
+> Trạng thái triển khai: **Partially Implemented** – đã có `RolePermissions`, `AccessService` (suy ra vai trò, mục 1), `[RequirePermission]`; chưa có phạm vi dữ liệu ở mục 4, 5. Đặc tả là Source of Truth. Xem [implementation-status.md](../implementation/implementation-status.md).
 
 ## 1. Loại tài khoản và vai trò trong quỹ
 
