@@ -8,8 +8,9 @@
 | R1 | Tái cấu trúc theo bài toán thủ quỹ: tài khoản, quỹ, danh mục, khoản thu / chi, tổng quan, báo cáo tháng / năm | Thay bằng R3 (historical: 45 unit / 53 integration; mã đã xóa) |
 | R2 | 3 vai trò (Thủ quỹ / GVCN / Phụ huynh): `FundMember`, permission theo vai trò, phạm vi công khai, quản lý thành viên – kế hoạch B1 → B7 trong `role-scope-review-2026-11-04.md` | Thiết kế v1.2 hoàn tất; PO duyệt D-10, D-11, D-12, Q-11, Q-12, B2–B7 (2026-11-04). **Chờ chốt B1 (+ D-09), X-01, X-02 và lệnh triển khai.** Chưa có code / migration |
 | R3 | Giáo viên · Học sinh · Phụ huynh (D-24 → D-33): đăng ký giáo viên, nhiều quỹ, học sinh, tài khoản tạm, liên kết phụ huynh, phân công thủ quỹ, API theo quỹ, migration `TeacherStudentParent` | **Not Implemented** – từng làm xong 2026-11-05 (historical: 57 unit / 67 integration), mã nguồn đã xóa cùng ngày (D-35). Đặc tả giữ nguyên |
-| Hiện tại | Hoàn thiện Docs + Canvas làm Source of Truth; chốt PD-01 → PD-06 | Đang làm |
-| Tiếp theo | Triển khai lại Backend theo docs (R3 + D-34), rồi Frontend Angular + Kendo theo Canvas 3.1 | Chờ PO cho phép |
+| R4 | Làm lại theo docs: Codebase Foundation, Domain Entities, `AppDbContext`, `AccessService`, migration `InitialClassFund` + `AddDatabaseProtections` | Done (nhánh `feature/codebase`) |
+| Hiện tại | Chốt PD-01 → PD-06 | Đang làm |
+| Tiếp theo | Feature Auth (đăng nhập, đăng ký, `/auth/me`, `SessionStore` thay `NoIdentityStore`), rồi các feature còn lại ở Backend và Frontend theo Canvas 3.1 | Chưa làm |
 
 ## Lịch sử
 | Ngày | Thay đổi |
@@ -18,3 +19,4 @@
 | 2026-11-04 | R2 bổ sung: đổi vai trò, `UpdatedBy` / `CancelledBy`, bản công khai có khoản đã hủy, test cases `docs/testing/test-cases.md` |
 | 2026-11-05 | R3 triển khai; R2 đánh dấu thay thế |
 | 2026-11-05 | Xóa mã nguồn (D-35): M0, R1, R3 → Not Implemented |
+| 2026-11-05 | Thêm R4; cập nhật Hiện tại / Tiếp theo |

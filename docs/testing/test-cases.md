@@ -1,10 +1,14 @@
 # Test cases – Quỹ Lớp 2.0 (Giáo viên · Học sinh · Phụ huynh)
 
 > 2026-11-05 · Mục **A** là bộ test case hiện hành (D-24 → D-34) – **đặc tả giữ nguyên**, là căn cứ viết test khi triển khai lại.
-> **Trạng thái hiện tại: Not Implemented** – mã nguồn và bộ test tự động cũ đã xóa ngày 2026-11-05 ([implementation-status.md](../implementation/implementation-status.md)). Cột "Test (lịch sử)" ghi tên test đã từng cài đặt cho từng case – chỉ để tham khảo.
+> **Trạng thái hiện tại: phần lớn Not Implemented** (kết quả mới ở mục dưới) – mã nguồn và bộ test tự động cũ đã xóa ngày 2026-11-05 ([implementation-status.md](../implementation/implementation-status.md)). Cột "Test (lịch sử)" ghi tên test đã từng cài đặt cho từng case – chỉ để tham khảo.
 > Mục 0 → 10 bên dưới là đặc tả R2 (v1.1 / v1.2, `FundMember`, `/members`, đổi vai trò) – **không dùng**, giữ để lưu lịch sử.
 >
 > Trạng thái: `Not Implemented` (chưa có test tự động) · `Pending Decision` · (`Passed` / `Failed` dùng lại khi chạy test mới).
+
+## Kết quả hiện tại
+
+Chi tiết ở [implementation-status.md](../implementation/implementation-status.md) mục 3a. `AccessServiceTests` (16 test) phủ thứ tự suy ra vai trò trong `roles-and-permissions.md` mục 1.
 
 ## Historical Test Results
 
@@ -67,14 +71,14 @@ Lớp test: `TS` = `Roles/TeacherStudentTreasurerTests`, `PP` = `Roles/ParentAnd
 ### A.5 Phân quyền chung, migration, regression
 | Mã | Tình huống | Kỳ vọng | Test (lịch sử) | Trạng thái |
 |---|---|---|---|---|
-| G-01 | Ma trận permission theo vai trò; chỉ giáo viên tạo quỹ | Đúng bảng `roles-and-permissions.md` | U `FundDomainTests` | Not Implemented |
+| G-01 | Ma trận permission theo vai trò; chỉ giáo viên tạo quỹ | Đúng bảng `roles-and-permissions.md` | `RolePermissionsTests`, `AccessServiceTests` | Passed |
 | G-02 | Thiếu header antiforgery khi ghi | 400 | RC `Treasurer_signs_in…` | Not Implemented |
 | G-03 | Đổi mật khẩu / khóa tài khoản → phiên cũ | 401 | RC `Treasurer_signs_in…` | Not Implemented |
 | G-04 | Thủ quỹ quỹ B dùng Id giao dịch / đường dẫn quỹ A | 404 | TX `A_treasurer_cannot…` | Not Implemented |
 | G-05 | Đăng nhập bằng một ô `login`: email giáo viên / phụ huynh, tên đăng nhập học sinh; request không có tham số vai trò; gửi kèm `role` bị bỏ qua (D-34) | 200 với mọi loại tài khoản; `/auth/me` trả loại tài khoản + vai trò theo quỹ | – (mới) | Not Implemented |
-| M-01 | Nâng cấp DB `InitialClassFund` có dữ liệu | Owner → Teacher, không phân công, giao dịch / AuditLog giữ nguyên, `IsPublic = true`, `CancelledBy` từ AuditLog | UP | Not Implemented |
-| M-02 | DELETE Student / ParentLink / TreasurerAssignment bằng `app_user` | P0001 | PT | Not Implemented |
-| M-03 | Lịch sử migration có `_TeacherStudentParent` | Có | `DatabaseAccountTests` | Not Implemented |
+| M-01 | Nâng cấp DB `InitialClassFund` có dữ liệu | Owner → Teacher, không phân công, giao dịch / AuditLog giữ nguyên, `IsPublic = true`, `CancelledBy` từ AuditLog | UP | Không áp dụng (D-36) |
+| M-02 | DELETE Student / ParentLink / TreasurerAssignment bằng `app_user` | P0001 | PT | Kiểm chứng thủ công 2026-11-05, chưa có test tự động |
+| M-03 | Lịch sử migration có `_InitialClassFund`, `_AddDatabaseProtections` *(sửa 2026-11-05, D-36)* | Có | `DatabaseAccountTests` | Kiểm chứng thủ công 2026-11-05, chưa có test tự động |
 | R-01 | Thu chi, sửa, hủy, chống trùng (5 request đồng thời), lọc, báo cáo tháng / năm, danh mục ẩn | Như R1 | TX, RC | Not Implemented |
 | X-01 | Khởi động API bằng `dotnet run` và thao tác thủ công (smoke test) | Đăng ký → tạo quỹ → học sinh → phân công → ghi thu chi | – | Not Implemented |
 | X-02 | GVCN khóa học sinh, học sinh rời lớp, chuyển quỹ, phụ huynh quên mật khẩu | – | – | Pending Decision (PD-02 → PD-05) |

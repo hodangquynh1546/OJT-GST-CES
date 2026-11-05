@@ -1,6 +1,6 @@
 # Data Dictionary
 
-> Phiên bản: 2.0 · 2026-11-05 – mô hình Giáo viên · Học sinh · Phụ huynh. Migration: `InitialClassFund` (baseline) + `TeacherStudentParent` (bổ sung, giữ dữ liệu). Trạng thái triển khai: **Not Implemented** cho mọi bảng (mã nguồn và migration đã xóa ngày 2026-11-05 – xem [implementation-status.md](../implementation/implementation-status.md)); thiết kế giữ nguyên. Nhãn "Thiết kế hiện hành" = dùng cho lần triển khai tới; "Không dùng" = thiết kế cũ đã bỏ.
+> Phiên bản: 2.0 · 2026-11-05 – mô hình Giáo viên · Học sinh · Phụ huynh. Migration: `InitialClassFund` + `AddDatabaseProtections` (D-36). Trạng thái triển khai: **Implemented** cho mọi bảng dưới đây – xem [implementation-status.md](../implementation/implementation-status.md). Nhãn "Thiết kế hiện hành" = dùng cho lần triển khai tới; "Không dùng" = thiết kế cũ đã bỏ.
 
 Quy ước: PascalCase; khóa chính UUID v7 (sinh ở ứng dụng), riêng `AuditLog` dùng `bigint identity`; thời điểm `timestamptz` (UTC); ngày nghiệp vụ `date`; enum `varchar(30)` + CHECK `CK_<Bảng>_<Cột>`; cột kết thúc `By` / `UserId` là FK → `User` (Restrict).
 
@@ -99,10 +99,10 @@ Trigger `TR_NoDelete`. "Thủ quỹ cuối cùng" kiểm tra ở Application (kh
 |---|---|---|
 | Id | bigint identity | PK |
 | OccurredAt | timestamptz | |
-| ActorUserId | uuid → User | Lấy từ phiên đăng nhập, không từ request |
+| ActorUserId | uuid → User, N | Lấy từ phiên đăng nhập, không từ request. Null khi đăng nhập thất bại với tài khoản không tồn tại |
 | Category | varchar(30) | `Change`, `Security` |
 | Action | varchar(100) | `Account.RegisterTeacher`, `Account.UpdateProfile`, `Auth.SignIn`, `Auth.SignInFailed`, `Auth.PasswordChanged`, `Fund.Create`, `Fund.Rename`, `Student.Create`, `Student.Update`, `Student.IssueAccount`, `Student.ResetPassword`, `Parent.CreateAccount`, `ParentLink.Create`, `ParentLink.Remove`, `Treasurer.Assign`, `Treasurer.Revoke`, `Income/Expense.Create/Update/Cancel`, `Category.Create/Update` – **không** chứa mật khẩu |
-| EntityType, EntityId | varchar | |
+| EntityType, EntityId | varchar(100), varchar(64), N | |
 | OldValues, NewValues | jsonb | |
 | CorrelationId | varchar(64) | |
 | IpAddress | inet | |
@@ -117,3 +117,4 @@ Thiết kế v1.1 / v1.2 (một tài khoản – một quỹ, cột `Role`, `Upd
 | 2026-11-04 | v1.2 – `FundTransaction.UpdatedBy`, `CancelledBy`; `FundMember.UpdatedBy`; `CancelReason` bắt buộc khi hủy mới (thiết kế) |
 | 2026-11-05 | 2.0 – triển khai `TeacherStudentParent`: `User.Kind / Username / MustChangePassword`, email nullable; `Fund.OwnerUserId` bỏ UNIQUE; `Student`, `ParentLink`, `TreasurerAssignment`; `FundTransaction.IsPublic / UpdatedBy / CancelledBy`; `FundMember` không triển khai |
 | 2026-11-05 | Mã nguồn / migration đã xóa – trạng thái Not Implemented; thiết kế 2.0 giữ nguyên |
+| 2026-11-05 | Triển khai lại bằng `InitialClassFund` + `AddDatabaseProtections`; `AuditLog.ActorUserId` cho phép null; chốt độ dài `EntityType`, `EntityId` |

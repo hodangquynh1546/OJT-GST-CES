@@ -46,8 +46,12 @@ TD-65, TD-66 giữ nguyên trong bảng trên để lưu lịch sử. **2026-11-
 | TD-84 | Bản công khai: một `TransactionRow` + `ToDto(full)`; trường nội bộ null + `JsonIgnore(WhenWritingNull)`; lọc `IsPublic` trong `Visible(scope)` trước mọi điều kiện | TD-73 |
 | TD-85 | Thu hồi / phân công thủ quỹ: `IAppDb.LockAsync<Fund>` (`SELECT … FOR UPDATE`) trong `InTransactionAsync` (Read Committed + retry); UNIQUE lọc chống phân công trùng | TD-75 |
 | TD-86 | `Credentials.TemporaryPassword()` – `RandomNumberGenerator`, 16 ký tự không gây nhầm; `SuggestUsername` bỏ dấu; response có `Cache-Control: no-store`; AuditLog không chứa mật khẩu; request logging không ghi body | TD-77 |
-| TD-87 | Migration `TeacherStudentParent` bổ sung: default `Kind = 'Teacher'` rồi DROP DEFAULT; backfill `UpdatedBy` / `CancelledBy` từ AuditLog (`DISTINCT ON … ORDER BY OccurredAt DESC`); NoDelete 3 bảng mới; không tạo phân công | TD-76 |
+| TD-87 | *(Không triển khai – thay bằng TD-91)* Migration `TeacherStudentParent` bổ sung: default `Kind = 'Teacher'` rồi DROP DEFAULT; backfill `UpdatedBy` / `CancelledBy` từ AuditLog (`DISTINCT ON … ORDER BY OccurredAt DESC`); NoDelete 3 bảng mới; không tạo phân công | TD-76 |
 | TD-88 | CLI `create-teacher` (quỹ tùy chọn) thay `create-treasurer`; `SCHOOLFUND_LOGIN` (fallback `SCHOOLFUND_EMAIL`) | TD-67 (một phần) |
+| TD-89 | `Entity<TId>` là lớp gốc; `Entity` = `Entity<Guid>` (UUID v7), `AuditLog : Entity<long>` để giữ `bigint identity` | – |
+| TD-90 | `AccessService` nằm ở Application, dùng port `IAppDb`, nhận `userId` + `fundId`, ném `NotFoundException` khi không thuộc quỹ; đăng ký DI ở Infrastructure vì Application không có package DI. Chưa nhớ kết quả trong request như TD-81 (mỗi request hiện chỉ gọi một lần) | TD-81 (một phần) |
+| TD-91 | Hai migration: `InitialClassFund` (toàn bộ schema 2.0) và `AddDatabaseProtections` (SQL tay: `UQ_Category_Fund_Type_Name`, `fn_block_delete`, `fn_block_audit_change`, trigger). `dotnet-ef` 10.0.4 khai báo ở `dotnet-tools.json`; `AppDbContextFactory` đọc `ConnectionStrings__Migrator` | TD-87 |
+| TD-92 | `FundTransaction.IsPublic` dùng `HasDefaultValue(true).HasSentinel(true)`: nếu không, EF coi `false` là chưa gán và cột nhận `true`, biến khoản không công khai thành công khai | – |
 
 ## Đã loại bỏ
 Package: không thêm / bớt package NuGet. Mã: email sender, file storage, permission evaluator theo phạm vi, mọi service nghiệp vụ cũ.

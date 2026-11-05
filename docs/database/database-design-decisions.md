@@ -1,6 +1,6 @@
 # Database Design Decisions
 
-> 2026-11-05: Trạng thái triển khai **Not Implemented** – mã nguồn đã xóa; DD-17 → DD-22 là thiết kế hiện hành. DD-09, DD-13, DD-16 (thiết kế `FundMember` / `AddFundMembers`) **không triển khai** – thay bằng DD-17 → DD-22. DD-14 phần CHECK `NOT VALID` không triển khai.
+> 2026-11-05: Schema **Implemented** theo DD-17 → DD-20, DD-22 → DD-24; DD-21 không triển khai. DD-09, DD-13, DD-16 (thiết kế `FundMember` / `AddFundMembers`) **không triển khai** – thay bằng DD-17 → DD-22. DD-14 phần CHECK `NOT VALID` không triển khai.
 
 | Mã | Quyết định | Lý do | Phương án đã bỏ |
 |---|---|---|---|
@@ -25,11 +25,13 @@
 | DD-18 | `User.Kind` cố định + `Username` nullable UNIQUE, `Email` nullable | Học sinh không cần email; giáo viên / phụ huynh đăng nhập bằng email; CHECK bảo đảm luôn có tên đăng nhập | Bảng tài khoản riêng cho từng loại |
 | DD-19 | `TreasurerAssignment` có `RevokedAt/RevokedBy`, UNIQUE lọc theo phân công đang hiệu lực, FK ghép `(StudentId, FundId)` | Lịch sử đầy đủ; DB chặn phân công trùng và sai quỹ; thủ quỹ cuối cùng kiểm tra ở Application với khóa dòng `Fund` (`FOR UPDATE` qua `IAppDb.LockAsync`) | Cờ `IsTreasurer` trên Student (mất lịch sử); SERIALIZABLE |
 | DD-20 | `ParentLink.IsActive` + UNIQUE lọc `(StudentId) WHERE IsActive` | v1 một phụ huynh / học sinh nhưng giữ lịch sử gỡ / đổi | Cột `ParentUserId` trên Student |
-| DD-21 | Migration bổ sung `TeacherStudentParent` | Chỉ thêm cột (có default) / bảng / index / trigger; đổi `Email` thành nullable; bỏ UNIQUE `OwnerUserId` (không mất dữ liệu); backfill `UpdatedBy` / `CancelledBy` từ `AuditLog`, không suy diễn; mọi tài khoản cũ → `Teacher`; không tạo phân công thủ quỹ (D-30) | Drop / tạo lại bảng; giữ người lớn làm thủ quỹ |
+| DD-21 | *(Không triển khai – thay bằng DD-23)* Migration bổ sung `TeacherStudentParent` | Chỉ thêm cột (có default) / bảng / index / trigger; đổi `Email` thành nullable; bỏ UNIQUE `OwnerUserId` (không mất dữ liệu); backfill `UpdatedBy` / `CancelledBy` từ `AuditLog`, không suy diễn; mọi tài khoản cũ → `Teacher`; không tạo phân công thủ quỹ (D-30) | Drop / tạo lại bảng; giữ người lớn làm thủ quỹ |
 | DD-22 | Không xóa cứng `Student`, `ParentLink`, `TreasurerAssignment` (trigger) | Lịch sử phân công / liên kết là dữ liệu kiểm toán | Xóa mềm bằng cột `DeletedAt` |
+| DD-23 | Gộp toàn bộ schema 2.0 vào baseline `InitialClassFund`, không có `TeacherStudentParent` | Mã nguồn và migration cũ đã xóa, chưa có DB nào cần nâng cấp nên không cần bước chuyển dữ liệu (D-36) | Tạo lại hai bước để mô phỏng lịch sử nâng cấp |
+| DD-24 | Migration riêng `AddDatabaseProtections` cho phần SQL viết tay (trigger, index theo biểu thức) | Sinh lại baseline không làm mất phần viết tay; có `Down()` đầy đủ | Thêm SQL vào cuối baseline |
 
 ## Lưu ý vận hành
-**2.0:** `TeacherStudentParent` phải áp được lên DB đang có dữ liệu `InitialClassFund` (*historical*: đã kiểm chứng bằng `UpgradeMigrationTests` trước khi mã nguồn bị xóa 2026-11-05; cần kiểm chứng lại khi triển khai). `Down()` chỉ dành cho dev: thất bại nếu đã có tài khoản học sinh (email null) – không ép xóa dữ liệu.
+*(Không áp dụng – DD-23)* **2.0:** `TeacherStudentParent` phải áp được lên DB đang có dữ liệu `InitialClassFund` (*historical*: đã kiểm chứng bằng `UpgradeMigrationTests` trước khi mã nguồn bị xóa 2026-11-05; cần kiểm chứng lại khi triển khai). `Down()` chỉ dành cho dev: thất bại nếu đã có tài khoản học sinh (email null) – không ép xóa dữ liệu.
 
 *(v1.2, không triển khai)* `AddFundMembers` áp được lên DB đang có dữ liệu `InitialClassFund`. `Down()` xóa bảng / cột mới → mất dữ liệu thành viên và cờ công khai; chỉ dùng trên môi trường dev.
 

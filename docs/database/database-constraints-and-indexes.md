@@ -1,6 +1,6 @@
 # Constraints & Indexes
 
-> Phiên bản 2.0 · 2026-11-05. Dòng **v1.1 / v1.2** về `FundMember` và `CK_FundTransaction_CancelledBy` là thiết kế **Not Implemented** (giữ để lưu lịch sử). Phần "2.0" là thiết kế hiện hành (migration dự kiến `TeacherStudentParent`). Trạng thái triển khai: **Not Implemented** (mã nguồn đã xóa ngày 2026-11-05).
+> Phiên bản 2.0 · 2026-11-05. Dòng **v1.1 / v1.2** về `FundMember` và `CK_FundTransaction_CancelledBy` là thiết kế **Not Implemented** (giữ để lưu lịch sử). Phần "2.0" là thiết kế hiện hành (migration `InitialClassFund` + `AddDatabaseProtections`). Trạng thái triển khai: **Implemented**, đã kiểm chứng trên PostgreSQL 16.
 
 | Tên | Bảng | Nội dung | Mục đích |
 |---|---|---|---|
@@ -10,7 +10,7 @@
 | `IX_FundMember_FundId_Role` | FundMember | (FundId, Role) | v1.1 — **Not Implemented** |
 | `CK_FundMember_Role` | FundMember | IN (Treasurer, HomeroomTeacher, Parent) | v1.1 — **Not Implemented** |
 | `AK_Category_Id_FundId_Type` | Category | Khóa phụ | Đích của FK ghép |
-| `UQ_Category_Fund_Type_Name` | Category | UNIQUE (FundId, Type, lower(Name)) | Không trùng tên danh mục |
+| `UQ_Category_Fund_Type_Name` | Category | UNIQUE (FundId, Type, lower(Name)) | Không trùng tên danh mục. Tạo bằng SQL trong `AddDatabaseProtections` vì EF không khai báo được index theo biểu thức |
 | `FK_FundTransaction_Category_SameFundAndType` | FundTransaction | FK (CategoryId, FundId, Type) | Giao dịch chỉ dùng danh mục cùng quỹ, cùng loại |
 | `CK_FundTransaction_AmountPositive` | FundTransaction | Amount > 0 | BR-01 |
 | `CK_FundTransaction_CancelledTrace` | FundTransaction | IsCancelled ⇔ CancelledAt có giá trị | Nhất quán trạng thái hủy |
@@ -42,7 +42,9 @@
 | `TR_AppendOnly` | AuditLog | Chặn UPDATE / DELETE |
 | `TR_NoDelete` | FundTransaction, Category, Fund, User; **2.0:** Student, ParentLink, TreasurerAssignment | Chặn DELETE (hủy / ẩn / khóa / thu hồi / gỡ thay cho xóa) |
 
-`app_user` không có DDL nên không tắt được trigger; không sửa được `__EFMigrationsHistory`.
+Hàm trigger: `fn_block_delete`, `fn_block_audit_change` (lỗi `P0001`), tạo trong `AddDatabaseProtections`.
+
+`app_user` không có DDL nên không tắt được trigger; không sửa được `__EFMigrationsHistory`. *(Chưa cấu hình tài khoản – KI-10.)*
 
 ## Lịch sử thay đổi
 | Ngày | Thay đổi |
@@ -50,3 +52,4 @@
 | 2026-11-04 | v1.1 – `UQ_FundMember_UserId`, `IX_FundMember_FundId_Role`, `CK_FundMember_Role`, default cột mới, NoDelete cho FundMember |
 | 2026-11-04 | v1.2 – `CK_FundTransaction_CancelledBy` (NOT VALID), FK `UpdatedBy` / `CancelledBy` |
 | 2026-11-05 | 2.0 – bỏ `UQ_Fund_OwnerUserId`; thêm ràng buộc / index cho `User.Username`, `Student`, `ParentLink`, `TreasurerAssignment`; NoDelete 3 bảng mới; đánh dấu thiết kế `FundMember`, `CK_FundTransaction_CancelledBy` Not Implemented |
+| 2026-11-05 | Triển khai bằng `InitialClassFund` + `AddDatabaseProtections` |

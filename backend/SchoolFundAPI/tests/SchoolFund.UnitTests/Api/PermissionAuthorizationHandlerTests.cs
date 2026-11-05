@@ -13,18 +13,21 @@ namespace SchoolFund.UnitTests.Api;
 public class PermissionAuthorizationHandlerTests
 {
     private static readonly Guid FundId = Guid.CreateVersion7();
+    private static readonly Guid UserId = Guid.CreateVersion7();
     private readonly Mock<ICurrentUser> _user = new();
     private readonly Mock<IAccessService> _access = new();
 
     public PermissionAuthorizationHandlerTests()
     {
-        _user.SetupGet(user => user.IsAuthenticated).Returns(true);
-        _access.Setup(access => access.GetAccountPermissionsAsync(It.IsAny<CancellationToken>()))
+        _user.SetupGet(user => user.UserId).Returns(UserId);
+        _access.Setup(access => access.GetAccountPermissionsAsync(UserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new HashSet<string>());
+        _access.Setup(access => access.GetFundAccessAsync(UserId, FundId, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new NotFoundException());
     }
 
     private void GivenRole(FundRole role) =>
-        _access.Setup(access => access.GetFundAccessAsync(FundId, It.IsAny<CancellationToken>()))
+        _access.Setup(access => access.GetFundAccessAsync(UserId, FundId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new FundAccess(FundId, role, RolePermissions.For(role)));
 
     private async Task<AuthorizationHandlerContext> AuthorizeAsync(string permission, string? routeFundId)
@@ -95,21 +98,21 @@ public class PermissionAuthorizationHandlerTests
     [Fact]
     public async Task Without_fund_in_route_uses_account_permissions()
     {
-        _access.Setup(access => access.GetAccountPermissionsAsync(It.IsAny<CancellationToken>()))
+        _access.Setup(access => access.GetAccountPermissionsAsync(UserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new HashSet<string> { Permissions.FundCreate });
 
         var context = await AuthorizeAsync(Permissions.FundCreate, routeFundId: null);
 
         Assert.True(context.HasSucceeded);
         _access.Verify(
-            access => access.GetFundAccessAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            access => access.GetFundAccessAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
     [Fact]
     public async Task Anonymous_user_is_left_to_the_401_challenge()
     {
-        _user.SetupGet(user => user.IsAuthenticated).Returns(false);
+        _user.SetupGet(user => user.UserId).Returns((Guid?)null);
 
         var context = await AuthorizeAsync(Permissions.FundView, FundId.ToString());
 

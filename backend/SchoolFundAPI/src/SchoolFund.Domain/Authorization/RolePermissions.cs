@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using SchoolFund.Domain.Enums;
 
 namespace SchoolFund.Domain.Authorization;
 
@@ -24,6 +25,8 @@ public static class RolePermissions
         Permissions.FundView,
         Permissions.LedgerViewPublic);
 
+    private static readonly FrozenSet<string> TeacherAccount = FrozenSet.Create(Permissions.FundCreate);
+
     public static IReadOnlySet<string> For(FundRole role) => role switch
     {
         FundRole.Teacher => Teacher,
@@ -31,4 +34,8 @@ public static class RolePermissions
         FundRole.Student or FundRole.Parent => PublicViewer,
         _ => throw new ArgumentOutOfRangeException(nameof(role), role, "Vai trò không hợp lệ."),
     };
+
+    /// <summary>Quyền cấp tài khoản, không gắn với quỹ.</summary>
+    public static IReadOnlySet<string> ForAccount(UserKind kind) =>
+        kind == UserKind.Teacher ? TeacherAccount : FrozenSet<string>.Empty;
 }

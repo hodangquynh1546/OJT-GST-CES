@@ -18,9 +18,8 @@ public static class DependencyInjection
         services.AddScoped<IAppDb>(provider => provider.GetRequiredService<AppDb>());
         services.AddScoped<IDatabaseProbe>(provider => provider.GetRequiredService<AppDb>());
 
-        services.AddScoped<NoIdentityStore>();
-        services.AddScoped<ISessionStore>(provider => provider.GetRequiredService<NoIdentityStore>());
-        services.AddScoped<IAccessService>(provider => provider.GetRequiredService<NoIdentityStore>());
+        services.AddScoped<ISessionStore, NoIdentityStore>();
+        services.AddScoped<IAccessService, AccessService>();
 
         return services;
     }

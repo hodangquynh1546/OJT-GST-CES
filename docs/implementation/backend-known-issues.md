@@ -1,6 +1,6 @@
 # Backend Known Issues
 
-> Cập nhật 2026-11-05. Mã nguồn đã xóa – trạng thái **Not Implemented**. Các mục dưới là rủi ro / hạn chế của **thiết kế**, cần xử lý khi triển khai lại (KI-01, KI-09 chỉ còn là lịch sử). Historical: 124 / 124 test đạt trước khi xóa.
+> Cập nhật 2026-11-05. Mã nguồn đang làm lại – trạng thái xem [implementation-status.md](implementation-status.md). Các mục dưới là rủi ro / hạn chế của **thiết kế**, cần xử lý khi triển khai lại (KI-01, KI-09 chỉ còn là lịch sử). Historical: 124 / 124 test đạt trước khi xóa.
 
 | Mã | Nội dung |
 |---|---|
@@ -13,3 +13,6 @@
 | KI-07 | Thủ quỹ có tài khoản bị khóa / đang chờ đổi mật khẩu vẫn được tính là "thủ quỹ" khi kiểm tra thủ quỹ cuối cùng (PD-06) |
 | KI-08 | GVCN thấy họ tên do giáo viên khác đặt cho tài khoản phụ huynh dùng chung (phụ huynh tự sửa được qua `PUT /auth/me`) |
 | KI-09 | Chưa chạy API thủ công bằng `dotnet run` ở lượt 2026-11-05 (đã kiểm chứng bằng Integration Test) |
+| KI-10 | Chưa tạo `app_user` / `migrator_user` và phân quyền DB: khi dùng một tài khoản có DDL, trigger `TR_NoDelete`, `TR_AppendOnly` có thể bị tắt |
+| KI-11 | Chưa đăng nhập được: `NoIdentityStore` từ chối mọi phiên cho tới khi có feature Auth |
+| KI-12 | Kịch bản kiểm chứng migration trên PostgreSQL thật chạy tạm, chưa có project integration test trong repo (`training-doc.md` chỉ có `UnitTests`) |

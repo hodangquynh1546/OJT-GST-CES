@@ -1,6 +1,6 @@
 # Thao tác dữ liệu
 
-> 2.0 · 2026-11-05: dòng "(v1.1 / v1.2)" về thành viên là thiết kế cũ **không dùng**; các dòng "2.0" là thiết kế hiện hành. Trạng thái triển khai: **Not Implemented** (mã nguồn đã xóa ngày 2026-11-05).
+> 2.0 · 2026-11-05: dòng "(v1.1 / v1.2)" về thành viên là thiết kế cũ **không dùng**; các dòng "2.0" là thiết kế hiện hành. Schema đã có; các thao tác dưới đây **Not Implemented**, làm cùng từng feature. Đoạn "Đồng thời" cuối file về SERIALIZABLE là thiết kế v1.2; thiết kế hiện hành dùng khóa dòng `Fund` (DD-19, TD-85).
 
 | Thao tác | Ghi DB | Ghi chú |
 |---|---|---|

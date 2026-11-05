@@ -35,8 +35,9 @@ Clean Architecture gồm các tầng **Api → Application → Domain**, với *
 
 - [x] Khởi tạo cấu trúc thư mục dự án
 - [x] Phân tích yêu cầu nghiệp vụ
-- [x] Thiết kế database (`docs/database`, chưa có migration)
+- [x] Thiết kế database (`docs/database`) và migration
 - [x] Khởi tạo project backend (.NET) và frontend (Angular) – Codebase Foundation
+- [x] Domain Entities, `AppDbContext`, `AccessService`
 - [ ] Triển khai các feature nghiệp vụ
 
 Chi tiết: [`docs/implementation/implementation-status.md`](docs/implementation/implementation-status.md).
@@ -49,6 +50,8 @@ Cần .NET SDK 10, Node.js 22, Chrome và PostgreSQL. Không commit connection s
 # Backend: http://localhost:5286, Swagger ở /swagger (Development)
 cd backend/SchoolFundAPI
 dotnet user-secrets --project src/SchoolFund.Api set "ConnectionStrings:App" "<connection string>"
+dotnet tool restore
+ConnectionStrings__Migrator="<connection string>" dotnet ef database update --project src/SchoolFund.Infrastructure --startup-project src/SchoolFund.Infrastructure
 dotnet run --project src/SchoolFund.Api
 dotnet test
 
