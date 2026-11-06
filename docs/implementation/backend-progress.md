@@ -1,9 +1,9 @@
 # Backend Progress
 
-> Cập nhật: 2026-11-06 · Nhánh `feature/devA/fund-lifecycle` (trên `main` đã có PR #7 Thu chi).
+> Cập nhật: 2026-11-06 · Nhánh `feature/devA/student-parent` (trên `main` đã có PR #5 → #8).
 
 ## Trạng thái
-**Partially Implemented** – mã nguồn cũ đã xóa (D-35) và đang làm lại: đã có Codebase Foundation, Domain Entities, `AppDbContext`, `AccessService`, migration `InitialClassFund` + `AddDatabaseProtections` và các feature Backend **Auth & User Session**, **Danh mục** (Dev B), **Thu chi** (Dev B), **Fund Lifecycle**. Chưa có Frontend nghiệp vụ. Các feature còn lại: xem [implementation-status.md](implementation-status.md) mục 1a.
+**Partially Implemented** – mã nguồn cũ đã xóa (D-35) và đang làm lại: đã có Codebase Foundation, Domain Entities, `AppDbContext`, `AccessService`, migration `InitialClassFund` + `AddDatabaseProtections` và các feature Backend **Auth & User Session**, **Danh mục** (Dev B), **Thu chi** (Dev B), **Fund Lifecycle**, **Học sinh & phụ huynh**. Chưa có Frontend nghiệp vụ. Các feature còn lại: xem [implementation-status.md](implementation-status.md) mục 1a.
 
 ## Feature đã triển khai
 
@@ -21,7 +21,7 @@ Yêu cầu: FR-20, FR-13, FR-21, BR-17, BR-18, BR-26, BR-28, NFR-10, NFR-11 · A
 | Phụ trợ | `IAccessService.GetMembershipsAsync` (cho `/auth/me`); Swagger có nút Authorize cho header `X-XSRF-TOKEN` |
 | Test | Integration `Auth/AuthTests` (đăng ký, đăng nhập email / username, lỗi 401, mật khẩu tạm 403, đổi mật khẩu / khóa → phiên khác 401, quét log + AuditLog, rate limit, nâng cấp hash, thiếu `SECRET_KEY`); Unit `AuthServiceTests`, `AccessServiceMembershipTests`, `PasswordChangeRequiredFilterTests`, `PasswordPolicyTests`, `UserTests`, `AspNetPasswordHasherTests` |
 
-### Fund Lifecycle – Implemented, chờ review / merge (2026-11-06)
+### Fund Lifecycle – Implemented (PR #8, 2026-11-06)
 Yêu cầu: FR-22, FR-23, FR-11, BR-02, BR-23, BR-36 · API: [backend-api.md](../api/backend-api.md) mục Funds.
 
 | Hạng mục | Nội dung |
@@ -39,12 +39,33 @@ Xem mã nguồn `Features/Categories` và test `Categories/CategoryTests`, `Cate
 ### Thu chi – Implemented (Dev B, PR #7)
 Thêm, sửa, hủy (có lý do), danh sách, chi tiết, lịch sử thay đổi (FR-02 → FR-07). Xem mã nguồn `Features/Transactions`, TD-93 → TD-96 và test `Transactions/TransactionTests`, `TransactionServiceTests`, `TransactionsApiTests`, `FundTransactionTests`. `currentBalance` của `GET /funds` (Fund Lifecycle) tính trên cùng bảng `FundTransaction` nên phản ánh ngay các khoản thủ quỹ ghi qua API này.
 
+### Học sinh & phụ huynh – Implemented, chờ review / merge (2026-11-06)
+Yêu cầu: FR-24, FR-25, FR-26, BR-29, BR-30, BR-33, BR-35, P-13, P-14, P-16, NFR-10, NFR-11 · API: [backend-api.md](../api/backend-api.md) mục Students. Mọi endpoint `[RequirePermission(Student.Manage)]` – chỉ GVCN; thủ quỹ / học sinh / phụ huynh → 403, không thuộc quỹ hoặc học sinh của quỹ khác → 404. Mọi response `Cache-Control: no-store`.
+
+| Endpoint | Nội dung |
+|---|---|
+| `GET /funds/{fundId}/students` | Học sinh của quỹ (sắp theo tên): `id`, `fullName`, `username`, `accountStatus` (`None` / `PendingActivation` / `Active` / `Disabled`), `isTreasurer`, `parent { fullName, email, pendingActivation }` hoặc `null`, `createdAt` |
+| `POST /funds/{fundId}/students` | `{ fullName, parentEmail?, parentFullName? }` → 201 `{ id, parent? }`; có email phụ huynh thì liên kết luôn trong cùng thao tác – lỗi liên kết làm hỏng cả thao tác (không có học sinh nửa vời) |
+| `GET / PUT /funds/{fundId}/students/{id}` | Chi tiết / đổi họ tên (1–100 ký tự) → 204 |
+| `POST …/{id}/account` | `{ username? }` → `{ login, temporaryPassword }`. Bỏ trống → gợi ý `ten.ho.NNN` không dấu (ví dụ "Phạm Đức Huy" → `huy.pham.583`). Tạo `User` (Student, `MustChangePassword = true`), gán `Student.UserId`. 422 `student.account_exists`, `user.username`, `user.username_taken` |
+| `POST …/{id}/reset-password` | → `{ login, temporaryPassword }`; đổi SecurityStamp → mọi phiên cũ 401, phải đổi mật khẩu lại. 422 `student.no_account` |
+| `POST …/{id}/parent` | `{ email, fullName? }` → `{ accountCreated, credential \| null, emailSent: false }`. Email phụ huynh đã có → chỉ tạo `ParentLink`; chưa có → tạo `User` (Parent, mật khẩu tạm, tên mặc định "Phụ huynh {tên học sinh}"); email giáo viên / học sinh → 422 `parent.email_in_use`; học sinh đã có liên kết → 422 `parent_link.exists` |
+| `POST …/{id}/parent/unlink` | 204; đánh dấu `IsActive = false`, `RemovedBy`, `RemovedAt` – tài khoản phụ huynh và lịch sử giữ nguyên; chưa có liên kết → 404 |
+
+| Hạng mục | Nội dung |
+|---|---|
+| Mật khẩu tạm | `Credentials.TemporaryPassword()` – 16 ký tự `RandomNumberGenerator`, dạng `Xxxx-xxxx-0000-xxxx`, bỏ ký tự dễ nhầm (I, O, l, o, 0, 1); chỉ có trong response, lưu dạng hash (PBKDF2 + pepper), không vào AuditLog / log |
+| Đồng thời | Cấp tài khoản, cấp lại mật khẩu, liên kết phụ huynh chạy trong `InTransactionAsync` + `LockAsync<Student>` (TD-106); UNIQUE `UQ_User_Username`, `UQ_Student_UserId`, `UQ_ParentLink_Student_Active` là chốt chặn cuối |
+| AuditLog | `Student.Create`, `Student.Update`, `Student.IssueAccount`, `Student.ResetPassword`, `Parent.CreateAccount`, `ParentLink.Create`, `ParentLink.Remove` – không chứa mật khẩu |
+| Không xóa cứng | Trigger `TR_NoDelete` chặn `DELETE` trên `Student`, `ParentLink` (đã kiểm chứng bằng test) |
+| Test | Integration `Students/StudentTests` (13 test); Unit `StudentServiceTests`, `CredentialsTests` |
+
 ## Kiểm chứng gần nhất (2026-11-06)
 | Kiểm chứng | Kết quả |
 |---|---|
 | Build toàn solution (`TreatWarningsAsErrors`) | 0 warning, 0 error |
-| Unit test | 216 / 216 |
-| Integration test (PostgreSQL 16 – Testcontainers) | 52 / 52 |
+| Unit test | 242 / 242 |
+| Integration test (PostgreSQL 16 – Testcontainers) | 65 / 65 |
 | Khởi động API thủ công (`app_user`, Swagger) | Đạt (2026-11-05) |
 
 ## Chạy dev

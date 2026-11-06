@@ -7,7 +7,7 @@ Trạng thái từng feature: [implementation-status.md](implementation-status.m
 | Yêu cầu kiểm thử | Test | Kết quả |
 |---|---|---|
 | Build toàn solution | `dotnet build` | ✅ 0 warning, 0 error (2026-11-06) |
-| Unit / Integration (PostgreSQL thật) | `dotnet test` | ✅ 216 / 216 · 52 / 52 (2026-11-06, sau merge Thu chi) |
+| Unit / Integration (PostgreSQL thật) | `dotnet test` | ✅ 242 / 242 · 65 / 65 (2026-11-06, Học sinh & phụ huynh) |
 | **Auth** – Đăng ký giáo viên (luôn `Teacher`, bỏ qua vai trò gửi lên) | `AuthTests.Teacher_registers_and_is_signed_in_as_teacher` | ✅ |
 | Đăng ký: xác nhận sai 400 / mật khẩu yếu 422 / email trùng (khác hoa thường) 422 (T-01) | `AuthTests.Register_rejects_mismatched_confirmation_weak_password_and_taken_email` | ✅ |
 | Đăng nhập bằng email, không tham số vai trò (G-05) | `AuthTests.Teacher_signs_in_with_email_case_insensitively_without_role_parameter` | ✅ |
@@ -28,6 +28,18 @@ Trạng thái từng feature: [implementation-status.md](implementation-status.m
 | `GET /funds` cần đăng nhập, không còn mật khẩu tạm | `FundTests.List_requires_sign_in_and_changed_password` | ✅ |
 | **Danh mục** (Dev B) | `CategoryTests`, `CategoryServiceTests` | ✅ |
 | **Thu chi** (Dev B) | `TransactionTests`, `TransactionServiceTests`, `TransactionsApiTests`, `FundTransactionTests` | ✅ |
+| **Học sinh** – Thêm, danh sách, chi tiết, đổi tên; validate (FR-24, S-01) | `StudentTests.Teacher_adds_lists_views_and_renames_students` | ✅ |
+| Cấp tài khoản: gợi ý `ten.ho.NNN`, mật khẩu tạm `Xxxx-xxxx-0000-xxxx`, `PendingActivation` → `Active`, cấp lần 2 → 422 (FR-25, S-02) | `StudentTests.Issuing_account_suggests_username_and_returns_one_time_temporary_password`, `CredentialsTests` | ✅ |
+| Tên đăng nhập tự chọn: định dạng 422 `user.username`, trùng 422 `user.username_taken` | `StudentTests.Issuing_account_with_chosen_username_validates_format_and_uniqueness` | ✅ |
+| Cấp lại mật khẩu tạm → phiên cũ 401, phải đổi lại (BR-35, S-06) | `StudentTests.Resetting_password_ends_every_session_and_requires_a_new_change` | ✅ |
+| Liên kết phụ huynh mới: tạo tài khoản + mật khẩu tạm, `emailSent = false`; liên kết thứ hai 422 (FR-26, P-01, P-03) | `StudentTests.Linking_new_parent_email_creates_parent_account_with_one_time_password` | ✅ |
+| Liên kết phụ huynh đã có (khác hoa thường, quỹ khác): chỉ liên kết, 1 tài khoản, 2 quỹ (P-02, P-04) | `StudentTests.Linking_existing_parent_email_only_links_without_new_account` | ✅ |
+| Email giáo viên / học sinh → 422 `parent.email_in_use`; thêm học sinh kèm email sai không lưu nửa vời | `StudentTests.Teacher_or_student_email_cannot_be_linked_as_parent` | ✅ |
+| Thêm học sinh kèm email phụ huynh trong một bước (P-13) | `StudentTests.Adding_student_with_parent_email_links_parent_in_one_step` | ✅ |
+| Gỡ liên kết: đánh dấu, giữ lịch sử, phụ huynh 404 ngay, liên kết lại không cấp mật khẩu (BR-33, P-05) | `StudentTests.Unlinking_parent_marks_link_removed_keeps_history_and_account` | ✅ |
+| Chỉ GVCN quản lý học sinh (403 / 404); danh sách có thủ quỹ + phụ huynh (S-09) | `StudentTests.Only_homeroom_teacher_manages_students`, `…List_shows_treasurer_flag_and_parent_of_each_student` | ✅ |
+| Mật khẩu tạm không vào AuditLog / log (S-05, NFR-10) | `StudentTests.Temporary_passwords_never_reach_audit_log_or_logs` | ✅ |
+| Không xóa cứng Student / ParentLink (TR_NoDelete, M-02) | `StudentTests.Students_and_parent_links_cannot_be_hard_deleted` | ✅ |
 
 ## Historical
 

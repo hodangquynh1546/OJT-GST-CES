@@ -69,6 +69,18 @@ public sealed class User : Entity
     /// <summary>Băm lại mật khẩu đúng bằng tham số mới; không đổi SecurityStamp nên phiên giữ nguyên.</summary>
     public void UpgradePasswordHash(string passwordHash) => PasswordHash = passwordHash;
 
+    /// <summary>
+    /// GVCN cấp lại mật khẩu tạm (BR-35): mật khẩu cũ hết hiệu lực, đổi SecurityStamp để mọi phiên bị đăng xuất,
+    /// bắt buộc đổi mật khẩu ở lần đăng nhập sau.
+    /// </summary>
+    public void ResetTemporaryPassword(string temporaryPasswordHash, DateTimeOffset at)
+    {
+        PasswordHash = temporaryPasswordHash;
+        MustChangePassword = true;
+        SecurityStamp = Guid.NewGuid().ToString("N");
+        UpdatedAt = at;
+    }
+
     /// <summary>Khóa tài khoản: mọi phiên chấm dứt ngay (BR-18).</summary>
     public void Disable(DateTimeOffset at)
     {
