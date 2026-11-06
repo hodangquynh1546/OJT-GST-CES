@@ -1,9 +1,9 @@
 # Backend Progress
 
-> Cập nhật: 2026-11-06 · Nhánh `feature/devA/student-parent` (trên `main` đã có PR #5 → #8).
+> Cập nhật: 2026-11-06 · Nhánh `feature/devA/collecting-class-funds` (trên `main` đã có PR #5 → #9).
 
 ## Trạng thái
-**Partially Implemented** – mã nguồn cũ đã xóa (D-35) và đang làm lại: đã có Codebase Foundation, Domain Entities, `AppDbContext`, `AccessService`, migration `InitialClassFund` + `AddDatabaseProtections` và các feature Backend **Auth & User Session**, **Danh mục** (Dev B), **Thu chi** (Dev B), **Fund Lifecycle**, **Học sinh & phụ huynh**. Chưa có Frontend nghiệp vụ. Các feature còn lại: xem [implementation-status.md](implementation-status.md) mục 1a.
+**Partially Implemented** – mã nguồn cũ đã xóa (D-35) và đang làm lại: đã có Codebase Foundation, Domain Entities, `AppDbContext`, `AccessService`, migration `InitialClassFund` + `AddDatabaseProtections` và các feature Backend **Auth & User Session**, **Danh mục** (Dev B), **Thu chi** (Dev B), **Fund Lifecycle**, **Học sinh & phụ huynh**, **Phân công thủ quỹ**. Chưa có Frontend nghiệp vụ. Các feature còn lại: xem [implementation-status.md](implementation-status.md) mục 1a.
 
 ## Feature đã triển khai
 
@@ -39,7 +39,7 @@ Xem mã nguồn `Features/Categories` và test `Categories/CategoryTests`, `Cate
 ### Thu chi – Implemented (Dev B, PR #7)
 Thêm, sửa, hủy (có lý do), danh sách, chi tiết, lịch sử thay đổi (FR-02 → FR-07). Xem mã nguồn `Features/Transactions`, TD-93 → TD-96 và test `Transactions/TransactionTests`, `TransactionServiceTests`, `TransactionsApiTests`, `FundTransactionTests`. `currentBalance` của `GET /funds` (Fund Lifecycle) tính trên cùng bảng `FundTransaction` nên phản ánh ngay các khoản thủ quỹ ghi qua API này.
 
-### Học sinh & phụ huynh – Implemented, chờ review / merge (2026-11-06)
+### Học sinh & phụ huynh – Implemented (PR #9, 2026-11-06)
 Yêu cầu: FR-24, FR-25, FR-26, BR-29, BR-30, BR-33, BR-35, P-13, P-14, P-16, NFR-10, NFR-11 · API: [backend-api.md](../api/backend-api.md) mục Students. Mọi endpoint `[RequirePermission(Student.Manage)]` – chỉ GVCN; thủ quỹ / học sinh / phụ huynh → 403, không thuộc quỹ hoặc học sinh của quỹ khác → 404. Mọi response `Cache-Control: no-store`.
 
 | Endpoint | Nội dung |
@@ -60,12 +60,30 @@ Yêu cầu: FR-24, FR-25, FR-26, BR-29, BR-30, BR-33, BR-35, P-13, P-14, P-16, N
 | Không xóa cứng | Trigger `TR_NoDelete` chặn `DELETE` trên `Student`, `ParentLink` (đã kiểm chứng bằng test) |
 | Test | Integration `Students/StudentTests` (13 test); Unit `StudentServiceTests`, `CredentialsTests` |
 
+### Phân công thủ quỹ & khóa dòng – Implemented, chờ review / merge (2026-11-06)
+Yêu cầu: FR-27, BR-31, BR-32, BR-33, BR-36, P-15, NFR-09 · API: [backend-api.md](../api/backend-api.md) mục Treasurers. Mọi endpoint `[RequirePermission(Treasurer.Assign)]` – chỉ GVCN; thủ quỹ / học sinh / phụ huynh → 403, không thuộc quỹ → 404 (kể cả Id sai định dạng).
+
+| Endpoint | Nội dung |
+|---|---|
+| `GET /funds/{fundId}/treasurers` | `[{ id, studentId, studentName, isActive, assignedAt, assignedByName, revokedAt, revokedByName }]` – đang hiệu lực trước, rồi lịch sử (mới nhất trước); chỉ họ tên người thực hiện (BR-23) |
+| `POST /funds/{fundId}/treasurers` | `{ studentId }` → 201 `{ id }`. 404 học sinh ngoài quỹ; 422 `treasurer.already_assigned`, `treasurer.no_account`, `treasurer.account_disabled`, `treasurer.account_not_activated`. Học sinh từng bị thu hồi được phân công lại (thêm một dòng mới, lịch sử giữ nguyên) |
+| `POST …/treasurers/{assignmentId}/revoke` | 204; ghi `RevokedAt`, `RevokedBy`. 404 phân công ngoài quỹ; **409 `treasurer.already_revoked`**; **422 `treasurer.last`** khi chỉ còn một thủ quỹ đang hiệu lực |
+
+| Hạng mục | Nội dung |
+|---|---|
+| Khóa dòng (BR-32) | Phân công và thu hồi chạy trong `InTransactionAsync`, **khóa dòng `Fund` (`SELECT … FOR UPDATE`) trước**, rồi mới đọc / đếm (TD-107). Lệnh thu hồi thứ hai chờ tới khi lệnh đầu commit rồi đếm lại nên thấy "còn 1" và bị 422. UNIQUE lọc `UQ_TreasurerAssignment_Student_Active` là chốt chặn cuối cho phân công trùng |
+| Quy tắc "thủ quỹ cuối cùng" | Chỉ đếm phân công đang hiệu lực, không xét trạng thái tài khoản (mặc định của PD-06 – xem KI-07) |
+| Hiệu lực | Vai trò suy ra từ dữ liệu ở mỗi request: học sinh ghi được thu chi ngay sau khi được phân công, mất quyền (403) ngay sau khi bị thu hồi |
+| AuditLog | `Treasurer.Assign`, `Treasurer.Revoke` |
+| Kiểm chứng test đồng thời | Tạm bỏ lệnh khóa trong `RevokeAsync` → cả 3 test đồng thời thất bại (3 / 3 lần chạy); khôi phục → đạt. Nghĩa là test thật sự bắt được race condition |
+| Test | Integration `Treasurers/TreasurerTests` (10 test, luồng đầy đủ qua API Học sinh, không seed SQL cho phần chức năng); Unit `TreasurerServiceTests` (13 test) |
+
 ## Kiểm chứng gần nhất (2026-11-06)
 | Kiểm chứng | Kết quả |
 |---|---|
 | Build toàn solution (`TreatWarningsAsErrors`) | 0 warning, 0 error |
-| Unit test | 242 / 242 |
-| Integration test (PostgreSQL 16 – Testcontainers) | 65 / 65 |
+| Unit test | 255 / 255 |
+| Integration test (PostgreSQL 16 – Testcontainers) | 75 / 75 |
 | Khởi động API thủ công (`app_user`, Swagger) | Đạt (2026-11-05) |
 
 ## Chạy dev
