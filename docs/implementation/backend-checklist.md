@@ -7,7 +7,7 @@ Trạng thái từng feature: [implementation-status.md](implementation-status.m
 | Yêu cầu kiểm thử | Test | Kết quả |
 |---|---|---|
 | Build toàn solution | `dotnet build` | ✅ 0 warning, 0 error (2026-11-06) |
-| Unit / Integration (PostgreSQL thật) | `dotnet test` | ✅ 242 / 242 · 65 / 65 (2026-11-06, Học sinh & phụ huynh) |
+| Unit / Integration (PostgreSQL thật) | `dotnet test` | ✅ 289 / 289 · 82 / 82 (2026-11-06, Tổng quan, Báo cáo, Thành viên) |
 | **Auth** – Đăng ký giáo viên (luôn `Teacher`, bỏ qua vai trò gửi lên) | `AuthTests.Teacher_registers_and_is_signed_in_as_teacher` | ✅ |
 | Đăng ký: xác nhận sai 400 / mật khẩu yếu 422 / email trùng (khác hoa thường) 422 (T-01) | `AuthTests.Register_rejects_mismatched_confirmation_weak_password_and_taken_email` | ✅ |
 | Đăng nhập bằng email, không tham số vai trò (G-05) | `AuthTests.Teacher_signs_in_with_email_case_insensitively_without_role_parameter` | ✅ |
@@ -40,6 +40,13 @@ Trạng thái từng feature: [implementation-status.md](implementation-status.m
 | Chỉ GVCN quản lý học sinh (403 / 404); danh sách có thủ quỹ + phụ huynh (S-09) | `StudentTests.Only_homeroom_teacher_manages_students`, `…List_shows_treasurer_flag_and_parent_of_each_student` | ✅ |
 | Mật khẩu tạm không vào AuditLog / log (S-05, NFR-10) | `StudentTests.Temporary_passwords_never_reach_audit_log_or_logs` | ✅ |
 | Không xóa cứng Student / ParentLink (TR_NoDelete, M-02) | `StudentTests.Students_and_parent_links_cannot_be_hard_deleted` | ✅ |
+| **Báo cáo** – Đầu tháng sau = cuối tháng trước, kể cả sau khi sửa / hủy khoản cũ (BR-10) | `ReportTests.Next_opening_balance_equals_previous_closing_even_after_editing_and_cancelling`, `ReportServiceTests.Opening_balance_equals_closing_balance_of_the_previous_month_across_a_year_end` | ✅ |
+| Số dư không lệch khi hủy khoản cũ (BR-02) | `ReportServiceTests.Cancelling_an_old_transaction_moves_every_later_month_and_keeps_the_chain` | ✅ |
+| Dòng "Khoản khác" cho học sinh, phụ huynh; tổng các dòng khớp số tổng; không lộ chi tiết (P1, BR-15, NFR-08) | `ReportTests.Parent_and_student_get_other_lines_that_add_up_without_leaking_details` | ✅ |
+| Thống kê 12 tháng nối tiếp, chỉ số tổng (FR-09) | `ReportTests.Yearly_report_chains_twelve_months_and_contains_only_totals` | ✅ |
+| **Tổng quan** – số liệu, tháng hiện tại, người quản lý, 5 khoản gần nhất theo phạm vi (FR-01) | `ReportTests.Overview_returns_totals_current_month_managers_and_scoped_recent_transactions` | ✅ |
+| **Thành viên** – chỉ họ tên + vai trò; học sinh, phụ huynh 403 (FR-12) | `ReportTests.Members_returns_only_names_and_roles_to_teacher_and_treasurer` | ✅ |
+| Ngoài quỹ 404, ẩn danh 401, kỳ không hợp lệ 400 | `ReportTests.Outsider_gets_404_and_anonymous_gets_401`, `…Invalid_period_returns_400` | ✅ |
 
 ## Historical
 

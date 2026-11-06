@@ -1,6 +1,6 @@
 # Backend Progress
 
-> Cập nhật: 2026-11-06 · Nhánh `feature/devA/student-parent` (trên `main` đã có PR #5 → #8).
+> Cập nhật: 2026-11-06 · Nhánh `feature/be-reports` (trên `main` đã có PR #5 → #9).
 
 ## Trạng thái
 **Partially Implemented** – mã nguồn cũ đã xóa (D-35) và đang làm lại: đã có Codebase Foundation, Domain Entities, `AppDbContext`, `AccessService`, migration `InitialClassFund` + `AddDatabaseProtections` và các feature Backend **Auth & User Session**, **Danh mục** (Dev B), **Thu chi** (Dev B), **Fund Lifecycle**, **Học sinh & phụ huynh**. Chưa có Frontend nghiệp vụ. Các feature còn lại: xem [implementation-status.md](implementation-status.md) mục 1a.
@@ -60,13 +60,16 @@ Yêu cầu: FR-24, FR-25, FR-26, BR-29, BR-30, BR-33, BR-35, P-13, P-14, P-16, N
 | Không xóa cứng | Trigger `TR_NoDelete` chặn `DELETE` trên `Student`, `ParentLink` (đã kiểm chứng bằng test) |
 | Test | Integration `Students/StudentTests` (13 test); Unit `StudentServiceTests`, `CredentialsTests` |
 
+### Tổng quan, Báo cáo, Thành viên – Implemented (Dev B), chờ review / merge (2026-11-06)
+`GET /funds/{fundId}`, `GET …/reports/monthly`, `GET …/reports/yearly`, `GET …/members` (FR-01, FR-08, FR-09, FR-12). Xem mã nguồn `Features/Overview`, `Features/Reports`, TD-107 → TD-110 và test `Reports/ReportTests`, `ReportServiceTests`, `OverviewServiceTests`, `ReportsApiTests`. Không thêm bảng, migration hay package.
+
 ## Kiểm chứng gần nhất (2026-11-06)
 | Kiểm chứng | Kết quả |
 |---|---|
 | Build toàn solution (`TreatWarningsAsErrors`) | 0 warning, 0 error |
-| Unit test | 242 / 242 |
-| Integration test (PostgreSQL 16 – Testcontainers) | 65 / 65 |
-| Khởi động API thủ công (`app_user`, Swagger) | Đạt (2026-11-05) |
+| Unit test | 289 / 289 |
+| Integration test (PostgreSQL 16 – Testcontainers) | 82 / 82 |
+| Khởi động API thủ công (`app_user`, Swagger) | Đạt (2026-11-06): `swagger.json` có đủ 4 endpoint mới, gọi ẩn danh 401 |
 
 ## Chạy dev
 ```bash

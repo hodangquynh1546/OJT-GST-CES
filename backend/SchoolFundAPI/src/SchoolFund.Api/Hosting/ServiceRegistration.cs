@@ -21,6 +21,8 @@ using SchoolFund.Application.Features.Auth;
 using SchoolFund.Application.Features.Categories;
 using SchoolFund.Application.Features.Funds;
 using SchoolFund.Application.Features.Students;
+using SchoolFund.Application.Features.Overview;
+using SchoolFund.Application.Features.Reports;
 using SchoolFund.Application.Features.Transactions;
 using SchoolFund.Infrastructure;
 using SchoolFund.Infrastructure.Security;
@@ -139,6 +141,8 @@ public static class ServiceRegistration
         services.AddScoped<IFundService, FundService>();
         services.AddScoped<IStudentService, StudentService>();
         services.AddScoped<TransactionService>();
+        services.AddScoped<ReportService>();
+        services.AddScoped<OverviewService>();
 
         services.AddScoped<CurrentUser>();
         services.AddScoped<ICurrentUser>(provider => provider.GetRequiredService<CurrentUser>());
