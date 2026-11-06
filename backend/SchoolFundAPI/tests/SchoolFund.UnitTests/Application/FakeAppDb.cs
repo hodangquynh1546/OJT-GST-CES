@@ -1,4 +1,5 @@
 using SchoolFund.Application.Common.Persistence;
+using SchoolFund.Domain.Common;
 
 namespace SchoolFund.UnitTests.Application;
 
@@ -34,6 +35,9 @@ internal sealed class FakeAppDb : IAppDb
 
     public Task<bool> AnyAsync<T>(IQueryable<T> query, CancellationToken cancellationToken) =>
         Task.FromResult(query.Any());
+
+    public Task<T?> LockAsync<T>(Guid id, CancellationToken cancellationToken) where T : Entity =>
+        Task.FromResult(Query<T>().FirstOrDefault(entity => entity.Id == id));
 
     public Task SaveChangesAsync(CancellationToken cancellationToken) =>
         SaveFailure is null ? Task.CompletedTask : Task.FromException(SaveFailure);

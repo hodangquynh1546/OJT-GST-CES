@@ -1,5 +1,6 @@
 using SchoolFund.Domain.Common;
 using SchoolFund.Domain.Enums;
+using SchoolFund.Domain.Exceptions;
 
 namespace SchoolFund.Domain.Entities;
 
@@ -17,6 +18,9 @@ public sealed class FundTransaction(
     Guid idempotencyKey,
     DateTimeOffset createdAt) : Entity
 {
+    public const string CancelledCode = "transaction.cancelled";
+    public const string CancelReasonRequiredCode = "transaction.cancel_reason_required";
+
     public Guid FundId { get; private set; } = fundId;
 
     public TransactionType Type { get; private set; } = type;
@@ -50,4 +54,49 @@ public sealed class FundTransaction(
     public DateTimeOffset CreatedAt { get; private set; } = createdAt;
 
     public DateTimeOffset? UpdatedAt { get; private set; }
+
+    /// <summary>Khoản đã hủy không sửa và không hủy lại được (BR-05, BR-06).</summary>
+    public void EnsureActive()
+    {
+        if (IsCancelled)
+        {
+            throw new BusinessRuleException(CancelledCode, "Khoản này đã bị hủy.");
+        }
+    }
+
+    /// <summary>Không có tham số loại: thu không đổi được thành chi và ngược lại (BR-05).</summary>
+    public void Update(
+        long amount,
+        DateOnly occurredOn,
+        Guid categoryId,
+        string description,
+        string? note,
+        bool isPublic,
+        Guid updatedBy,
+        DateTimeOffset updatedAt)
+    {
+        EnsureActive();
+        Amount = amount;
+        OccurredOn = occurredOn;
+        CategoryId = categoryId;
+        Description = description;
+        Note = note;
+        IsPublic = isPublic;
+        UpdatedBy = updatedBy;
+        UpdatedAt = updatedAt;
+    }
+
+    public void Cancel(string reason, Guid cancelledBy, DateTimeOffset cancelledAt)
+    {
+        EnsureActive();
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            throw new BusinessRuleException(CancelReasonRequiredCode, "Hủy khoản thu chi phải có lý do.");
+        }
+
+        IsCancelled = true;
+        CancelReason = reason;
+        CancelledBy = cancelledBy;
+        CancelledAt = cancelledAt;
+    }
 }

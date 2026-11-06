@@ -2,7 +2,7 @@
 
 > Phiên bản: 2.0 · 2026-11-05 – mô hình **Giáo viên · Học sinh · Phụ huynh** (D-24 → D-33). v1.2 (3 vai trò Thủ quỹ / GVCN / Phụ huynh trong một quỹ), v1.0 và v0.7 nằm trong Git history.
 >
-> Cột **Trạng thái** = trạng thái triển khai: `Implemented` · `Partially Implemented` · `Not Implemented` · `Pending Decision`. **2026-11-05: mọi yêu cầu Not Implemented** – mã nguồn Backend / Frontend cũ đã xóa ngày 2026-11-05 (xem [implementation-status.md](../implementation/implementation-status.md)); đặc tả giữ nguyên. Giao diện: prototype Canvas.
+> Cột **Trạng thái** = trạng thái triển khai: `Implemented` · `Partially Implemented` · `Not Implemented` · `Pending Decision`. **2026-11-06: FR-02 → FR-07, FR-10 đã có ở Backend, chưa có UI; các yêu cầu khác xem cột Trạng thái.** *2026-11-05: mọi yêu cầu Not Implemented* – mã nguồn Backend / Frontend cũ đã xóa ngày 2026-11-05 (xem [implementation-status.md](../implementation/implementation-status.md)); đặc tả giữ nguyên. Giao diện: prototype Canvas.
 
 ## 1. Mục tiêu
 
@@ -66,14 +66,14 @@ Cột vai trò: **G** = GVCN · **T** = Thủ quỹ · **H** = Học sinh chưa 
 | Mã | Yêu cầu | G | T | H | P | Trạng thái |
 |---|---|---|---|---|---|---|
 | FR-01 | **Tổng quan**: cộng dồn (số dư, tổng thu, tổng chi) + tháng hiện tại; 5 giao dịch gần nhất (bản công khai với H, P); người quản lý (GVCN + thủ quỹ: họ tên, vai trò); trạng thái thủ quỹ; cảnh báo số dư âm | ✔ | ✔ | ✔ | ✔ | Not Implemented |
-| FR-02 / FR-03 | **Thêm khoản thu / chi**: nội dung, số tiền, ngày, danh mục, ghi chú (tùy chọn), cờ công khai (mặc định bật) | – | ✔ | – | – | Not Implemented |
-| FR-04 | **Sửa** (số tiền, ngày, danh mục, nội dung, ghi chú, cờ công khai); lưu người sửa | – | ✔ | – | – | Not Implemented |
-| FR-05 | **Hủy** bắt buộc lý do; lưu người hủy; không tính vào số dư / báo cáo | – | ✔ | – | – | Not Implemented |
-| FR-06 | **Lịch sử thu chi**: lọc ngày, loại, danh mục, từ khóa, trạng thái | ✔ | ✔ | ✔ công khai | ✔ công khai | Not Implemented |
-| FR-07 | **Chi tiết** + lịch sử thay đổi (người, thời điểm, trước / sau). H, P: chỉ nội dung, ngày, danh mục, số tiền của khoản công khai; khoản không công khai → 404 | ✔ | ✔ | công khai | công khai | Not Implemented |
+| FR-02 / FR-03 | **Thêm khoản thu / chi**: nội dung, số tiền, ngày, danh mục, ghi chú (tùy chọn), cờ công khai (mặc định bật) | – | ✔ | – | – | Partially Implemented (Backend) |
+| FR-04 | **Sửa** (số tiền, ngày, danh mục, nội dung, ghi chú, cờ công khai); lưu người sửa | – | ✔ | – | – | Partially Implemented (Backend) |
+| FR-05 | **Hủy** bắt buộc lý do; lưu người hủy; không tính vào số dư / báo cáo | – | ✔ | – | – | Partially Implemented (Backend) |
+| FR-06 | **Lịch sử thu chi**: lọc ngày, loại, danh mục, từ khóa, trạng thái | ✔ | ✔ | ✔ công khai | ✔ công khai | Partially Implemented (Backend) |
+| FR-07 | **Chi tiết** + lịch sử thay đổi (người, thời điểm, trước / sau). H, P: chỉ nội dung, ngày, danh mục, số tiền của khoản công khai; khoản không công khai → 404 | ✔ | ✔ | công khai | công khai | Partially Implemented (Backend) |
 | FR-08 | **Báo cáo tháng** (mọi tháng): đầu / cuối tháng, tổng thu / chi, theo danh mục, danh sách. H, P: phần không công khai gộp "Khoản khác", không số lượng (P1) | ✔ | ✔ | ✔ | ✔ | Not Implemented |
 | FR-09 | **Thống kê 12 tháng** | ✔ | ✔ | ✔ | ✔ | Not Implemented |
-| FR-10 | **Danh mục**: thêm, đổi tên, ẩn / hiện. H, P chỉ thấy danh mục đang hiện có khoản công khai (X-01) | xem | ✔ | xem | xem | Not Implemented |
+| FR-10 | **Danh mục**: thêm, đổi tên, ẩn / hiện. H, P chỉ thấy danh mục đang hiện có khoản công khai (X-01) | xem | ✔ | xem | xem | Partially Implemented (Backend) |
 ## 5. Yêu cầu phi chức năng
 
 | Mã | Yêu cầu |

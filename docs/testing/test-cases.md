@@ -8,7 +8,7 @@
 
 ## Kết quả hiện tại
 
-Chi tiết ở [implementation-status.md](../implementation/implementation-status.md) mục 3a. `AccessServiceTests` (16 test) phủ thứ tự suy ra vai trò trong `roles-and-permissions.md` mục 1.
+Chi tiết ở [implementation-status.md](../implementation/implementation-status.md) mục 3a. Danh mục và sổ thu chi có test ở `CategoryServiceTests`, `TransactionServiceTests`, `Categories/CategoryTests`, `Transactions/TransactionTests`; các dòng mục A chưa đổi trạng thái theo từng mã. `AccessServiceTests` (16 test) phủ thứ tự suy ra vai trò trong `roles-and-permissions.md` mục 1.
 
 ## Historical Test Results
 

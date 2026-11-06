@@ -10,7 +10,8 @@
 | R3 | Giáo viên · Học sinh · Phụ huynh (D-24 → D-33): đăng ký giáo viên, nhiều quỹ, học sinh, tài khoản tạm, liên kết phụ huynh, phân công thủ quỹ, API theo quỹ, migration `TeacherStudentParent` | **Not Implemented** – từng làm xong 2026-11-05 (historical: 57 unit / 67 integration), mã nguồn đã xóa cùng ngày (D-35). Đặc tả giữ nguyên |
 | R4 | Làm lại theo docs: Codebase Foundation, Domain Entities, `AppDbContext`, `AccessService`, migration `InitialClassFund` + `AddDatabaseProtections` | Done (nhánh `feature/codebase`) |
 | Hiện tại | Chốt PD-01 → PD-06 | Đang làm |
-| Tiếp theo | Feature Auth (đăng nhập, đăng ký, `/auth/me`, `SessionStore` thay `NoIdentityStore`), rồi các feature còn lại ở Backend và Frontend theo Canvas 3.1 | Chưa làm |
+| R5 | Feature Backend: Auth, Categories, Transactions | Done (2026-11-06) |
+| Tiếp theo | Số dư, Tổng quan, Báo cáo tài chính; Quỹ, Học sinh, Phân công thủ quỹ; rồi Frontend theo Canvas 3.1 | Chưa làm |
 
 ## Lịch sử
 | Ngày | Thay đổi |
@@ -20,3 +21,4 @@
 | 2026-11-05 | R3 triển khai; R2 đánh dấu thay thế |
 | 2026-11-05 | Xóa mã nguồn (D-35): M0, R1, R3 → Not Implemented |
 | 2026-11-05 | Thêm R4; cập nhật Hiện tại / Tiếp theo |
+| 2026-11-06 | Thêm R5; cập nhật Tiếp theo |

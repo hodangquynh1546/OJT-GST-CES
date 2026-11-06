@@ -52,6 +52,10 @@ TD-65, TD-66 giữ nguyên trong bảng trên để lưu lịch sử. **2026-11-
 | TD-90 | `AccessService` nằm ở Application, dùng port `IAppDb`, nhận `userId` + `fundId`, ném `NotFoundException` khi không thuộc quỹ; đăng ký DI ở Infrastructure vì Application không có package DI. Chưa nhớ kết quả trong request như TD-81 (mỗi request hiện chỉ gọi một lần) | TD-81 (một phần) |
 | TD-91 | Hai migration: `InitialClassFund` (toàn bộ schema 2.0) và `AddDatabaseProtections` (SQL tay: `UQ_Category_Fund_Type_Name`, `fn_block_delete`, `fn_block_audit_change`, trigger). `dotnet-ef` 10.0.4 khai báo ở `dotnet-tools.json`; `AppDbContextFactory` đọc `ConnectionStrings__Migrator` | TD-87 |
 | TD-92 | `FundTransaction.IsPublic` dùng `HasDefaultValue(true).HasSentinel(true)`: nếu không, EF coi `false` là chưa gán và cột nhận `true`, biến khoản không công khai thành công khai | – |
+| TD-93 | Sửa và hủy giao dịch: `IAppDb.LockAsync<T>` (`SELECT … FOR UPDATE`) trong `InTransactionAsync`, để sửa không ghi đè khoản vừa bị hủy và hai lệnh hủy không cùng lọt (NFR-09); sửa đồng thời vẫn là lần sau thắng (DD-06) | – |
+| TD-94 | Enum trong API là chuỗi qua `JsonStringEnumConverter(allowIntegerValues: false)` đăng ký toàn cục | – |
+| TD-95 | Ngày nghiệp vụ dùng UTC+7 cố định (`VietnamTime`), không phụ thuộc dữ liệu múi giờ của máy chủ. Vi phạm ngày tương lai là 422 `transaction.future_date` | – |
+| TD-96 | Bản công khai của giao dịch và danh mục có truy vấn riêng, không chọn cột nội bộ; JSON bỏ trường null | – |
 
 ## Đã loại bỏ
 Package: không thêm / bớt package NuGet. Mã: email sender, file storage, permission evaluator theo phạm vi, mọi service nghiệp vụ cũ.
