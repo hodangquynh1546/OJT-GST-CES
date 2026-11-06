@@ -8,12 +8,12 @@
 
 ## Kết quả hiện tại
 
-Chi tiết ở [implementation-status.md](../implementation/implementation-status.md) mục 3a. Danh mục và sổ thu chi có test ở `CategoryServiceTests`, `TransactionServiceTests`, `Categories/CategoryTests`, `Transactions/TransactionTests`; các dòng mục A chưa đổi trạng thái theo từng mã. `AccessServiceTests` (16 test) phủ thứ tự suy ra vai trò trong `roles-and-permissions.md` mục 1.
+Chi tiết ở [implementation-status.md](../implementation/implementation-status.md) mục 3a. Danh mục và sổ thu chi có test ở `CategoryServiceTests`, `TransactionServiceTests`, `Categories/CategoryTests`, `Transactions/TransactionTests`; các dòng mục A riêng của Danh mục / Thu chi chưa đổi trạng thái theo từng mã. Các mã của Auth và Fund Lifecycle (và T-04, S-08, P-08 có dùng test Danh mục / Thu chi) đã ghi trạng thái kèm tên test. `AccessServiceTests` (16 test) phủ thứ tự suy ra vai trò trong `roles-and-permissions.md` mục 1.
 
 | Ngày | Phạm vi | Kết quả |
 |---|---|---|
 | 2026-11-05 | Auth & User Session (`Auth/AuthTests` + unit) | Build 0 warning · Unit 89 / 89 · Integration 18 / 18 Passed |
-| 2026-11-06 | Fund Lifecycle (`Funds/FundTests` + unit), gồm Auth + Danh mục | Build 0 warning · **Unit 141 / 141** · **Integration 37 / 37 Passed** (PostgreSQL 16 – Testcontainers) |
+| 2026-11-06 | Fund Lifecycle (`Funds/FundTests` + unit) trên `main` có Auth + Danh mục + Thu chi | Build 0 warning · **Unit 216 / 216** · **Integration 52 / 52 Passed** (PostgreSQL 16 – Testcontainers) |
 
 ## Historical Test Results
 
@@ -32,7 +32,7 @@ Lớp test: `TS` = `Roles/TeacherStudentTreasurerTests`, `PP` = `Roles/ParentAnd
 | T-01 | Đăng ký: xác nhận mật khẩu sai / mật khẩu yếu / email trùng (khác hoa thường) | 400 `validation_failed` / 422 `auth.password_policy` / 422 `user.email_taken` | TS `Teacher_registers…` | Passed – `AuthTests.Register_rejects_mismatched_confirmation_weak_password_and_taken_email` |
 | T-02 | Đăng ký gửi kèm `kind`, `role = Treasurer` | Vẫn là `Teacher`, `accountPermissions = [Fund.Create]`, không có quỹ | TS `Teacher_registers…` | Passed – `AuthTests.Teacher_registers_and_is_signed_in_as_teacher` |
 | T-03 | Tạo 2 quỹ | `GET /funds`: 2 quỹ, vai trò Teacher, `Unassigned`, 0 học sinh, có danh mục mặc định | TS `Teacher_registers…` | Passed – `FundTests.Teacher_creates_fund_with_six_default_categories_and_no_treasurer`, `FundTests.List_contains_only_funds_of_current_account` |
-| T-04 | GVCN thêm giao dịch / thêm danh mục | 403 `forbidden` | TS `Teacher_registers…` | Partially Implemented – danh mục: `CategoryTests.Only_treasurer_can_write_and_outsider_sees_nothing`; giao dịch: chưa có API |
+| T-04 | GVCN thêm giao dịch / thêm danh mục | 403 `forbidden` | TS `Teacher_registers…` | Passed – danh mục: `CategoryTests.Only_treasurer_can_write_and_outsider_sees_nothing`; giao dịch: `TransactionTests.Only_treasurer_writes_and_outsiders_get_not_found` |
 | T-05 | Giáo viên B xem / thêm học sinh / thu hồi / đổi tên quỹ của giáo viên A; Id sai định dạng | 404 `not_found`; `GET /funds` của B rỗng | TS `Teacher_cannot_see…` | Partially Implemented – đổi tên quỹ → 404 và `GET /funds` của B: `FundTests.Non_homeroom_accounts_cannot_rename_fund`, `…List_contains_only_funds_of_current_account`; học sinh / thu hồi: chưa có API |
 | T-06 | GVCN xem chi tiết: ghi chú, người ghi, lý do hủy, người hủy, lịch sử thay đổi | Có đủ | TS `Treasurer_manages…`, PP `Parent_sees…` | Not Implemented |
 
@@ -46,7 +46,7 @@ Lớp test: `TS` = `Roles/TeacherStudentTreasurerTests`, `PP` = `Roles/ParentAnd
 | S-05 | Mật khẩu tạm trong AuditLog / log | Không có | TS `Student_account…` | Not Implemented |
 | S-06 | GVCN cấp lại mật khẩu | Phiên cũ 401; đăng nhập lại phải đổi mật khẩu | TS `Student_account…` | Not Implemented |
 | S-07 | Học sinh chưa phân công: tổng quan, danh sách | Số dư gồm khoản không công khai; chỉ khoản công khai; không `note`, `createdByName` | TS `Unassigned_student…` | Not Implemented |
-| S-08 | Học sinh chưa phân công ghi thu chi / danh mục / xem thành viên / học sinh / tạo quỹ | 403 `forbidden` | TS `Unassigned_student…` | Partially Implemented – tạo quỹ → 403: `FundTests.Only_teachers_can_create_funds`; danh mục: `CategoryTests`; thu chi / thành viên / học sinh: chưa có API |
+| S-08 | Học sinh chưa phân công ghi thu chi / danh mục / xem thành viên / học sinh / tạo quỹ | 403 `forbidden` | TS `Unassigned_student…` | Partially Implemented – tạo quỹ → 403: `FundTests.Only_teachers_can_create_funds`; danh mục: `CategoryTests.Only_treasurer_can_write_and_outsider_sees_nothing`; thu chi: `TransactionTests.Only_treasurer_writes_and_outsiders_get_not_found`; thành viên / học sinh: chưa có API |
 | S-09 | Danh sách học sinh | Có username, `isTreasurer` | TS `Student_account…` | Not Implemented |
 
 ### A.3 Thủ quỹ
@@ -71,7 +71,7 @@ Lớp test: `TS` = `Roles/TeacherStudentTreasurerTests`, `PP` = `Roles/ParentAnd
 | P-05 | Gỡ liên kết | Quỹ đó → 404; quỹ kia vẫn 200 | PP `Parent_account…` | Not Implemented |
 | P-06 | Danh sách, tìm kiếm theo nội dung / ghi chú khoản không công khai, chi tiết khoản không công khai, lịch sử | Không có trường nội bộ; tìm → 0; chi tiết → 404; lịch sử → 403 | PP `Parent_sees…` | Not Implemented |
 | P-07 | Danh mục; báo cáo tháng | Không có danh mục chỉ dùng cho khoản không công khai; "Khoản khác" `count = null`; tổng chi tháng đầy đủ | PP `Parent_sees…` | Not Implemented |
-| P-08 | Con là thủ quỹ – phụ huynh ghi / hủy / xem thành viên / học sinh / tạo quỹ | 403 | PP `Parent_sees…` | Partially Implemented – tạo quỹ, đổi tên quỹ → 403: `FundTests.Only_teachers_can_create_funds`, `…Non_homeroom_accounts_cannot_rename_fund`; ghi / hủy / thành viên / học sinh: chưa có API |
+| P-08 | Con là thủ quỹ – phụ huynh ghi / hủy / xem thành viên / học sinh / tạo quỹ | 403 | PP `Parent_sees…` | Partially Implemented – tạo quỹ, đổi tên quỹ → 403: `FundTests.Only_teachers_can_create_funds`, `…Non_homeroom_accounts_cannot_rename_fund`; ghi / hủy: `TransactionTests.Only_treasurer_writes_and_outsiders_get_not_found`; thành viên / học sinh: chưa có API |
 
 ### A.5 Phân quyền chung, migration, regression
 | Mã | Tình huống | Kỳ vọng | Test (lịch sử) | Trạng thái |

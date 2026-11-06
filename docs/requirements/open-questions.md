@@ -11,7 +11,7 @@
 | D-03 | Khoản chi lớn hơn số dư **vẫn được lưu**; hệ thống cảnh báo số dư âm |
 | D-04 | Tháng chỉ là kỳ báo cáo; số dư cộng dồn; số dư cuối tháng trước = số dư đầu tháng sau |
 | D-05 | Thu / chi lưu là có hiệu lực ngay – không có yêu cầu, phiếu, duyệt, xác nhận |
-| D-06 | Đăng nhập bằng cookie session, mật khẩu băm PBKDF2. *(Bổ sung 2026-11-06 – TD-94:* trước khi băm, mật khẩu được trộn với khóa bí mật `SECRET_KEY` (pepper, HMAC-SHA256) lưu ngoài DB; thiếu khóa thì API không khởi động; hash cũ không pepper được nâng cấp khi đăng nhập đúng.*)* |
+| D-06 | Đăng nhập bằng cookie session, mật khẩu băm PBKDF2. *(Bổ sung 2026-11-06 – TD-98:* trước khi băm, mật khẩu được trộn với khóa bí mật `SECRET_KEY` (pepper, HMAC-SHA256) lưu ngoài DB; thiếu khóa thì API không khởi động; hash cũ không pepper được nâng cấp khi đăng nhập đúng.*)* |
 | D-07 | Ngày nghiệp vụ theo giờ Asia/Ho_Chi_Minh |
 | D-08 | Thiết kế database cũ được thay bằng baseline `InitialClassFund`; tài liệu ghi đè tại chỗ |
 | D-13 | *(Thay bằng D-26, 2026-11-05)* **3 vai trò**: Thủ quỹ (quản lý), GVCN (chỉ xem toàn bộ), Phụ huynh (chỉ xem dữ liệu công khai). Phân quyền theo permission ở backend. Phụ huynh không có chức năng nộp tiền, báo chuyển khoản hay đề nghị chi (task 2026-11-04; trả lời Q-05) |

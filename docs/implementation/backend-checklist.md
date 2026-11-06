@@ -7,7 +7,7 @@ Trạng thái từng feature: [implementation-status.md](implementation-status.m
 | Yêu cầu kiểm thử | Test | Kết quả |
 |---|---|---|
 | Build toàn solution | `dotnet build` | ✅ 0 warning, 0 error (2026-11-06) |
-| Unit / Integration (PostgreSQL thật) | `dotnet test` | ✅ 141 / 141 · 37 / 37 (2026-11-06) |
+| Unit / Integration (PostgreSQL thật) | `dotnet test` | ✅ 216 / 216 · 52 / 52 (2026-11-06, sau merge Thu chi) |
 | **Auth** – Đăng ký giáo viên (luôn `Teacher`, bỏ qua vai trò gửi lên) | `AuthTests.Teacher_registers_and_is_signed_in_as_teacher` | ✅ |
 | Đăng ký: xác nhận sai 400 / mật khẩu yếu 422 / email trùng (khác hoa thường) 422 (T-01) | `AuthTests.Register_rejects_mismatched_confirmation_weak_password_and_taken_email` | ✅ |
 | Đăng nhập bằng email, không tham số vai trò (G-05) | `AuthTests.Teacher_signs_in_with_email_case_insensitively_without_role_parameter` | ✅ |
@@ -27,6 +27,7 @@ Trạng thái từng feature: [implementation-status.md](implementation-status.m
 | Quỹ của tôi: số dư, thủ quỹ, trường theo vai trò (FR-22, BR-02, BR-23) | `FundTests.List_returns_balance_treasurers_and_role_specific_fields`, `…List_contains_only_funds_of_current_account` | ✅ |
 | `GET /funds` cần đăng nhập, không còn mật khẩu tạm | `FundTests.List_requires_sign_in_and_changed_password` | ✅ |
 | **Danh mục** (Dev B) | `CategoryTests`, `CategoryServiceTests` | ✅ |
+| **Thu chi** (Dev B) | `TransactionTests`, `TransactionServiceTests`, `TransactionsApiTests`, `FundTransactionTests` | ✅ |
 
 ## Historical
 
