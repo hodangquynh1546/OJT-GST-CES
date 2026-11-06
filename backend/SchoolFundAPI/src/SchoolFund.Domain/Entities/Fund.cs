@@ -12,4 +12,11 @@ public sealed class Fund(Guid ownerUserId, string name, DateTimeOffset createdAt
     public DateTimeOffset CreatedAt { get; private set; } = createdAt;
 
     public DateTimeOffset? UpdatedAt { get; private set; }
+
+    /// <summary>Đổi tên quỹ (FR-11); chỉ GVCN được gọi – kiểm tra ở Application.</summary>
+    public void Rename(string name, DateTimeOffset at)
+    {
+        Name = name;
+        UpdatedAt = at;
+    }
 }

@@ -1,6 +1,6 @@
 # Backend Technical Decisions
 
-> 2026-11-05: mã nguồn đã xóa (D-35). Các TD dưới đây là quyết định kỹ thuật dùng cho lần triển khai lại; tên lớp / file chỉ là tham chiếu lịch sử. Trạng thái: **Not Implemented** ([implementation-status.md](implementation-status.md)).
+> 2026-11-05: mã nguồn đã xóa (D-35). Các TD dưới đây là quyết định kỹ thuật dùng cho lần triển khai lại; tên lớp / file chỉ là tham chiếu lịch sử. Trạng thái từng feature: [implementation-status.md](implementation-status.md). *2026-11-06:* TD-93 → TD-96 (Thu chi, Dev B); TD-97 → TD-105 (Auth, Fund Lifecycle – Implemented).
 
 > Cập nhật 2026-11-04 (sau Review & Simplify). Quyết định kỹ thuật của phạm vi cũ (TD-40 → TD-55, DV-01 → DV-07) không còn áp dụng – Git history.
 
@@ -57,5 +57,21 @@ TD-65, TD-66 giữ nguyên trong bảng trên để lưu lịch sử. **2026-11-
 | TD-95 | Ngày nghiệp vụ dùng UTC+7 cố định (`VietnamTime`), không phụ thuộc dữ liệu múi giờ của máy chủ. Vi phạm ngày tương lai là 422 `transaction.future_date` | – |
 | TD-96 | Bản công khai của giao dịch và danh mục có truy vấn riêng, không chọn cột nội bộ; JSON bỏ trường null | – |
 
+## Quyết định khi triển khai lại (2026-11-05 → 2026-11-06) – Implemented
+
+| Mã | Quyết định | Lý do |
+|---|---|---|
+| TD-97 | Phiên: cookie `sf_session` (HttpOnly, SameSite Strict) chỉ chứa UserId + SecurityStamp; `IdentityStore` (Infrastructure) kiểm tra `Status = Active` và stamp mỗi request. `PasswordChangeRequiredFilter` toàn cục chặn tài khoản còn mật khẩu tạm (403 `password.change_required`), endpoint được phép đánh dấu `[AllowTemporaryPassword]`: `GET/PUT /auth/me`, `change-password`, `logout` | BR-17, BR-18; không phải lặp kiểm tra ở từng controller |
+| TD-98 | Băm mật khẩu: `HMAC-SHA256(SECRET_KEY, mật khẩu)` rồi `PasswordHasher<User>` (PBKDF2, salt riêng). `SECRET_KEY` (≥ 32 ký tự) bắt buộc – thiếu thì API không khởi động. Hash cũ không pepper vẫn xác thực được và được băm lại ở lần đăng nhập đúng kế tiếp | Bổ sung D-06: lộ riêng DB không đủ để dò mật khẩu. Chưa hỗ trợ xoay khóa (KI-15) |
+| TD-99 | Register / login / change-password trả `{ antiforgeryToken, user }`: token antiforgery gắn với danh tính nên phải cấp mới sau khi danh tính đổi. Mọi POST / PUT (kể cả login, register) cần header `X-XSRF-TOKEN` (chống CSRF và login CSRF). Swagger khai báo header này (nút Authorize) | Thay cho việc client phải gọi lại `/auth/antiforgery` |
+| TD-100 | Rate limit fixed window 1 phút theo IP cho login / register (`RateLimiting:AuthPermitLimit`, mặc định 10) → 429 `auth.rate_limited` | TD-68 |
+| TD-101 | Đăng nhập sai tài khoản và sai mật khẩu cùng trả 401 `auth.invalid_credentials`, kiểm tra hash giả khi không có tài khoản; `auth.account_disabled` chỉ khi đúng mật khẩu; AuditLog `Auth.SignInFailed` không lưu chuỗi đăng nhập | BR-26; không lộ tài khoản tồn tại |
+| TD-102 | Project `SchoolFund.IntegrationTests`: `WebApplicationFactory` + Testcontainers PostgreSQL 16, áp migration thật; `ProbeController` chỉ có trong test để kiểm tra chặn mật khẩu tạm; `CapturedLogSink` (Serilog `ReadFrom.Services`) quét log không chứa bí mật | NFR-10; kiểm chứng trên DB thật |
+| TD-103 | Dev DB: `docker-compose.yml` + `docker/postgres/init/01-roles.sh` tạo `migrator_user` (sở hữu schema) / `app_user` (SELECT, INSERT, UPDATE); tạo sẵn `__EFMigrationsHistory` và thu hồi quyền của `app_user`. Biến trong `.env` (không commit), mẫu `.env.example` | TD-01 → TD-31 (2 tài khoản DB), KI-10 |
+| TD-104 | `GET /funds` dựa trên `IAccessService.GetMembershipsAsync` + 4 truy vấn gộp (ngày tạo, số dư, thủ quỹ, số học sinh) cho mọi quỹ một lần, không truy vấn theo từng quỹ. `studentCount` (GVCN), `linkedStudents` (phụ huynh) là `null` với vai trò khác và bị bỏ khỏi JSON (`JsonIgnore(WhenWritingNull)`) | FR-22; tránh N+1 |
+| TD-105 | Danh mục mặc định là hằng số Domain (`Rules/DefaultCategories`), tạo cùng quỹ trong một lần `SaveChanges`; một dòng AuditLog `Fund.Create` liệt kê danh mục thay vì 6 dòng `Category.Create` | D-25, Q-09 |
+
 ## Đã loại bỏ
-Package: không thêm / bớt package NuGet. Mã: email sender, file storage, permission evaluator theo phạm vi, mọi service nghiệp vụ cũ.
+Mã: email sender, file storage, permission evaluator theo phạm vi, mọi service nghiệp vụ cũ.
+
+Package: *(2026-11-05)* thêm `Testcontainers.PostgreSql` 4.16.0 và `Microsoft.AspNetCore.Mvc.Testing` 10.0.4 (chỉ project test), `FrameworkReference Microsoft.AspNetCore.App` cho Infrastructure (`PasswordHasher<TUser>`) – đã được duyệt.
