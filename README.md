@@ -38,24 +38,38 @@ Clean Architecture gồm các tầng **Api → Application → Domain**, với *
 - [x] Thiết kế database (`docs/database`) và migration
 - [x] Khởi tạo project backend (.NET) và frontend (Angular) – Codebase Foundation
 - [x] Domain Entities, `AppDbContext`, `AccessService`
-- [ ] Triển khai các feature nghiệp vụ
+- [x] Backend: Auth & User Session (đăng ký giáo viên, đăng nhập, mật khẩu tạm, phiên)
+- [x] Backend: Danh mục thu chi
+- [x] Backend: Thu chi (thêm, sửa, hủy, lịch sử)
+- [x] Backend: Fund Lifecycle (quỹ của tôi, tạo quỹ, đổi tên quỹ)
+- [ ] Backend: Học sinh & phụ huynh, Phân công thủ quỹ, Tổng quan, Báo cáo, Thành viên
+- [ ] Frontend nghiệp vụ
 
 Chi tiết: [`docs/implementation/implementation-status.md`](docs/implementation/implementation-status.md).
 
 ### Chạy dự án
 
-Cần .NET SDK 10, Node.js 22, Chrome và PostgreSQL. Không commit connection string hay license key.
+Cần .NET SDK 10, Node.js 22, Chrome và Docker (PostgreSQL 16 dev + Testcontainers cho integration test). Không commit `.env`, connection string, `SECRET_KEY` hay license key.
 
 ```bash
-# Backend: http://localhost:5286, Swagger ở /swagger (Development)
+# Database dev: PostgreSQL 16 với migrator_user (DDL) / app_user (chỉ đọc ghi dữ liệu)
 cd backend/SchoolFundAPI
-docker compose up -d --wait   # cần file .env, xem .env.example
-dotnet user-secrets --project src/SchoolFund.Api set "ConnectionStrings:App" "<connection string>"
-dotnet user-secrets --project src/SchoolFund.Api set "SECRET_KEY" "<chuỗi ngẫu nhiên từ 32 ký tự>"
+cp .env.example .env               # điền mật khẩu DB (bắt buộc cho docker compose), connection string, SECRET_KEY
+docker compose up -d --wait
+
+# Backend: http://localhost:5286, Swagger ở /swagger (Development)
+# Cấu hình cho dotnet (ConnectionStrings:App, ConnectionStrings:Migrator, SECRET_KEY ≥ 32 ký tự – openssl rand -base64 48), chọn một cách:
+#   A. Nạp .env vào shell (dotnet không tự đọc .env – nạp lại mỗi lần mở terminal):
+set -a && source .env && set +a
+#   B. Hoặc dùng user-secrets (lưu một lần; khi đó để trống ConnectionStrings__App / SECRET_KEY trong .env
+#      hoặc không source .env – biến môi trường rỗng sẽ che giá trị user-secrets):
+#   dotnet user-secrets --project src/SchoolFund.Api set "ConnectionStrings:App" "<connection string app_user>"
+#   dotnet user-secrets --project src/SchoolFund.Api set "SECRET_KEY" "<chuỗi ngẫu nhiên từ 32 ký tự>"
+#   (dotnet ef database update vẫn cần biến ConnectionStrings__Migrator)
 dotnet tool restore
-ConnectionStrings__Migrator="<connection string>" dotnet ef database update --project src/SchoolFund.Infrastructure --startup-project src/SchoolFund.Infrastructure
+dotnet ef database update --project src/SchoolFund.Infrastructure --startup-project src/SchoolFund.Infrastructure
 dotnet run --project src/SchoolFund.Api
-dotnet test
+dotnet test                        # Unit + Integration (cần Docker đang chạy)
 
 # Frontend: http://localhost:4200, /api chuyển tới backend
 cd frontend/SchoolFundUI
@@ -64,5 +78,7 @@ npm start
 npm test
 npm run e2e
 ```
+
+Swagger: mọi POST / PUT cần header `X-XSRF-TOKEN` – gọi `GET /auth/antiforgery`, dán `antiforgeryToken` vào nút **Authorize**; lấy token mới sau mỗi lần đăng ký / đăng nhập / đăng xuất / đổi mật khẩu. Mật khẩu DB trong `.env` chỉ có tác dụng khi tạo volume lần đầu (KI-14).
 
 `npm run build` đưa SPA vào `wwwroot` của `SchoolFund.Api`, khi đó Api phục vụ cả SPA và `/api` trên cùng origin. Kendo cần license key lúc build: đặt `KENDO_UI_LICENSE` rồi chạy `npm run license`.
