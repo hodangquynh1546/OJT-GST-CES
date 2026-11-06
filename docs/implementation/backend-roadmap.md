@@ -13,10 +13,11 @@
 | R6 | Feature Danh mục (Dev B) | **Done** (PR #6) |
 | R7 | Feature Thu chi (Dev B): thêm, sửa, hủy, danh sách, lịch sử thay đổi | **Done** (PR #7, 2026-11-06) |
 | R8 | Feature Fund Lifecycle: `GET /funds`, `POST /funds` (+ 6 danh mục mặc định), `PUT /funds/{fundId}` | **Done** (PR #8, 2026-11-06) |
-| R9 | Feature Học sinh & phụ huynh: danh sách / thêm / sửa học sinh, cấp tài khoản + mật khẩu tạm, cấp lại mật khẩu, liên kết / gỡ phụ huynh | **Done** – chờ review / merge (`feature/devA/student-parent`, 2026-11-06) |
+| R9 | Feature Học sinh & phụ huynh: danh sách / thêm / sửa học sinh, cấp tài khoản + mật khẩu tạm, cấp lại mật khẩu, liên kết / gỡ phụ huynh | **Done** (PR #9, 2026-11-06) |
 | R10 | Feature Tổng quan, Báo cáo, Thành viên (Dev B): `GET /funds/{fundId}`, `reports/monthly`, `reports/yearly`, `members` | **Done** – chờ review / merge (`feature/be-reports`, 2026-11-06) |
+| R11 | Feature Phân công thủ quỹ: danh sách / phân công / thu hồi, khóa dòng `Fund` chống thu hồi thủ quỹ cuối cùng khi đồng thời | **Done** – chờ review / merge (`feature/devA/treasurers`, 2026-11-06) |
 | Hiện tại | Chốt PD-01 → PD-06 | Đang làm |
-| Tiếp theo | Phân công thủ quỹ; CLI vận hành (`create-teacher`, `reset-password`…); rồi Frontend theo Canvas 3.1 | Chưa làm |
+| Tiếp theo | CLI vận hành (`create-teacher`, `reset-password`…); rồi Frontend theo Canvas 3.1 | Chưa làm |
 
 ## Lịch sử
 | Ngày | Thay đổi |
@@ -30,3 +31,4 @@
 | 2026-11-06 | Thêm R8 (Fund Lifecycle); cập nhật Tiếp theo |
 | 2026-11-06 | Thêm R9 (Học sinh & phụ huynh); cập nhật Tiếp theo |
 | 2026-11-06 | Thêm R10 (Tổng quan, Báo cáo, Thành viên); cập nhật Tiếp theo |
+| 2026-11-06 | Thêm R11 (Phân công thủ quỹ) – hoàn thành 4 module của Dev A; cập nhật Tiếp theo |

@@ -7,7 +7,7 @@ Trạng thái từng feature: [implementation-status.md](implementation-status.m
 | Yêu cầu kiểm thử | Test | Kết quả |
 |---|---|---|
 | Build toàn solution | `dotnet build` | ✅ 0 warning, 0 error (2026-11-06) |
-| Unit / Integration (PostgreSQL thật) | `dotnet test` | ✅ 289 / 289 · 82 / 82 (2026-11-06, Tổng quan, Báo cáo, Thành viên) |
+| Unit / Integration (PostgreSQL thật) | `dotnet test` | ✅ 302 / 302 · 92 / 92 (2026-11-06, sau merge Tổng quan / Báo cáo / Thành viên + Phân công thủ quỹ) |
 | **Auth** – Đăng ký giáo viên (luôn `Teacher`, bỏ qua vai trò gửi lên) | `AuthTests.Teacher_registers_and_is_signed_in_as_teacher` | ✅ |
 | Đăng ký: xác nhận sai 400 / mật khẩu yếu 422 / email trùng (khác hoa thường) 422 (T-01) | `AuthTests.Register_rejects_mismatched_confirmation_weak_password_and_taken_email` | ✅ |
 | Đăng nhập bằng email, không tham số vai trò (G-05) | `AuthTests.Teacher_signs_in_with_email_case_insensitively_without_role_parameter` | ✅ |
@@ -47,6 +47,15 @@ Trạng thái từng feature: [implementation-status.md](implementation-status.m
 | **Tổng quan** – số liệu, tháng hiện tại, người quản lý, 5 khoản gần nhất theo phạm vi (FR-01) | `ReportTests.Overview_returns_totals_current_month_managers_and_scoped_recent_transactions` | ✅ |
 | **Thành viên** – chỉ họ tên + vai trò; học sinh, phụ huynh 403 (FR-12) | `ReportTests.Members_returns_only_names_and_roles_to_teacher_and_treasurer` | ✅ |
 | Ngoài quỹ 404, ẩn danh 401, kỳ không hợp lệ 400 | `ReportTests.Outsider_gets_404_and_anonymous_gets_401`, `…Invalid_period_returns_400` | ✅ |
+| **Thủ quỹ** – Phân công học sinh đã kích hoạt; sau đó ghi được thu chi; `GET /funds` thành `Assigned` (FR-27, BR-36) | `TreasurerTests.Teacher_assigns_activated_student_who_then_records_transactions` | ✅ |
+| Phân công bị từ chối: chưa tài khoản / chưa kích hoạt / bị khóa / được cấp lại mật khẩu / đã là thủ quỹ → 422; ngoài quỹ → 404; thiếu `studentId` → 400 (BR-31, TR-01) | `TreasurerTests.Assign_rejects_students_who_are_not_eligible` | ✅ |
+| Thu hồi thủ quỹ duy nhất → 422 `treasurer.last` (BR-32, TR-04) | `TreasurerTests.Revoking_the_only_treasurer_is_blocked` | ✅ |
+| Đổi người: phân công mới trước, thu hồi cũ sau; hiệu lực ngay; lịch sử; 409 thu hồi lại; phân công lại (TR-05, TR-06) | `TreasurerTests.Changing_treasurer_assigns_the_new_one_first_then_revokes_the_old_one` | ✅ |
+| Phân công của quỹ khác không thu hồi được qua quỹ này (404) | `TreasurerTests.Assignment_of_another_fund_cannot_be_revoked_through_this_fund` | ✅ |
+| **Đồng thời** – nhiều lệnh thu hồi cùng lúc (2 và 3 thủ quỹ × 6 quỹ) không để quỹ mất thủ quỹ cuối cùng (BR-32, TR-07) | `TreasurerTests.Concurrent_revokes_never_leave_a_fund_without_a_treasurer` | ✅ (bỏ khóa → thất bại) |
+| 5 lệnh thu hồi cùng một phân công: đúng 1 thành công, còn lại 409; 1 dòng AuditLog | `TreasurerTests.Concurrent_revokes_of_the_same_assignment_succeed_only_once` | ✅ (bỏ khóa → thất bại) |
+| 6 lệnh phân công cùng một học sinh: đúng 1 thành công, còn lại 422 `already_assigned` | `TreasurerTests.Concurrent_assignments_of_the_same_student_create_only_one_assignment` | ✅ |
+| Chỉ GVCN quản lý thủ quỹ (403 / 404 / 401, Id sai định dạng 404) | `TreasurerTests.Only_homeroom_teacher_manages_treasurers` | ✅ |
 
 ## Historical
 

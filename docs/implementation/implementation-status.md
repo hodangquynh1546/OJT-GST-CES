@@ -6,14 +6,16 @@
 
 | Hạng mục | Trạng thái | Ghi chú |
 |---|---|---|
-| Backend (.NET 10, Clean Architecture) | **Partially Implemented** – Foundation, Domain, AccessService, Auth, Categories, Transactions, Funds, Students, Tổng quan, Báo cáo, Thành viên | `backend/SchoolFundAPI`: solution, 4 tầng, 8 entity, `AccessService`, pipeline request, xử lý lỗi, `[RequirePermission]`, `GET /api/health`. Feature đã có (mục 1a): **Auth & User Session**, **Danh mục** (Dev B), **Thu chi** (Dev B), **Fund Lifecycle**, **Học sinh & phụ huynh**. Chưa có: Tổng quan (`GET /funds/{id}`), Phân công thủ quỹ, Báo cáo, Thành viên, CLI vận hành |
+| Backend (.NET 10, Clean Architecture) | **Partially Implemented** – Foundation, Domain, AccessService, Auth, Categories, Transactions, Funds, Students, Tổng quan, Báo cáo, Thành viên, Treasurers | `backend/SchoolFundAPI`: solution, 4 tầng, 8 entity, `AccessService`, pipeline request, xử lý lỗi, `[RequirePermission]`, `GET /api/health`. Feature đã có (mục 1a): **Auth & User Session**, **Danh mục** (Dev B), **Thu chi** (Dev B), **Fund Lifecycle**, **Học sinh & phụ huynh**, **Tổng quan / Báo cáo / Thành viên** (Dev B), **Phân công thủ quỹ**. Chưa có: CLI vận hành |
 | Frontend (Angular 20 + Kendo) | **Partially Implemented** – chỉ có Codebase Foundation | `frontend/SchoolFundUI`: `core` / `shared` / `features`, route theo sitemap, guard, interceptor, AppHeader, AppNav, AppState. Các màn hình đang là trang giữ chỗ |
 | Database / migration | **Implemented** (schema) | Migration `InitialClassFund` + `AddDatabaseProtections`: 8 bảng, ràng buộc, index, trigger. Dev: `docker-compose.yml` (PostgreSQL 16) tạo `migrator_user` (DDL) / `app_user` (SELECT / INSERT / UPDATE, không đọc `__EFMigrationsHistory`) |
-| Test tự động | **Partially Implemented** | Unit (xUnit + Moq) và Integration (`SchoolFund.IntegrationTests`, PostgreSQL thật qua Testcontainers) cho Foundation, `AccessService`, Auth, Danh mục, Thu chi, Funds, Học sinh & phụ huynh, Tổng quan, Báo cáo, Thành viên; Frontend: Karma, Playwright cho Foundation. Test nghiệp vụ còn lại của `test-cases.md` mục A chưa viết |
+| Test tự động | **Partially Implemented** | Unit (xUnit + Moq) và Integration (`SchoolFund.IntegrationTests`, PostgreSQL thật qua Testcontainers) cho Foundation, `AccessService`, Auth, Danh mục, Thu chi, Funds, Học sinh & phụ huynh, Tổng quan, Báo cáo, Thành viên, Phân công thủ quỹ; Frontend: Karma, Playwright cho Foundation. Test nghiệp vụ còn lại của `test-cases.md` mục A chưa viết |
 | Tài liệu nghiệp vụ, DB, API, phân quyền, test case | Hoàn thiện – Source of Truth | `docs/requirements`, `docs/business-analysis`, `docs/database`, `docs/api`, `docs/testing` |
 | UI/UX | Hoàn thiện – Source of Truth (prototype) | Canvas https://claude.ai/artifact/D5JVqKkBFqQhmcp5spfw6Y, `docs/ui-design` |
 
 Giai đoạn hiện tại: triển khai các feature Backend theo Docs + Canvas; Frontend nghiệp vụ chưa bắt đầu.
+
+Phân công Backend: **Dev A** – Auth & User Session, Fund Lifecycle, Học sinh & phụ huynh, Phân công thủ quỹ (cả 4 module đã xong); **Dev B** – Danh mục, Thu chi.
 
 ## 1a. Trạng thái theo feature Backend
 
@@ -23,8 +25,8 @@ Giai đoạn hiện tại: triển khai các feature Backend theo Docs + Canvas;
 | Fund Lifecycle | FR-22, FR-23, FR-11, BR-02, BR-23, BR-36 | `GET /funds`, `POST /funds`, `PUT /funds/{fundId}` | **Implemented** | `feature/devA/fund-lifecycle` – PR #8 (đã merge) |
 | Danh mục | FR-10, BR-08, BR-25 | `GET/POST /funds/{fundId}/categories`, `PUT /funds/{fundId}/categories/{id}` | **Implemented** (Dev B) | `feature/be-categories` – PR #6 (đã merge) |
 | Tổng quan quỹ | FR-01, BR-02, BR-15 | `GET /funds/{fundId}` | **Implemented** (Dev B) – chờ review / merge | `feature/be-reports` |
-| Học sinh, phụ huynh | FR-24 → FR-26, BR-29, BR-30, BR-33, BR-35 | `GET/POST /funds/{fundId}/students`, `GET/PUT …/students/{id}`, `POST …/{id}/account`, `…/{id}/reset-password`, `…/{id}/parent`, `…/{id}/parent/unlink` | **Implemented** – chờ review / merge | `feature/devA/student-parent` |
-| Phân công thủ quỹ | FR-27 | `/funds/{fundId}/treasurers…` | Not Implemented | – |
+| Học sinh, phụ huynh | FR-24 → FR-26, BR-29, BR-30, BR-33, BR-35 | `GET/POST /funds/{fundId}/students`, `GET/PUT …/students/{id}`, `POST …/{id}/account`, `…/{id}/reset-password`, `…/{id}/parent`, `…/{id}/parent/unlink` | **Implemented** | `feature/devA/student-parent` – PR #9 (đã merge) |
+| Phân công thủ quỹ | FR-27, BR-31, BR-32, BR-33, BR-36 | `GET/POST /funds/{fundId}/treasurers`, `POST …/treasurers/{assignmentId}/revoke` | **Implemented** – chờ review / merge | `feature/devA/treasurers` |
 | Thu chi | FR-02 → FR-07 | `/funds/{fundId}/transactions…` (thêm, sửa, hủy, danh sách, chi tiết, lịch sử) | **Implemented** (Dev B) | `feature/be-transactions` – PR #7 (đã merge) |
 | Báo cáo | FR-08, FR-09, BR-09, BR-10, BR-15, P1 | `/funds/{fundId}/reports/monthly`, `/funds/{fundId}/reports/yearly` | **Implemented** (Dev B) – chờ review / merge | `feature/be-reports` |
 | Thành viên | FR-12 | `GET /funds/{fundId}/members` | **Implemented** (Dev B) – chờ review / merge | `feature/be-reports` |
@@ -56,6 +58,8 @@ Chi tiết từng feature đã làm: [backend-progress.md](backend-progress.md).
 | 2026-11-06 | Fund Lifecycle trên `main` có Auth + Danh mục + Thu chi (sau merge) | Build 0 / 0 · Unit 216 / 216 · Integration 52 / 52 | .NET SDK 10.0.403, PostgreSQL 16 (Testcontainers) |
 | 2026-11-06 | Học sinh & phụ huynh (trên `main` có PR #5 → #8) | Build 0 / 0 · **Unit 242 / 242** · **Integration 65 / 65** | .NET SDK 10.0.403, PostgreSQL 16 (Testcontainers) |
 | 2026-11-06 | Tổng quan, Báo cáo, Thành viên (trên `main` có PR #5 → #9) | Build 0 / 0 · **Unit 289 / 289** · **Integration 82 / 82** · `swagger.json` có đủ 4 endpoint mới | .NET SDK 10.0.403, PostgreSQL 16 (Testcontainers) |
+| 2026-11-06 | Phân công thủ quỹ (trên `main` có PR #5 → #9); kiểm tra đột biến: bỏ khóa dòng quỹ → cả 3 test đồng thời thất bại (3 / 3 lần chạy) | Build 0 / 0 · Unit 255 / 255 · Integration 75 / 75 | .NET SDK 10.0.403, PostgreSQL 16 (Testcontainers) |
+| 2026-11-06 | Phân công thủ quỹ sau merge `main` (PR #5 → #10: thêm Tổng quan, Báo cáo, Thành viên) | Build 0 / 0 · **Unit 302 / 302** · **Integration 92 / 92** | .NET SDK 10.0.403, PostgreSQL 16 (Testcontainers) |
 
 ## 3. Historical Test Results (mã nguồn đã xóa)
 
@@ -77,4 +81,5 @@ Danh sách test case R3 và tên test tương ứng: [test-cases.md](../testing/
 | 2026-11-05 | Feature Auth & User Session; `IdentityStore` thay `NoIdentityStore`; project `SchoolFund.IntegrationTests`; `docker-compose.yml` cho DB dev (PR #5) |
 | 2026-11-06 | Thêm feature Backend Auth, Categories, Transactions và project `SchoolFund.IntegrationTests` (Danh mục – PR #6, Thu chi – PR #7, Dev B) |
 | 2026-11-06 | Feature Fund Lifecycle (PR #8) |
-| 2026-11-06 | Feature Học sinh & phụ huynh (nhánh `feature/devA/student-parent`) |
+| 2026-11-06 | Feature Học sinh & phụ huynh (PR #9) |
+| 2026-11-06 | Feature Phân công thủ quỹ & khóa dòng chống thu hồi thủ quỹ cuối cùng (nhánh `feature/devA/treasurers`) |

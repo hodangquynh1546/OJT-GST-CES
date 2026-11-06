@@ -12,6 +12,8 @@ public static class AuditActions
     public const string AuthPasswordChanged = "Auth.PasswordChanged";
     public const string FundCreate = "Fund.Create";
     public const string FundRename = "Fund.Rename";
+    public const string TreasurerAssign = "Treasurer.Assign";
+    public const string TreasurerRevoke = "Treasurer.Revoke";
     public const string StudentCreate = "Student.Create";
     public const string StudentUpdate = "Student.Update";
     public const string StudentIssueAccount = "Student.IssueAccount";

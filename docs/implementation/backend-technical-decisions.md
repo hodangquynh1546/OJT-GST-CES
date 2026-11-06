@@ -1,6 +1,6 @@
 # Backend Technical Decisions
 
-> 2026-11-05: mã nguồn đã xóa (D-35). Các TD dưới đây là quyết định kỹ thuật dùng cho lần triển khai lại; tên lớp / file chỉ là tham chiếu lịch sử. Trạng thái từng feature: [implementation-status.md](implementation-status.md). *2026-11-06:* TD-93 → TD-96 (Thu chi, Dev B); TD-97 → TD-105 (Auth, Fund Lifecycle), TD-106 (Học sinh & phụ huynh) – Implemented.
+> 2026-11-05: mã nguồn đã xóa (D-35). Các TD dưới đây là quyết định kỹ thuật dùng cho lần triển khai lại; tên lớp / file chỉ là tham chiếu lịch sử. Trạng thái từng feature: [implementation-status.md](implementation-status.md). *2026-11-06:* TD-93 → TD-96 (Thu chi, Dev B); TD-97 → TD-105 (Auth, Fund Lifecycle), TD-106 (Học sinh & phụ huynh), TD-107 → TD-110 (Tổng quan, Báo cáo, Thành viên – Dev B), TD-111 (Phân công thủ quỹ) – Implemented.
 
 > Cập nhật 2026-11-04 (sau Review & Simplify). Quyết định kỹ thuật của phạm vi cũ (TD-40 → TD-55, DV-01 → DV-07) không còn áp dụng – Git history.
 
@@ -75,6 +75,7 @@ TD-65, TD-66 giữ nguyên trong bảng trên để lưu lịch sử. **2026-11-
 | TD-108 | Bản công khai: truy vấn theo danh mục chỉ lấy khoản công khai; khoản không công khai chỉ được `SUM` theo loại trong database, nên danh mục và số lượng của chúng không rời khỏi database (NFR-08). Danh mục có cả hai loại khoản: phần không công khai vào "Khoản khác" |
 | TD-109 | `recentTransactions` và `transactions` của báo cáo dùng lại `TransactionService.ListAsync`, chỉ một nơi quyết định phạm vi công khai. Cả hai chỉ lấy khoản đang hiệu lực (FR-05, LEAK-09, LEAK-11); danh sách báo cáo không phân trang vì một tháng của quỹ lớp có ít khoản |
 | TD-110 | `GET /funds/{fundId}/members` gồm cả học sinh chưa có tài khoản (vẫn là thành viên lớp), không gồm phụ huynh (FR-12). Thứ tự: GVCN, thủ quỹ, học sinh; họ tên học sinh lấy từ `Student.FullName` như `GET /funds` |
+| TD-111 | Phân công / thu hồi thủ quỹ: `InTransactionAsync` + `LockAsync<Fund>` (`SELECT … FOR UPDATE` trên dòng quỹ) **trước** mọi truy vấn kiểm tra; Read Committed nên sau khi chờ được khóa, mỗi câu lệnh thấy dữ liệu đã commit của lệnh trước → hai lệnh thu hồi đồng thời không thể cùng thấy "còn ≥ 2 thủ quỹ". Thứ tự kiểm tra thu hồi: 404 (ngoài quỹ) → 409 `treasurer.already_revoked` → 422 `treasurer.last`; phân công: 404 → `already_assigned` → `no_account` → `account_disabled` → `account_not_activated`. "Học sinh đã kích hoạt" = `MustChangePassword = false` và `Status = Active`; "thủ quỹ cuối cùng" chỉ đếm phân công (mặc định PD-06). Test đồng thời được kiểm chứng bằng đột biến (bỏ khóa → thất bại) | TD-85, BR-32 |
 
 ## Đã loại bỏ
 Mã: email sender, file storage, permission evaluator theo phạm vi, mọi service nghiệp vụ cũ.
