@@ -2,7 +2,7 @@
 
 > Phiên bản: 2.0 · 2026-11-05 – mô hình **Giáo viên · Học sinh · Phụ huynh** (D-24 → D-33). v1.2 (3 vai trò Thủ quỹ / GVCN / Phụ huynh trong một quỹ), v1.0 và v0.7 nằm trong Git history.
 >
-> Cột **Trạng thái** = trạng thái triển khai: `Implemented` · `Partially Implemented` · `Not Implemented` · `Pending Decision`. **2026-11-06: FR-20, FR-13, FR-21 (Auth), FR-22, FR-23, FR-11 (Fund Lifecycle), FR-02 → FR-07 (Thu chi), FR-10 (Danh mục) đã có ở Backend, chưa có UI → `Partially Implemented (Backend)`; các yêu cầu khác xem cột Trạng thái** (chi tiết: [implementation-status.md](../implementation/implementation-status.md)). *2026-11-05: mọi yêu cầu Not Implemented* – mã nguồn Backend / Frontend cũ đã xóa ngày 2026-11-05; đặc tả giữ nguyên. Giao diện: prototype Canvas.
+> Cột **Trạng thái** = trạng thái triển khai: `Implemented` · `Partially Implemented` · `Not Implemented` · `Pending Decision`. **2026-11-06: FR-20, FR-13, FR-21 (Auth), FR-22, FR-23, FR-11 (Fund Lifecycle), FR-24 → FR-26 (Học sinh & phụ huynh), FR-02 → FR-07 (Thu chi), FR-10 (Danh mục) đã có ở Backend, chưa có UI → `Partially Implemented (Backend)`; các yêu cầu khác xem cột Trạng thái** (chi tiết: [implementation-status.md](../implementation/implementation-status.md)). *2026-11-05: mọi yêu cầu Not Implemented* – mã nguồn Backend / Frontend cũ đã xóa ngày 2026-11-05; đặc tả giữ nguyên. Giao diện: prototype Canvas.
 
 ## 1. Mục tiêu
 
@@ -54,9 +54,9 @@ Cột vai trò: **G** = GVCN · **T** = Thủ quỹ · **H** = Học sinh chưa 
 
 | Mã | Yêu cầu | G | T | H | P | Trạng thái |
 |---|---|---|---|---|---|---|
-| FR-24 | **Học sinh**: danh sách (họ tên, tên đăng nhập, trạng thái tài khoản *Chưa cấp / Chờ kích hoạt / Đang hoạt động / Bị khóa*, thủ quỹ, phụ huynh); thêm (họ tên, email phụ huynh tùy chọn); sửa họ tên; chi tiết | ✔ | – | – | – | Not Implemented |
-| FR-25 | **Cấp tài khoản học sinh**: tên đăng nhập (bỏ trống → hệ thống gợi ý) + mật khẩu tạm ngẫu nhiên, hiển thị một lần; **cấp lại mật khẩu tạm** (phiên cũ hết hiệu lực) | ✔ | – | – | – | Not Implemented |
-| FR-26 | **Liên kết phụ huynh** theo email: có tài khoản phụ huynh → chỉ liên kết; chưa có → tạo tài khoản + mật khẩu tạm hiển thị một lần; ghi rõ hệ thống không gửi email; **gỡ liên kết** (giữ lịch sử) | ✔ | – | – | – | Not Implemented |
+| FR-24 | **Học sinh**: danh sách (họ tên, tên đăng nhập, trạng thái tài khoản *Chưa cấp / Chờ kích hoạt / Đang hoạt động / Bị khóa*, thủ quỹ, phụ huynh); thêm (họ tên, email phụ huynh tùy chọn); sửa họ tên; chi tiết | ✔ | – | – | – | Partially Implemented (Backend) |
+| FR-25 | **Cấp tài khoản học sinh**: tên đăng nhập (bỏ trống → hệ thống gợi ý) + mật khẩu tạm ngẫu nhiên, hiển thị một lần; **cấp lại mật khẩu tạm** (phiên cũ hết hiệu lực) | ✔ | – | – | – | Partially Implemented (Backend) |
+| FR-26 | **Liên kết phụ huynh** theo email: có tài khoản phụ huynh → chỉ liên kết; chưa có → tạo tài khoản + mật khẩu tạm hiển thị một lần; ghi rõ hệ thống không gửi email; **gỡ liên kết** (giữ lịch sử) | ✔ | – | – | – | Partially Implemented (Backend) |
 | FR-27 | **Phân công thủ quỹ**: chọn học sinh đã kích hoạt tài khoản; nhiều thủ quỹ; **thu hồi** (không thu hồi được thủ quỹ cuối cùng); lịch sử người / thời điểm phân công, thu hồi | ✔ | – | – | – | Not Implemented |
 | FR-12 | **Thành viên**: chỉ họ tên + vai trò (GVCN, thủ quỹ, học sinh) – không email / tên đăng nhập / liên hệ. *(v1.2: thủ quỹ tạo / khóa / đổi vai trò thành viên – thay bằng FR-24 → FR-27)* | ✔ | ✔ (chỉ xem) | – | – | Not Implemented |
 | FR-28 | GVCN khóa / mở khóa tài khoản học sinh; học sinh rời lớp; chuyển quỹ cho giáo viên khác | – | – | – | – | Pending Decision (PD-03 → PD-05) |
@@ -101,3 +101,4 @@ Cột vai trò: **G** = GVCN · **T** = Thủ quỹ · **H** = Học sinh chưa 
 | 2026-11-05 | 2.0 | Mô hình Giáo viên · Học sinh · Phụ huynh: viết lại mục 1 → 4; thêm FR-20 → FR-28, NFR-11, NFR-12; sửa FR-12, FR-13, NFR-04, NFR-08; thêm cột Trạng thái | PO duyệt D-24 → D-33 |
 | 2026-11-05 | 2.1 | FR-13 đăng nhập không chọn vai trò; cột Trạng thái → Not Implemented (mã nguồn đã xóa) | PO |
 | 2026-11-06 | 2.2 | Cột Trạng thái: FR-20, FR-13, FR-21, FR-22, FR-23, FR-11 → Partially Implemented (Backend) | Triển khai Auth, Fund Lifecycle (chưa có UI) |
+| 2026-11-06 | 2.3 | Cột Trạng thái: FR-24, FR-25, FR-26 → Partially Implemented (Backend) | Triển khai Học sinh & phụ huynh (chưa có UI) |

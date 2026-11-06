@@ -17,6 +17,12 @@ public sealed class Student(Guid fundId, string fullName, Guid createdBy, DateTi
 
     public DateTimeOffset? UpdatedAt { get; private set; }
 
+    public void Rename(string fullName, DateTimeOffset at)
+    {
+        FullName = fullName;
+        UpdatedAt = at;
+    }
+
     public void LinkAccount(Guid userId, DateTimeOffset at)
     {
         UserId = userId;

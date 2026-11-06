@@ -12,9 +12,10 @@
 | R5 | Feature Auth & User Session: đăng ký giáo viên, đăng nhập một ô, `/auth/me`, đổi mật khẩu tạm, phiên (`IdentityStore` thay `NoIdentityStore`), pepper `SECRET_KEY`, integration test (Testcontainers), `docker-compose.yml` | **Done** (PR #5, 2026-11-05) |
 | R6 | Feature Danh mục (Dev B) | **Done** (PR #6) |
 | R7 | Feature Thu chi (Dev B): thêm, sửa, hủy, danh sách, lịch sử thay đổi | **Done** (PR #7, 2026-11-06) |
-| R8 | Feature Fund Lifecycle: `GET /funds`, `POST /funds` (+ 6 danh mục mặc định), `PUT /funds/{fundId}` | **Done** – chờ review / merge (`feature/devA/fund-lifecycle`, 2026-11-06) |
+| R8 | Feature Fund Lifecycle: `GET /funds`, `POST /funds` (+ 6 danh mục mặc định), `PUT /funds/{fundId}` | **Done** (PR #8, 2026-11-06) |
+| R9 | Feature Học sinh & phụ huynh: danh sách / thêm / sửa học sinh, cấp tài khoản + mật khẩu tạm, cấp lại mật khẩu, liên kết / gỡ phụ huynh | **Done** – chờ review / merge (`feature/devA/student-parent`, 2026-11-06) |
 | Hiện tại | Chốt PD-01 → PD-06 | Đang làm |
-| Tiếp theo | Tổng quan (`GET /funds/{id}`, số dư), Báo cáo tài chính; Học sinh & phụ huynh → Phân công thủ quỹ; Thành viên; CLI vận hành (`create-teacher`, `reset-password`…); rồi Frontend theo Canvas 3.1 | Chưa làm |
+| Tiếp theo | Phân công thủ quỹ; Tổng quan (`GET /funds/{id}`, số dư), Báo cáo tài chính; Thành viên; CLI vận hành (`create-teacher`, `reset-password`…); rồi Frontend theo Canvas 3.1 | Chưa làm |
 
 ## Lịch sử
 | Ngày | Thay đổi |
@@ -26,3 +27,4 @@
 | 2026-11-05 | Thêm R4; cập nhật Hiện tại / Tiếp theo |
 | 2026-11-06 | Thêm R5 (Auth), R6 (Danh mục), R7 (Thu chi); cập nhật Tiếp theo |
 | 2026-11-06 | Thêm R8 (Fund Lifecycle); cập nhật Tiếp theo |
+| 2026-11-06 | Thêm R9 (Học sinh & phụ huynh); cập nhật Tiếp theo |

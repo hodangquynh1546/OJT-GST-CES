@@ -8,12 +8,13 @@
 
 ## Kết quả hiện tại
 
-Chi tiết ở [implementation-status.md](../implementation/implementation-status.md) mục 3a. Danh mục và sổ thu chi có test ở `CategoryServiceTests`, `TransactionServiceTests`, `Categories/CategoryTests`, `Transactions/TransactionTests`; các dòng mục A riêng của Danh mục / Thu chi chưa đổi trạng thái theo từng mã. Các mã của Auth và Fund Lifecycle (và T-04, S-08, P-08 có dùng test Danh mục / Thu chi) đã ghi trạng thái kèm tên test. `AccessServiceTests` (16 test) phủ thứ tự suy ra vai trò trong `roles-and-permissions.md` mục 1.
+Chi tiết ở [implementation-status.md](../implementation/implementation-status.md) mục 3a. Danh mục và sổ thu chi có test ở `CategoryServiceTests`, `TransactionServiceTests`, `Categories/CategoryTests`, `Transactions/TransactionTests`; các dòng mục A riêng của Danh mục / Thu chi chưa đổi trạng thái theo từng mã. Các mã của Auth, Fund Lifecycle, Học sinh & phụ huynh (và T-04, S-08, P-08 có dùng test Danh mục / Thu chi) đã ghi trạng thái kèm tên test. `AccessServiceTests` (16 test) phủ thứ tự suy ra vai trò trong `roles-and-permissions.md` mục 1.
 
 | Ngày | Phạm vi | Kết quả |
 |---|---|---|
 | 2026-11-05 | Auth & User Session (`Auth/AuthTests` + unit) | Build 0 warning · Unit 89 / 89 · Integration 18 / 18 Passed |
-| 2026-11-06 | Fund Lifecycle (`Funds/FundTests` + unit) trên `main` có Auth + Danh mục + Thu chi | Build 0 warning · **Unit 216 / 216** · **Integration 52 / 52 Passed** (PostgreSQL 16 – Testcontainers) |
+| 2026-11-06 | Fund Lifecycle (`Funds/FundTests` + unit) trên `main` có Auth + Danh mục + Thu chi | Build 0 warning · Unit 216 / 216 · Integration 52 / 52 Passed (PostgreSQL 16 – Testcontainers) |
+| 2026-11-06 | Học sinh & phụ huynh (`Students/StudentTests` + unit) | Build 0 warning · **Unit 242 / 242** · **Integration 65 / 65 Passed** (PostgreSQL 16 – Testcontainers) |
 
 ## Historical Test Results
 
@@ -39,15 +40,15 @@ Lớp test: `TS` = `Roles/TeacherStudentTreasurerTests`, `PP` = `Roles/ParentAnd
 ### A.2 Học sinh
 | Mã | Tình huống | Kỳ vọng | Test (lịch sử) | Trạng thái |
 |---|---|---|---|---|
-| S-01 | Thêm học sinh → chi tiết | `accountStatus = None` | TS `Student_account…` | Not Implemented |
-| S-02 | Cấp tài khoản | Username gợi ý `huy.pham.NNN`; mật khẩu tạm dạng `Xxxx-xxxx-0000-xxxx`; cấp lần 2 → 422 `student.account_exists`; trạng thái `PendingActivation` | TS `Student_account…`, U `CredentialsTests` | Not Implemented |
+| S-01 | Thêm học sinh → chi tiết | `accountStatus = None` | TS `Student_account…` | Passed – `StudentTests.Teacher_adds_lists_views_and_renames_students` |
+| S-02 | Cấp tài khoản | Username gợi ý `huy.pham.NNN`; mật khẩu tạm dạng `Xxxx-xxxx-0000-xxxx`; cấp lần 2 → 422 `student.account_exists`; trạng thái `PendingActivation` | TS `Student_account…`, U `CredentialsTests` | Passed – `StudentTests.Issuing_account_suggests_username_and_returns_one_time_temporary_password`, U `CredentialsTests` |
 | S-03 | Học sinh đăng nhập bằng mật khẩu tạm, gọi `/funds`, `/funds/{id}` | 403 `password.change_required`; `me.mustChangePassword = true` | TS `Student_account…` | Partially Implemented – `/funds` → 403 + `mustChangePassword`: `FundTests.List_requires_sign_in_and_changed_password`, `AuthTests.Student_signs_in_with_username_and_must_change_temporary_password`; `/funds/{id}`: chưa có API |
 | S-04 | Đổi mật khẩu | Dùng được; mật khẩu tạm cũ → 401 | TS `Student_account…` | Passed – `AuthTests.Temporary_password_blocks_other_endpoints_until_changed` |
-| S-05 | Mật khẩu tạm trong AuditLog / log | Không có | TS `Student_account…` | Not Implemented |
-| S-06 | GVCN cấp lại mật khẩu | Phiên cũ 401; đăng nhập lại phải đổi mật khẩu | TS `Student_account…` | Not Implemented |
+| S-05 | Mật khẩu tạm trong AuditLog / log | Không có | TS `Student_account…` | Passed – `StudentTests.Temporary_passwords_never_reach_audit_log_or_logs` |
+| S-06 | GVCN cấp lại mật khẩu | Phiên cũ 401; đăng nhập lại phải đổi mật khẩu | TS `Student_account…` | Passed – `StudentTests.Resetting_password_ends_every_session_and_requires_a_new_change` |
 | S-07 | Học sinh chưa phân công: tổng quan, danh sách | Số dư gồm khoản không công khai; chỉ khoản công khai; không `note`, `createdByName` | TS `Unassigned_student…` | Not Implemented |
 | S-08 | Học sinh chưa phân công ghi thu chi / danh mục / xem thành viên / học sinh / tạo quỹ | 403 `forbidden` | TS `Unassigned_student…` | Partially Implemented – tạo quỹ → 403: `FundTests.Only_teachers_can_create_funds`; danh mục: `CategoryTests.Only_treasurer_can_write_and_outsider_sees_nothing`; thu chi: `TransactionTests.Only_treasurer_writes_and_outsiders_get_not_found`; thành viên / học sinh: chưa có API |
-| S-09 | Danh sách học sinh | Có username, `isTreasurer` | TS `Student_account…` | Not Implemented |
+| S-09 | Danh sách học sinh | Có username, `isTreasurer` | TS `Student_account…` | Passed – `StudentTests.List_shows_treasurer_flag_and_parent_of_each_student` |
 
 ### A.3 Thủ quỹ
 | Mã | Tình huống | Kỳ vọng | Test (lịch sử) | Trạng thái |
@@ -64,11 +65,11 @@ Lớp test: `TS` = `Roles/TeacherStudentTreasurerTests`, `PP` = `Roles/ParentAnd
 ### A.4 Phụ huynh
 | Mã | Tình huống | Kỳ vọng | Test (lịch sử) | Trạng thái |
 |---|---|---|---|---|
-| P-01 | Thêm học sinh kèm email phụ huynh mới | `accountCreated = true`, `emailSent = false`, có mật khẩu tạm | PP `Parent_account…` | Not Implemented |
-| P-02 | Cùng email (khác hoa thường) ở quỹ khác | Chỉ liên kết; `credential = null`; 1 tài khoản | PP `Parent_account…` | Not Implemented |
-| P-03 | Liên kết thứ hai cho cùng học sinh; email của giáo viên | 422 `parent_link.exists`; 422 `parent.email_in_use` | PP `Parent_account…` | Not Implemented |
-| P-04 | Phụ huynh xem `/funds` | 2 quỹ, vai trò Parent, tên con, không `studentCount` | PP `Parent_account…` | Partially Implemented – vai trò Parent, tên con, không `studentCount` (1 quỹ): `FundTests.List_returns_balance_treasurers_and_role_specific_fields`; trường hợp 2 quỹ cần API liên kết phụ huynh |
-| P-05 | Gỡ liên kết | Quỹ đó → 404; quỹ kia vẫn 200 | PP `Parent_account…` | Not Implemented |
+| P-01 | Thêm học sinh kèm email phụ huynh mới | `accountCreated = true`, `emailSent = false`, có mật khẩu tạm | PP `Parent_account…` | Passed – `StudentTests.Adding_student_with_parent_email_links_parent_in_one_step`, `…Linking_new_parent_email_creates_parent_account_with_one_time_password` |
+| P-02 | Cùng email (khác hoa thường) ở quỹ khác | Chỉ liên kết; `credential = null`; 1 tài khoản | PP `Parent_account…` | Passed – `StudentTests.Linking_existing_parent_email_only_links_without_new_account` |
+| P-03 | Liên kết thứ hai cho cùng học sinh; email của giáo viên | 422 `parent_link.exists`; 422 `parent.email_in_use` | PP `Parent_account…` | Passed – `StudentTests.Linking_new_parent_email_creates_parent_account_with_one_time_password` (`parent_link.exists`), `…Teacher_or_student_email_cannot_be_linked_as_parent` |
+| P-04 | Phụ huynh xem `/funds` | 2 quỹ, vai trò Parent, tên con, không `studentCount` | PP `Parent_account…` | Passed – 2 quỹ: `StudentTests.Linking_existing_parent_email_only_links_without_new_account`; tên con, không `studentCount`: `FundTests.List_returns_balance_treasurers_and_role_specific_fields` |
+| P-05 | Gỡ liên kết | Quỹ đó → 404; quỹ kia vẫn 200 | PP `Parent_account…` | Partially Implemented – gỡ liên kết → quỹ đó 404 ngay: `StudentTests.Unlinking_parent_marks_link_removed_keeps_history_and_account`; "quỹ kia vẫn 200" chưa có test riêng |
 | P-06 | Danh sách, tìm kiếm theo nội dung / ghi chú khoản không công khai, chi tiết khoản không công khai, lịch sử | Không có trường nội bộ; tìm → 0; chi tiết → 404; lịch sử → 403 | PP `Parent_sees…` | Not Implemented |
 | P-07 | Danh mục; báo cáo tháng | Không có danh mục chỉ dùng cho khoản không công khai; "Khoản khác" `count = null`; tổng chi tháng đầy đủ | PP `Parent_sees…` | Not Implemented |
 | P-08 | Con là thủ quỹ – phụ huynh ghi / hủy / xem thành viên / học sinh / tạo quỹ | 403 | PP `Parent_sees…` | Partially Implemented – tạo quỹ, đổi tên quỹ → 403: `FundTests.Only_teachers_can_create_funds`, `…Non_homeroom_accounts_cannot_rename_fund`; ghi / hủy: `TransactionTests.Only_treasurer_writes_and_outsiders_get_not_found`; thành viên / học sinh: chưa có API |
@@ -82,7 +83,7 @@ Lớp test: `TS` = `Roles/TeacherStudentTreasurerTests`, `PP` = `Roles/ParentAnd
 | G-04 | Thủ quỹ quỹ B dùng Id giao dịch / đường dẫn quỹ A | 404 | TX `A_treasurer_cannot…` | Not Implemented |
 | G-05 | Đăng nhập bằng một ô `login`: email giáo viên / phụ huynh, tên đăng nhập học sinh; request không có tham số vai trò; gửi kèm `role` bị bỏ qua (D-34) | 200 với mọi loại tài khoản; `/auth/me` trả loại tài khoản + vai trò theo quỹ | – (mới) | Passed – `AuthTests.Teacher_signs_in_with_email_case_insensitively_without_role_parameter`, `…Student_signs_in_with_username_and_must_change_temporary_password`, `…Me_lists_memberships_with_roles_derived_from_data` |
 | M-01 | Nâng cấp DB `InitialClassFund` có dữ liệu | Owner → Teacher, không phân công, giao dịch / AuditLog giữ nguyên, `IsPublic = true`, `CancelledBy` từ AuditLog | UP | Không áp dụng (D-36) |
-| M-02 | DELETE Student / ParentLink / TreasurerAssignment bằng `app_user` | P0001 | PT | Kiểm chứng thủ công 2026-11-05, chưa có test tự động |
+| M-02 | DELETE Student / ParentLink / TreasurerAssignment bằng `app_user` | P0001 | PT | Passed (Student, ParentLink) – `StudentTests.Students_and_parent_links_cannot_be_hard_deleted`; TreasurerAssignment: kiểm chứng thủ công 2026-11-05 |
 | M-03 | Lịch sử migration có `_InitialClassFund`, `_AddDatabaseProtections` *(sửa 2026-11-05, D-36)* | Có | `DatabaseAccountTests` | Kiểm chứng thủ công 2026-11-05, chưa có test tự động |
 | R-01 | Thu chi, sửa, hủy, chống trùng (5 request đồng thời), lọc, báo cáo tháng / năm, danh mục ẩn | Như R1 | TX, RC | Not Implemented |
 | X-01 | Khởi động API bằng `dotnet run` và thao tác thủ công (smoke test) | Đăng ký → tạo quỹ → học sinh → phân công → ghi thu chi | – | Partially Implemented – 2026-11-05 chạy tay `dotnet run` + Swagger: đăng ký / đăng nhập / me / đăng xuất đúng; chuỗi học sinh → phân công → thu chi chờ các feature còn lại |

@@ -1,6 +1,6 @@
 # Backend Technical Decisions
 
-> 2026-11-05: mã nguồn đã xóa (D-35). Các TD dưới đây là quyết định kỹ thuật dùng cho lần triển khai lại; tên lớp / file chỉ là tham chiếu lịch sử. Trạng thái từng feature: [implementation-status.md](implementation-status.md). *2026-11-06:* TD-93 → TD-96 (Thu chi, Dev B); TD-97 → TD-105 (Auth, Fund Lifecycle – Implemented).
+> 2026-11-05: mã nguồn đã xóa (D-35). Các TD dưới đây là quyết định kỹ thuật dùng cho lần triển khai lại; tên lớp / file chỉ là tham chiếu lịch sử. Trạng thái từng feature: [implementation-status.md](implementation-status.md). *2026-11-06:* TD-93 → TD-96 (Thu chi, Dev B); TD-97 → TD-105 (Auth, Fund Lifecycle), TD-106 (Học sinh & phụ huynh) – Implemented.
 
 > Cập nhật 2026-11-04 (sau Review & Simplify). Quyết định kỹ thuật của phạm vi cũ (TD-40 → TD-55, DV-01 → DV-07) không còn áp dụng – Git history.
 
@@ -70,6 +70,7 @@ TD-65, TD-66 giữ nguyên trong bảng trên để lưu lịch sử. **2026-11-
 | TD-103 | Dev DB: `docker-compose.yml` + `docker/postgres/init/01-roles.sh` tạo `migrator_user` (sở hữu schema) / `app_user` (SELECT, INSERT, UPDATE); tạo sẵn `__EFMigrationsHistory` và thu hồi quyền của `app_user`. Biến trong `.env` (không commit), mẫu `.env.example` | TD-01 → TD-31 (2 tài khoản DB), KI-10 |
 | TD-104 | `GET /funds` dựa trên `IAccessService.GetMembershipsAsync` + 4 truy vấn gộp (ngày tạo, số dư, thủ quỹ, số học sinh) cho mọi quỹ một lần, không truy vấn theo từng quỹ. `studentCount` (GVCN), `linkedStudents` (phụ huynh) là `null` với vai trò khác và bị bỏ khỏi JSON (`JsonIgnore(WhenWritingNull)`) | FR-22; tránh N+1 |
 | TD-105 | Danh mục mặc định là hằng số Domain (`Rules/DefaultCategories`), tạo cùng quỹ trong một lần `SaveChanges`; một dòng AuditLog `Fund.Create` liệt kê danh mục thay vì 6 dòng `Category.Create` | D-25, Q-09 |
+| TD-106 | Học sinh & phụ huynh: thao tác tạo tài khoản / mật khẩu tạm (cấp tài khoản, cấp lại mật khẩu, liên kết phụ huynh) chạy trong `InTransactionAsync` + `LockAsync<Student>` – hai lệnh đồng thời không tạo hai tài khoản cho một học sinh; vi phạm UNIQUE (`UQ_User_Username`, `UQ_Student_UserId`, `UQ_ParentLink_Student_Active`) đổi thành 422 có mã. `Credentials` (Application): mật khẩu tạm 16 ký tự `RandomNumberGenerator` dạng `Xxxx-xxxx-0000-xxxx` không ký tự dễ nhầm; gợi ý tên đăng nhập `ten.ho.NNN` bỏ dấu, thử tối đa 20 lần nếu trùng. Định dạng tên đăng nhập kiểm tra ở Application để trả 422 `user.username` đúng đặc tả | TD-86, BR-29, NFR-09 |
 
 ## Đã loại bỏ
 Mã: email sender, file storage, permission evaluator theo phạm vi, mọi service nghiệp vụ cũ.
