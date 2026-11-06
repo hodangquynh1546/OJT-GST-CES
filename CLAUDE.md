@@ -6,7 +6,7 @@ Hướng dẫn cho Claude Code khi làm việc trong repository này.
 
 **School Fund Management** – hệ thống quản lý quỹ lớp học sinh (thu, chi, theo dõi số dư và minh bạch quỹ lớp).
 
-Trạng thái: đã có Codebase Foundation, Domain, schema, `AccessService` và feature Backend Auth, Categories, Transactions, Funds, Students, Treasurers; Frontend chưa có feature nghiệp vụ. Chi tiết ở `docs/implementation/implementation-status.md`.
+Trạng thái: đã có Codebase Foundation, Domain, schema, `AccessService` và feature Backend Auth, Categories, Transactions, Funds, Students, Overview, Reports, Treasurers; Frontend chưa có feature nghiệp vụ. Chi tiết ở `docs/implementation/implementation-status.md`.
 
 ## 2. Tài liệu chuẩn
 

@@ -1,6 +1,6 @@
 # Backend Progress
 
-> Cập nhật: 2026-11-06 · Nhánh `feature/devA/collecting-class-funds` (trên `main` đã có PR #5 → #9).
+> Cập nhật: 2026-11-06 · Nhánh `feature/devA/treasurers` (trên `main` đã có PR #5 → #10).
 
 ## Trạng thái
 **Partially Implemented** – mã nguồn cũ đã xóa (D-35) và đang làm lại: đã có Codebase Foundation, Domain Entities, `AppDbContext`, `AccessService`, migration `InitialClassFund` + `AddDatabaseProtections` và các feature Backend **Auth & User Session**, **Danh mục** (Dev B), **Thu chi** (Dev B), **Fund Lifecycle**, **Học sinh & phụ huynh**, **Phân công thủ quỹ**. Chưa có Frontend nghiệp vụ. Các feature còn lại: xem [implementation-status.md](implementation-status.md) mục 1a.
@@ -60,6 +60,9 @@ Yêu cầu: FR-24, FR-25, FR-26, BR-29, BR-30, BR-33, BR-35, P-13, P-14, P-16, N
 | Không xóa cứng | Trigger `TR_NoDelete` chặn `DELETE` trên `Student`, `ParentLink` (đã kiểm chứng bằng test) |
 | Test | Integration `Students/StudentTests` (13 test); Unit `StudentServiceTests`, `CredentialsTests` |
 
+### Tổng quan, Báo cáo, Thành viên – Implemented (Dev B), chờ review / merge (2026-11-06)
+`GET /funds/{fundId}`, `GET …/reports/monthly`, `GET …/reports/yearly`, `GET …/members` (FR-01, FR-08, FR-09, FR-12). Xem mã nguồn `Features/Overview`, `Features/Reports`, TD-107 → TD-110 và test `Reports/ReportTests`, `ReportServiceTests`, `OverviewServiceTests`, `ReportsApiTests`. Không thêm bảng, migration hay package.
+
 ### Phân công thủ quỹ & khóa dòng – Implemented, chờ review / merge (2026-11-06)
 Yêu cầu: FR-27, BR-31, BR-32, BR-33, BR-36, P-15, NFR-09 · API: [backend-api.md](../api/backend-api.md) mục Treasurers. Mọi endpoint `[RequirePermission(Treasurer.Assign)]` – chỉ GVCN; thủ quỹ / học sinh / phụ huynh → 403, không thuộc quỹ → 404 (kể cả Id sai định dạng).
 
@@ -71,7 +74,7 @@ Yêu cầu: FR-27, BR-31, BR-32, BR-33, BR-36, P-15, NFR-09 · API: [backend-api
 
 | Hạng mục | Nội dung |
 |---|---|
-| Khóa dòng (BR-32) | Phân công và thu hồi chạy trong `InTransactionAsync`, **khóa dòng `Fund` (`SELECT … FOR UPDATE`) trước**, rồi mới đọc / đếm (TD-107). Lệnh thu hồi thứ hai chờ tới khi lệnh đầu commit rồi đếm lại nên thấy "còn 1" và bị 422. UNIQUE lọc `UQ_TreasurerAssignment_Student_Active` là chốt chặn cuối cho phân công trùng |
+| Khóa dòng (BR-32) | Phân công và thu hồi chạy trong `InTransactionAsync`, **khóa dòng `Fund` (`SELECT … FOR UPDATE`) trước**, rồi mới đọc / đếm (TD-111). Lệnh thu hồi thứ hai chờ tới khi lệnh đầu commit rồi đếm lại nên thấy "còn 1" và bị 422. UNIQUE lọc `UQ_TreasurerAssignment_Student_Active` là chốt chặn cuối cho phân công trùng |
 | Quy tắc "thủ quỹ cuối cùng" | Chỉ đếm phân công đang hiệu lực, không xét trạng thái tài khoản (mặc định của PD-06 – xem KI-07) |
 | Hiệu lực | Vai trò suy ra từ dữ liệu ở mỗi request: học sinh ghi được thu chi ngay sau khi được phân công, mất quyền (403) ngay sau khi bị thu hồi |
 | AuditLog | `Treasurer.Assign`, `Treasurer.Revoke` |
@@ -82,9 +85,9 @@ Yêu cầu: FR-27, BR-31, BR-32, BR-33, BR-36, P-15, NFR-09 · API: [backend-api
 | Kiểm chứng | Kết quả |
 |---|---|
 | Build toàn solution (`TreatWarningsAsErrors`) | 0 warning, 0 error |
-| Unit test | 255 / 255 |
-| Integration test (PostgreSQL 16 – Testcontainers) | 75 / 75 |
-| Khởi động API thủ công (`app_user`, Swagger) | Đạt (2026-11-05) |
+| Unit test | 302 / 302 |
+| Integration test (PostgreSQL 16 – Testcontainers) | 92 / 92 |
+| Khởi động API thủ công (`app_user`, Swagger) | Đạt (2026-11-06): `swagger.json` có đủ 4 endpoint mới, gọi ẩn danh 401 |
 
 ## Chạy dev
 ```bash

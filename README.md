@@ -43,8 +43,8 @@ Clean Architecture gồm các tầng **Api → Application → Domain**, với *
 - [x] Backend: Thu chi (thêm, sửa, hủy, lịch sử)
 - [x] Backend: Fund Lifecycle (quỹ của tôi, tạo quỹ, đổi tên quỹ)
 - [x] Backend: Học sinh & phụ huynh (thêm học sinh, cấp tài khoản, liên kết / gỡ phụ huynh)
+- [x] Backend: Tổng quan, Báo cáo tháng / 12 tháng, Thành viên
 - [x] Backend: Phân công thủ quỹ (phân công / thu hồi, khóa dòng chống thu hồi thủ quỹ cuối cùng)
-- [ ] Backend: Tổng quan, Báo cáo, Thành viên
 - [ ] Frontend nghiệp vụ
 
 Chi tiết: [`docs/implementation/implementation-status.md`](docs/implementation/implementation-status.md).

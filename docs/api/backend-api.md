@@ -1,6 +1,6 @@
 # API Specification – Quỹ lớp (đặc tả 2.0)
 
-> Cập nhật: 2026-11-05 · Mô hình **Giáo viên · Học sinh · Phụ huynh** (D-24 → D-33). Trạng thái triển khai: **Auth, Categories, Transactions đã có ở Backend (2026-11-06)**, phần còn lại Not Implemented – mã nguồn cũ (từng cài đặt và kiểm thử đúng đặc tả này) đã xóa ngày 2026-11-05; đặc tả giữ nguyên làm Source of Truth ([implementation-status.md](../implementation/implementation-status.md)). Swagger đầy đủ: `/swagger` (Development).
+> Cập nhật: 2026-11-05 · Mô hình **Giáo viên · Học sinh · Phụ huynh** (D-24 → D-33). Trạng thái triển khai: **Auth, Categories, Transactions, Funds, Students, Tổng quan, Báo cáo, Thành viên đã có ở Backend (2026-11-06)**, phần còn lại Not Implemented – mã nguồn cũ (từng cài đặt và kiểm thử đúng đặc tả này) đã xóa ngày 2026-11-05; đặc tả giữ nguyên làm Source of Truth ([implementation-status.md](../implementation/implementation-status.md)). Swagger đầy đủ: `/swagger` (Development).
 > Thiết kế v1.1 / v1.2 (`/members`, đổi vai trò, phạm vi theo `FundMember`) **không triển khai** – xem Git history.
 
 ## Quy ước
@@ -38,11 +38,11 @@
 |---|---|---|---|
 | `GET` | `/funds` | Đăng nhập (không còn mật khẩu tạm) | Quỹ tôi có vai trò: `{ id, name, role, permissions[], currentBalance, createdAt, treasurerStatus: Unassigned \| Assigned, studentCount (chỉ GVCN), treasurerNames[], linkedStudents[] (phụ huynh) }` |
 | `POST` | `/funds` | `Fund.Create` (giáo viên) | `{ name }` → 201 `{ id }`; danh mục mặc định, chưa có thủ quỹ |
-| `GET` | `/funds/{fundId}` | `Fund.View` | Tổng quan: `role`, `permissions`, `currentBalance`, `totalIncome`, `totalExpense`, `currentMonth`, `treasurerStatus`, `managers[{ fullName, role }]`, `recentTransactions` (theo phạm vi) |
+| `GET` | `/funds/{fundId}` | `Fund.View` | Tổng quan: `role`, `permissions`, `currentBalance`, `totalIncome`, `totalExpense`, `currentMonth { income, expense, net }` (tháng theo giờ Việt Nam), `treasurerStatus`, `managers[{ fullName, role }]`, `recentTransactions` (5 khoản đang hiệu lực mới nhất, theo phạm vi) |
 | `PUT` | `/funds/{fundId}` | `Fund.Manage` (GVCN) | `{ name }` → 204 |
-| `GET` | `/funds/{fundId}/reports/monthly?year&month` | `Fund.View` | Bản công khai: `transactions` chỉ khoản công khai; `byCategory` thêm `{ categoryId: null, categoryName: "Khoản khác", count: null }` theo loại (P1) |
-| `GET` | `/funds/{fundId}/reports/yearly?year` | `Fund.View` | 12 tháng, số tổng |
-| `GET` | `/funds/{fundId}/members` | `Member.View` (GVCN, thủ quỹ) | `[{ fullName, role }]` – không email / username |
+| `GET` | `/funds/{fundId}/reports/monthly?year&month` | `Fund.View` | `year` (1–9999), `month` (1–12) bắt buộc. `{ year, month, openingBalance, totalIncome, totalExpense, netChange, closingBalance, byCategory[{ type, categoryId, categoryName, count, amount }], transactions }`; số tổng giống nhau ở mọi vai trò, `transactions` chỉ khoản đang hiệu lực. Bản công khai: `transactions` chỉ khoản công khai; `byCategory` thêm `{ type, categoryId: null, categoryName: "Khoản khác", count: null, amount }` theo loại khi loại đó có khoản không công khai (P1) |
+| `GET` | `/funds/{fundId}/reports/yearly?year` | `Fund.View` | `{ year, months[{ month, openingBalance, totalIncome, totalExpense, netChange, closingBalance }] }`: luôn đủ 12 tháng, chỉ số tổng, giống nhau ở mọi vai trò |
+| `GET` | `/funds/{fundId}/members` | `Member.View` (GVCN, thủ quỹ) | `[{ fullName, role }]` – không email / username. `role`: `Teacher`, `Treasurer`, `Student`; gồm cả học sinh chưa có tài khoản, không gồm phụ huynh |
 
 ### Transactions
 
