@@ -1,6 +1,6 @@
 # API Specification – Quỹ lớp (đặc tả 2.0)
 
-> Cập nhật: 2026-11-05 · Mô hình **Giáo viên · Học sinh · Phụ huynh** (D-24 → D-33). Trạng thái triển khai: **Not Implemented** – mã nguồn cũ (từng cài đặt và kiểm thử đúng đặc tả này) đã xóa ngày 2026-11-05; đặc tả giữ nguyên làm Source of Truth ([implementation-status.md](../implementation/implementation-status.md)). Swagger đầy đủ: `/swagger` (Development).
+> Cập nhật: 2026-11-05 · Mô hình **Giáo viên · Học sinh · Phụ huynh** (D-24 → D-33). Trạng thái triển khai: **Auth, Categories, Transactions đã có ở Backend (2026-11-06)**, phần còn lại Not Implemented – mã nguồn cũ (từng cài đặt và kiểm thử đúng đặc tả này) đã xóa ngày 2026-11-05; đặc tả giữ nguyên làm Source of Truth ([implementation-status.md](../implementation/implementation-status.md)). Swagger đầy đủ: `/swagger` (Development).
 > Thiết kế v1.1 / v1.2 (`/members`, đổi vai trò, phạm vi theo `FundMember`) **không triển khai** – xem Git history.
 
 ## Quy ước
@@ -13,6 +13,8 @@
 | Lỗi | `application/problem+json` (`code`, `title`, `detail`, `traceId`, `correlationId`, `errors` khi 400). 400 `validation_failed` · 401 `unauthorized` / `auth.*` · 403 `forbidden` / `password.change_required` · 404 `not_found` (cả khi **không thuộc quỹ**) · 409 xung đột · 422 vi phạm quy tắc |
 | Tiền / ngày | `long` VND > 0 · `yyyy-MM-dd` (giờ Việt Nam) |
 | Chống lưu trùng | `POST …/transactions` bắt buộc `idempotencyKey`; gửi lại → 200, `replayed: true` |
+| Enum | JSON và query dùng chuỗi (`Income`, `Expense`, `Active`…); JSON không nhận số |
+| Phân trang | `{ items, total, page, pageSize }`; `page` từ 1, `pageSize` 1–100, mặc định 20; `total` đếm sau khi lọc phạm vi người xem |
 | Bản công khai | Học sinh chưa phân công, phụ huynh: lọc `isPublic` trước tìm kiếm / đếm / phân trang; các trường `note`, `isPublic`, `cancelReason`, `updatedAt`, `createdByName`, `updatedByName`, `cancelledByName` **không có** trong JSON |
 | Mật khẩu tạm | Chỉ có trong response của thao tác cấp (`Cache-Control: no-store`); không lưu dạng rõ, không xem lại được, không ghi log |
 
@@ -46,20 +48,20 @@
 
 | Method | Path | Permission | Mô tả |
 |---|---|---|---|
-| `GET` | `/funds/{fundId}/transactions` | `Fund.View` | Lọc `type`, `categoryId`, `from`, `to`, `search`, `status` (Active / Cancelled / All), `page`, `pageSize` |
-| `GET` | `/funds/{fundId}/transactions/{id}` | `Fund.View` | Khoản không công khai với người xem công khai → 404 |
+| `GET` | `/funds/{fundId}/transactions` | `Fund.View` | Lọc `type`, `categoryId`, `from`, `to`, `search`, `status` (Active / Cancelled / All, mặc định Active), `page`, `pageSize`. `search` tìm trong nội dung và ghi chú; bản công khai chỉ tìm trong nội dung |
+| `GET` | `/funds/{fundId}/transactions/{id}` | `Fund.View` | Khoản không công khai với người xem công khai → 404. Bản công khai chỉ có `id`, `type`, `amount`, `occurredOn`, `categoryId`, `categoryName`, `description`, `isCancelled`, `cancelledOn` |
 | `GET` | `/funds/{fundId}/transactions/{id}/history` | `Ledger.ViewFull` | `[{ occurredAt, action, actorName, oldValues, newValues }]` |
-| `POST` | `/funds/{fundId}/transactions` | `Transaction.Manage` (thủ quỹ) | `{ type, amount, occurredOn, categoryId, description, note, isPublic = true, idempotencyKey }` → 201 / 200 replay |
-| `PUT` | `/funds/{fundId}/transactions/{id}` | `Transaction.Manage` | `{ amount, occurredOn, categoryId, description, note, isPublic }`; ghi `UpdatedBy` |
-| `POST` | `/funds/{fundId}/transactions/{id}/cancel` | `Transaction.Manage` | `{ reason }` **bắt buộc** (1–500); ghi `CancelledBy`. 422 `transaction.cancelled` |
+| `POST` | `/funds/{fundId}/transactions` | `Transaction.Manage` (thủ quỹ) | `{ type, amount, occurredOn, categoryId, description, note, isPublic = true, idempotencyKey }` → 201 / 200 replay, trả khoản kèm `replayed`, `isNegativeBalance`. 422 `transaction.future_date`, `transaction.category_invalid` (khác quỹ, khác loại, đã ẩn) |
+| `PUT` | `/funds/{fundId}/transactions/{id}` | `Transaction.Manage` | `{ amount, occurredOn, categoryId, description, note, isPublic }` đủ các trường, bỏ `note` là xóa ghi chú; ghi `UpdatedBy`; `type` không đổi được → 200 kèm `isNegativeBalance`. 422 như POST và `transaction.cancelled`; giữ được danh mục đã ẩn đang dùng |
+| `POST` | `/funds/{fundId}/transactions/{id}/cancel` | `Transaction.Manage` | `{ reason }` **bắt buộc** (1–500); ghi `CancelledBy` → 200 kèm `isNegativeBalance`. 422 `transaction.cancelled` |
 
 ### Categories
 
 | Method | Path | Permission | Mô tả |
 |---|---|---|---|
-| `GET` | `/funds/{fundId}/categories?type&includeHidden` | `Fund.View` | GVCN / thủ quỹ: mọi danh mục + `transactionCount`. Công khai: chỉ danh mục đang hiện có ≥ 1 khoản công khai (X-01), không `transactionCount` |
-| `POST` | `/funds/{fundId}/categories` | `Category.Manage` (thủ quỹ) | `{ type, name }` → 201. 422 `category.name_taken` |
-| `PUT` | `/funds/{fundId}/categories/{id}` | `Category.Manage` | `{ name, isHidden }` → 204 |
+| `GET` | `/funds/{fundId}/categories?type&includeHidden` | `Fund.View` | GVCN / thủ quỹ: danh mục đang hiện, thêm danh mục ẩn khi `includeHidden=true`; kèm `isHidden`, `transactionCount` (tính cả khoản đã hủy). Công khai: chỉ danh mục đang hiện có ≥ 1 khoản công khai (X-01), không `transactionCount` |
+| `POST` | `/funds/{fundId}/categories` | `Category.Manage` (thủ quỹ) | `{ type, name }` → 201 `{ id }`. 422 `category.name_taken` |
+| `PUT` | `/funds/{fundId}/categories/{id}` | `Category.Manage` | `{ name, isHidden }` đủ cả hai trường → 204. 422 `category.name_taken` |
 
 ### Students (chỉ GVCN – `Student.Manage`)
 

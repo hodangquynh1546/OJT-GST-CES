@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using SchoolFund.Application.Common.Persistence;
+using SchoolFund.Domain.Common;
 
 namespace SchoolFund.Infrastructure.Persistence;
 
@@ -22,6 +23,14 @@ public sealed class AppDb(AppDbContext context) : IAppDb, IDatabaseProbe
 
     public Task<bool> AnyAsync<T>(IQueryable<T> query, CancellationToken cancellationToken) =>
         EntityFrameworkQueryableExtensions.AnyAsync(query, cancellationToken);
+
+    public async Task<T?> LockAsync<T>(Guid id, CancellationToken cancellationToken) where T : Entity
+    {
+        var table = context.Model.FindEntityType(typeof(T))!.GetTableName();
+        var sql = string.Concat("SELECT * FROM \"", table, "\" WHERE \"Id\" = {0} FOR UPDATE");
+        var rows = await context.Set<T>().FromSqlRaw(sql, id).ToListAsync(cancellationToken);
+        return rows.SingleOrDefault();
+    }
 
     /// <exception cref="UniqueConstraintException">Vi phạm ràng buộc UNIQUE (PostgreSQL 23505).</exception>
     public async Task SaveChangesAsync(CancellationToken cancellationToken)

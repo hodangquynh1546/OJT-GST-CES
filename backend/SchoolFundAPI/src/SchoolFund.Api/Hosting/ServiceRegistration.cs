@@ -19,6 +19,7 @@ using SchoolFund.Application.Common.Auditing;
 using SchoolFund.Application.Common.Security;
 using SchoolFund.Application.Features.Auth;
 using SchoolFund.Application.Features.Categories;
+using SchoolFund.Application.Features.Transactions;
 using SchoolFund.Infrastructure;
 using SchoolFund.Infrastructure.Security;
 using Swashbuckle.AspNetCore.SwaggerGen;
@@ -133,6 +134,7 @@ public static class ServiceRegistration
         services.AddScoped<AuditTrail>();
         services.AddScoped<AuthService>();
         services.AddScoped<ICategoryService, CategoryService>();
+        services.AddScoped<TransactionService>();
 
         services.AddScoped<CurrentUser>();
         services.AddScoped<ICurrentUser>(provider => provider.GetRequiredService<CurrentUser>());

@@ -49,7 +49,9 @@ Cần .NET SDK 10, Node.js 22, Chrome và PostgreSQL. Không commit connection s
 ```bash
 # Backend: http://localhost:5286, Swagger ở /swagger (Development)
 cd backend/SchoolFundAPI
+docker compose up -d --wait   # cần file .env, xem .env.example
 dotnet user-secrets --project src/SchoolFund.Api set "ConnectionStrings:App" "<connection string>"
+dotnet user-secrets --project src/SchoolFund.Api set "SECRET_KEY" "<chuỗi ngẫu nhiên từ 32 ký tự>"
 dotnet tool restore
 ConnectionStrings__Migrator="<connection string>" dotnet ef database update --project src/SchoolFund.Infrastructure --startup-project src/SchoolFund.Infrastructure
 dotnet run --project src/SchoolFund.Api
