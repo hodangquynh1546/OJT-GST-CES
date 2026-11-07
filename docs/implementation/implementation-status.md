@@ -1,17 +1,17 @@
 # Trạng thái triển khai
 
-> Cập nhật: 2026-11-06 · Tài liệu này là nguồn duy nhất về **trạng thái triển khai**. Các tài liệu khác ghi trạng thái theo đây.
+> Cập nhật: 2026-11-07 · Tài liệu này là nguồn duy nhất về **trạng thái triển khai**. Các tài liệu khác ghi trạng thái theo đây.
 
 ## 1. Hiện trạng
 
 | Hạng mục | Trạng thái | Ghi chú |
 |---|---|---|
-| Backend (.NET 10, Clean Architecture) | **Partially Implemented** – Foundation, Domain, AccessService, Auth, Categories, Transactions, Funds, Students, Tổng quan, Báo cáo, Thành viên, Treasurers | `backend/SchoolFundAPI`: solution, 4 tầng, 8 entity, `AccessService`, pipeline request, xử lý lỗi, `[RequirePermission]`, `GET /api/health`. Feature đã có (mục 1a): **Auth & User Session**, **Danh mục** (Dev B), **Thu chi** (Dev B), **Fund Lifecycle**, **Học sinh & phụ huynh**, **Tổng quan / Báo cáo / Thành viên** (Dev B), **Phân công thủ quỹ**. Chưa có: CLI vận hành |
-| Frontend (Angular 20 + Kendo) | **Partially Implemented** – chỉ có Codebase Foundation | `frontend/SchoolFundUI`: `core` / `shared` / `features`, route theo sitemap, guard, interceptor, AppHeader, AppNav, AppState. Các màn hình đang là trang giữ chỗ |
+| Backend (.NET 10, Clean Architecture) | **Partially Implemented** – Foundation, Domain, AccessService, Auth, Categories, Transactions, Funds, Students, Tổng quan, Báo cáo, Thành viên, Treasurers | `ClassFundAPI`: solution, 4 tầng, 8 entity, `AccessService`, pipeline request, xử lý lỗi, `[RequirePermission]`, `GET /api/health`. Feature đã có (mục 1a): **Auth & User Session**, **Danh mục** (Dev B), **Thu chi** (Dev B), **Fund Lifecycle**, **Học sinh & phụ huynh**, **Tổng quan / Báo cáo / Thành viên** (Dev B), **Phân công thủ quỹ**. Chưa có: CLI vận hành |
+| Frontend (Angular 20 + Kendo) | **Partially Implemented** – chỉ có Codebase Foundation | `ClassFundUI`: `core` / `shared` / `features`, route theo sitemap, guard, interceptor, AppHeader, AppNav (sidebar desktop 232 px), AppState; `body` tối thiểu 1280 px, không còn mã mobile (thanh dưới, nav thu gọn). Các màn hình đang là trang giữ chỗ |
 | Database / migration | **Implemented** (schema) | Migration `InitialClassFund` + `AddDatabaseProtections`: 8 bảng, ràng buộc, index, trigger. Dev: `docker-compose.yml` (PostgreSQL 16) tạo `migrator_user` (DDL) / `app_user` (SELECT / INSERT / UPDATE, không đọc `__EFMigrationsHistory`) |
-| Test tự động | **Partially Implemented** | Unit (xUnit + Moq) và Integration (`SchoolFund.IntegrationTests`, PostgreSQL thật qua Testcontainers) cho Foundation, `AccessService`, Auth, Danh mục, Thu chi, Funds, Học sinh & phụ huynh, Tổng quan, Báo cáo, Thành viên, Phân công thủ quỹ; Frontend: Karma, Playwright cho Foundation. Test nghiệp vụ còn lại của `test-cases.md` mục A chưa viết |
+| Test tự động | **Partially Implemented** | Unit (xUnit + Moq) và Integration (`ClassFund.IntegrationTests`, PostgreSQL thật qua Testcontainers) cho Foundation, `AccessService`, Auth, Danh mục, Thu chi, Funds, Học sinh & phụ huynh, Tổng quan, Báo cáo, Thành viên, Phân công thủ quỹ; Frontend: Karma, Playwright cho Foundation. Test nghiệp vụ còn lại của `test-cases.md` mục A chưa viết |
 | Tài liệu nghiệp vụ, DB, API, phân quyền, test case | Hoàn thiện – Source of Truth | `docs/requirements`, `docs/business-analysis`, `docs/database`, `docs/api`, `docs/testing` |
-| UI/UX | Hoàn thiện – Source of Truth (prototype) | Canvas https://claude.ai/artifact/D5JVqKkBFqQhmcp5spfw6Y, `docs/ui-design` |
+| UI/UX | Hoàn thiện – Source of Truth **v4.0 Desktop Web** (prototype) | Canvas https://claude.ai/artifact/D5JVqKkBFqQhmcp5spfw6Y (version `1794024869-668f`, 37 artboard, có Design System DS-01 / DS-02), `docs/ui-design` (kèm `design-system.md`). Đã bỏ phạm vi Mobile (D-36) |
 
 Giai đoạn hiện tại: triển khai các feature Backend theo Docs + Canvas; Frontend nghiệp vụ chưa bắt đầu.
 
@@ -78,8 +78,10 @@ Danh sách test case R3 và tên test tương ứng: [test-cases.md](../testing/
 | 2026-11-05 | PO xóa toàn bộ mã nguồn Backend / Frontend; mọi hạng mục chuyển về Not Implemented; Docs + Canvas là Source of Truth |
 | 2026-11-05 | Dựng Codebase Foundation Backend / Frontend theo `training-doc.md` (nhánh `feature/codebase`) |
 | 2026-11-05 | Thêm Domain Entities, `AppDbContext`, `AccessService`, migration `InitialClassFund` + `AddDatabaseProtections` |
-| 2026-11-05 | Feature Auth & User Session; `IdentityStore` thay `NoIdentityStore`; project `SchoolFund.IntegrationTests`; `docker-compose.yml` cho DB dev (PR #5) |
-| 2026-11-06 | Thêm feature Backend Auth, Categories, Transactions và project `SchoolFund.IntegrationTests` (Danh mục – PR #6, Thu chi – PR #7, Dev B) |
+| 2026-11-05 | Feature Auth & User Session; `IdentityStore` thay `NoIdentityStore`; project `ClassFund.IntegrationTests`; `docker-compose.yml` cho DB dev (PR #5) |
+| 2026-11-06 | Thêm feature Backend Auth, Categories, Transactions và project `ClassFund.IntegrationTests` (Danh mục – PR #6, Thu chi – PR #7, Dev B) |
 | 2026-11-06 | Feature Fund Lifecycle (PR #8) |
 | 2026-11-06 | Feature Học sinh & phụ huynh (PR #9) |
 | 2026-11-06 | Feature Phân công thủ quỹ & khóa dòng chống thu hồi thủ quỹ cuối cùng (nhánh `feature/devA/treasurers`) |
+| 2026-11-06 | Đổi tên dự án SchoolFund → **ClassFund**: thư mục `backend/SchoolFundAPI` → `ClassFundAPI/`, `frontend/SchoolFundUI` → `ClassFundUI/` (theo `training-doc.md`); project / namespace `ClassFund.*`; cookie, CSS, DB dev đổi tên (TD-112, KI-21) |
+| 2026-11-07 | UI/UX **v4.0 Desktop Web**: bỏ Mobile App / Mobile Responsive khỏi Canvas (16 artboard, trang Mobile, mọi `@media`), `docs/ui-design` và Frontend (`app-nav.ts`, `app-shell.ts`, `app-header.ts`, `nav-items.ts`, token `--cf-tabbar-height` / `--cf-nav-width-compact`, e2e mobile); thêm Design System (Canvas DS-01 / DS-02, `docs/ui-design/design-system.md`); màn hình G-01, G-04, S-01 khớp DTO backend |

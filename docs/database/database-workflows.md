@@ -10,7 +10,7 @@
 | Danh mục | INSERT / UPDATE `Category` + `AuditLog` | Ẩn = `IsHidden` |
 | ~~Tạo quỹ + thủ quỹ đầu tiên~~ | *(v1.2, thay bằng 2 dòng dưới)* | Lệnh `create-treasurer` (đã bỏ) |
 | Đăng ký giáo viên (2.0) | Transaction: kiểm tra email; INSERT `User(Kind=Teacher)` + `AuditLog Account.RegisterTeacher` | Email trùng → 422 `user.email_taken` |
-| Tạo quỹ (2.0) | INSERT `Fund(OwnerUserId = người đăng nhập)` + 6 `Category` mặc định + `AuditLog Fund.Create` | `create-teacher` có `SCHOOLFUND_FUND_NAME` cũng tạo quỹ |
+| Tạo quỹ (2.0) | INSERT `Fund(OwnerUserId = người đăng nhập)` + 6 `Category` mặc định + `AuditLog Fund.Create` | `create-teacher` có `CLASSFUND_FUND_NAME` cũng tạo quỹ |
 | Thêm học sinh (2.0) | Transaction: INSERT `Student` + `AuditLog`; có email phụ huynh → như dòng liên kết | |
 | Cấp tài khoản học sinh (2.0) | Transaction: chọn username duy nhất; INSERT `User(Kind=Student, MustChangePassword)`; UPDATE `Student.UserId` + `AuditLog` (không có mật khẩu) | Đã có → 422 `student.account_exists`; trùng username → 422 / 409 |
 | Cấp lại mật khẩu học sinh (2.0) | UPDATE `User` (PasswordHash, MustChangePassword = true, SecurityStamp mới) + `AuditLog Student.ResetPassword` | |

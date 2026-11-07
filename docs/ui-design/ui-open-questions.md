@@ -1,13 +1,13 @@
 # UI/UX – Câu hỏi cần xác nhận
 
-> v3.1 · 2026-11-05. Câu hỏi nghiệp vụ ảnh hưởng UI: PD-01 → PD-06, Q-01, Q-04, Q-06, Q-08 – xem [open-questions.md](../requirements/open-questions.md).
+> v4.0 · 2026-11-07 · Desktop Web only. Câu hỏi nghiệp vụ ảnh hưởng UI: PD-01 → PD-06, Q-01, Q-04, Q-06, Q-08 – xem [open-questions.md](../requirements/open-questions.md).
 
 | Mã | Câu hỏi | Giả định tạm (đang vẽ trên Canvas) | Trạng thái |
 |---|---|---|---|
 | UQ-01 | Mặc định bộ lọc lịch sử là tháng hiện tại hay tất cả? | Tháng hiện tại, trạng thái "Đang hiệu lực" | Open |
 | UQ-02 | Nhập số tiền có gợi ý nhanh (50.000, 100.000, …)? | Không | Open |
-| UQ-03 | Nhận diện thương hiệu (logo, màu)? | Kendo Default Theme, primary `#1d5fa8` | Open |
-| UQ-04 | Học sinh / phụ huynh có cần bảng 12 tháng trên mobile? | Mobile có báo cáo tháng + 12 tháng dạng danh sách | Open |
+| UQ-03 | Nhận diện thương hiệu (logo, màu)? | **Đã chốt**: tên ClassFund, Kendo Default Theme, primary `#1d5fa8`, token `--cf-*` ([design-system.md](design-system.md)); logo chính thức chưa có | Closed |
+| UQ-04 | Học sinh / phụ huynh có cần bảng 12 tháng trên mobile? | **Đã đóng**: bỏ phạm vi Mobile (D-36, v4.0) | Closed |
 | UQ-05 | Định dạng mật khẩu tạm | **Đã chốt**: 16 ký tự ngẫu nhiên dạng `Xxxx-xxxx-0000-xxxx`, không ký tự dễ nhầm (D-27) | Closed |
 | UQ-06 | Hiện lý do hủy cho phụ huynh / học sinh? | **Đã chốt**: không (X-02) | Closed |
 | UQ-07 | Cảnh báo khi tắt "Công khai"? | **Đã chốt**: có, theo B1 = P1 | Closed |

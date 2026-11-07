@@ -41,9 +41,9 @@ out-tsc/
 npm-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-/frontend/**/playwright-report/
-/frontend/**/test-results/
-/backend/**/wwwroot/
+/ClassFundUI/**/playwright-report/
+/ClassFundUI/**/test-results/
+/ClassFundAPI/**/wwwroot/
 
 # ===== Secrets / Environment =====
 .env

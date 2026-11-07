@@ -4,7 +4,7 @@ Hướng dẫn cho Claude Code khi làm việc trong repository này.
 
 ## 1. Giới thiệu dự án
 
-**School Fund Management** – hệ thống quản lý quỹ lớp học sinh (thu, chi, theo dõi số dư và minh bạch quỹ lớp).
+**ClassFund** (Class Fund Management, trước đây là SchoolFund) – hệ thống quản lý quỹ lớp học sinh (thu, chi, theo dõi số dư và minh bạch quỹ lớp).
 
 Trạng thái: đã có Codebase Foundation, Domain, schema, `AccessService` và feature Backend Auth, Categories, Transactions, Funds, Students, Overview, Reports, Treasurers; Frontend chưa có feature nghiệp vụ. Chi tiết ở `docs/implementation/implementation-status.md`.
 
@@ -43,8 +43,8 @@ Angular UI --/api--> Api --> Application --> Domain
 
 | Thư mục | Mục đích |
 |---|---|
-| `backend/` | Workspace .NET `SchoolFundAPI/` (`{ProjectName}` = `SchoolFund`) |
-| `frontend/` | Workspace Angular `SchoolFundUI/` |
+| `ClassFundAPI/` | Workspace .NET (`{ProjectName}` = `ClassFund`): `ClassFund.sln`, `src/`, `tests/`, `docker-compose.yml` |
+| `ClassFundUI/` | Workspace Angular (npm workspace độc lập) |
 | `docs/requirements/` | Yêu cầu nghiệp vụ, user story |
 | `docs/business-analysis/` | Phân tích nghiệp vụ, use case, quy trình |
 | `docs/architecture/` | Thiết kế kiến trúc, quyết định kỹ thuật (ADR) |
@@ -53,7 +53,7 @@ Angular UI --/api--> Api --> Application --> Domain
 | `docs/ui-design/` | Wireframe, thiết kế giao diện |
 | `docs/implementation/` | Trạng thái triển khai, roadmap, quyết định kỹ thuật |
 | `docs/testing/` | Test case |
-| `.claude/skills/` | Skill dùng riêng cho Claude Code trong dự án |
+| `.claude/skills/` | Skill dùng riêng cho Claude Code trong dự án (chưa tạo) |
 
 ## 6. Quy tắc làm việc với Claude Code
 
