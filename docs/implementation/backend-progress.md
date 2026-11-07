@@ -13,7 +13,7 @@ Yêu cầu: FR-20, FR-13, FR-21, BR-17, BR-18, BR-26, BR-28, NFR-10, NFR-11 · A
 | Hạng mục | Nội dung |
 |---|---|
 | Endpoint | `POST /auth/register-teacher` (201, luôn là `Teacher`, bỏ qua mọi trường vai trò), `POST /auth/login` (một ô `login` = email / username, không tham số vai trò; vẫn nhận `email` cũ), `POST /auth/logout`, `GET/PUT /auth/me`, `POST /auth/change-password`. Register / login / change-password trả `{ antiforgeryToken, user }` |
-| Phiên | Cookie `sf_session` chỉ chứa UserId + SecurityStamp; `IdentityStore` (thay `NoIdentityStore`) kiểm tra trạng thái + stamp mỗi request; đổi mật khẩu / khóa tài khoản → phiên khác 401 |
+| Phiên | Cookie `cf_session` chỉ chứa UserId + SecurityStamp; `IdentityStore` (thay `NoIdentityStore`) kiểm tra trạng thái + stamp mỗi request; đổi mật khẩu / khóa tài khoản → phiên khác 401 |
 | Mật khẩu tạm | `PasswordChangeRequiredFilter` toàn cục → 403 `password.change_required`, trừ `GET/PUT /auth/me`, `change-password`, `logout` (`[AllowTemporaryPassword]`) |
 | Băm mật khẩu | `PasswordHasher<User>` (PBKDF2) + pepper `SECRET_KEY` (TD-98) |
 | Lỗi | 401 `auth.invalid_credentials` / `auth.account_disabled` (chỉ khi đúng mật khẩu) · 422 `auth.password_policy`, `user.email_taken`, `auth.wrong_password`, `auth.password_reused` · 429 `auth.rate_limited` |
@@ -91,13 +91,13 @@ Yêu cầu: FR-27, BR-31, BR-32, BR-33, BR-36, P-15, NFR-09 · API: [backend-api
 
 ## Chạy dev
 ```bash
-cd backend/SchoolFundAPI
+cd ClassFundAPI
 cp .env.example .env               # điền mật khẩu DB + SECRET_KEY (openssl rand -base64 48); .env không commit
 docker compose up -d --wait        # PostgreSQL 16 + migrator_user / app_user
 set -a && source .env && set +a    # nạp biến cho dotnet
 dotnet tool restore
-dotnet ef database update --project src/SchoolFund.Infrastructure --startup-project src/SchoolFund.Infrastructure
-dotnet run --project src/SchoolFund.Api   # http://localhost:5286/swagger
+dotnet ef database update --project src/ClassFund.Infrastructure --startup-project src/ClassFund.Infrastructure
+dotnet run --project src/ClassFund.Api   # http://localhost:5286/swagger
 dotnet test                               # cần Docker đang chạy
 ```
 

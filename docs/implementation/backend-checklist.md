@@ -2,7 +2,7 @@
 
 ## Hiện hành (mã nguồn làm lại – cập nhật 2026-11-06)
 
-Trạng thái từng feature: [implementation-status.md](implementation-status.md) mục 1a. Test integration nằm trong `tests/SchoolFund.IntegrationTests`, unit trong `tests/SchoolFund.UnitTests`.
+Trạng thái từng feature: [implementation-status.md](implementation-status.md) mục 1a. Test integration nằm trong `tests/ClassFund.IntegrationTests`, unit trong `tests/ClassFund.UnitTests`.
 
 | Yêu cầu kiểm thử | Test | Kết quả |
 |---|---|---|

@@ -8,7 +8,7 @@
 | Mục | Quy ước |
 |---|---|
 | Prefix | `/api/v1/...` |
-| Đăng nhập | Cookie `sf_session`; `login` / `register-teacher` / `change-password` trả `antiforgeryToken` → gửi header `X-XSRF-TOKEN` cho mọi POST / PUT |
+| Đăng nhập | Cookie `cf_session`; `login` / `register-teacher` / `change-password` trả `antiforgeryToken` → gửi header `X-XSRF-TOKEN` cho mọi POST / PUT |
 | Phạm vi | Đường dẫn theo quỹ `/funds/{fundId}/…`. Vai trò (GVCN / Thủ quỹ / Học sinh / Phụ huynh) do backend suy ra từ phiên + dữ liệu; `fundId` chỉ chọn quỹ. Không có tham số `teacherId` / `role` |
 | Lỗi | `application/problem+json` (`code`, `title`, `detail`, `traceId`, `correlationId`, `errors` khi 400). 400 `validation_failed` · 401 `unauthorized` / `auth.*` · 403 `forbidden` / `password.change_required` · 404 `not_found` (cả khi **không thuộc quỹ**) · 409 xung đột · 422 vi phạm quy tắc |
 | Tiền / ngày | `long` VND > 0 · `yyyy-MM-dd` (giờ Việt Nam) |
@@ -94,4 +94,4 @@
 | `POST /auth/login { email }` | `{ login }` | Không | Vẫn nhận `email` (tương thích) |
 | `GET /auth/me` (`fundName`, `permissions`) | `kind`, `accountPermissions`, `memberships[]` | Không | Đổi cấu trúc |
 | `POST …/cancel { reason? }` | `reason` bắt buộc | Không | D-14 |
-| CLI `create-treasurer` | `create-teacher` (`SCHOOLFUND_FUND_NAME` tùy chọn); `reset-password` / `*-account` nhận `SCHOOLFUND_LOGIN` (hoặc `SCHOOLFUND_EMAIL` cũ) | Người vận hành | Cập nhật hướng dẫn vận hành |
+| CLI `create-treasurer` | `create-teacher` (`CLASSFUND_FUND_NAME` tùy chọn); `reset-password` / `*-account` nhận `CLASSFUND_LOGIN` (hoặc `CLASSFUND_EMAIL` cũ) | Người vận hành | Cập nhật hướng dẫn vận hành |

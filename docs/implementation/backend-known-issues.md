@@ -20,6 +20,7 @@
 | KI-19 | Đổi họ tên học sinh (`PUT …/students/{id}`) không đổi họ tên của tài khoản học sinh (`User.FullName`, học sinh tự sửa qua `PUT /auth/me`); hai tên có thể khác nhau – chưa có quyết định đồng bộ |
 | KI-20 | `GET /funds/{fundId}/treasurers` trả toàn bộ lịch sử phân công, không phân trang. Quy mô một lớp (vài chục dòng) nên chấp nhận được; cần phân trang nếu lịch sử lớn |
 | KI-17 | `POST /funds` chưa chống lưu trùng: nhấn "Tạo quỹ" hai lần tạo hai quỹ (chỉ giao dịch có `idempotencyKey` – BR-12). Frontend cần khóa nút khi đang lưu |
+| KI-21 | Sau khi đổi tên SchoolFund → ClassFund (2026-11-06), máy đã chạy bản cũ cần: (1) DB dev mới – compose tạo volume `classfundapi_classfund-pgdata` rỗng, chạy lại `docker compose up -d --wait` + `dotnet ef database update`; volume cũ `schoolfundapi_schoolfund-pgdata` **không bị xóa**, tự xóa bằng `docker volume rm schoolfundapi_schoolfund-pgdata` khi không cần; (2) `.env`: đổi `POSTGRES_DB` và `Database=` trong connection string thành `classfund`; (3) user-secrets cũ (`schoolfund-api`) không còn được đọc – đặt lại nếu dùng; (4) cookie đổi tên nên phiên đăng nhập cũ hết hiệu lực, đăng nhập lại |
 
 ## Đã xử lý
 
@@ -29,5 +30,5 @@
 | KI-09 | Chưa chạy API thủ công bằng `dotnet run` | 2026-11-05: chạy API với `app_user` + Swagger, register / login / me / logout đúng |
 | KI-10 | Chưa tạo `app_user` / `migrator_user` và phân quyền DB: khi dùng một tài khoản có DDL, trigger `TR_NoDelete`, `TR_AppendOnly` có thể bị tắt | `docker-compose.yml` + `docker/postgres/init/01-roles.sh` tạo hai tài khoản; kiểm chứng `app_user` không DELETE, không tắt trigger, không DDL, không đọc `__EFMigrationsHistory` |
 | KI-11 | Chưa đăng nhập được: `NoIdentityStore` từ chối mọi phiên | `IdentityStore` (feature Auth, PR #5) |
-| KI-12 | Kịch bản kiểm chứng migration trên PostgreSQL thật chạy tạm, chưa có project integration test trong repo | `tests/SchoolFund.IntegrationTests` (Testcontainers PostgreSQL 16) |
+| KI-12 | Kịch bản kiểm chứng migration trên PostgreSQL thật chạy tạm, chưa có project integration test trong repo | `tests/ClassFund.IntegrationTests` (Testcontainers PostgreSQL 16) |
 | KI-13 | Chưa có API thêm học sinh, cấp tài khoản, phân công thủ quỹ: test thủ công trên Swagger phải tạo dữ liệu bằng SQL | 2026-11-06: đã có đủ API Fund Lifecycle (tạo quỹ + danh mục mặc định), Học sinh & phụ huynh, Phân công thủ quỹ – test tích hợp chạy trọn luồng qua HTTP |
