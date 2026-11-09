@@ -60,7 +60,7 @@ Cột vai trò: **G** = GVCN · **T** = Thủ quỹ · **H** = Học sinh chưa 
 | FR-26 | **Liên kết phụ huynh** theo email: có tài khoản phụ huynh → chỉ liên kết; chưa có → tạo tài khoản + mật khẩu tạm hiển thị một lần; ghi rõ hệ thống không gửi email; **gỡ liên kết** (giữ lịch sử) | ✔ | – | – | – | M3 | Not Implemented |
 | FR-27 | **Phân công thủ quỹ**: chọn học sinh đã kích hoạt tài khoản; nhiều thủ quỹ; **thu hồi** (không thu hồi được thủ quỹ cuối cùng); lịch sử người / thời điểm phân công, thu hồi | ✔ | – | – | – | M4 | Not Implemented |
 | FR-12 | **Thành viên**: chỉ họ tên + vai trò (GVCN, thủ quỹ, học sinh) – không email / tên đăng nhập / liên hệ. *(v1.2: thủ quỹ tạo / khóa / đổi vai trò thành viên – thay bằng FR-24 → FR-27)* | ✔ | ✔ (chỉ xem) | – | – | M5 | Not Implemented |
-| FR-28 | GVCN khóa / mở khóa tài khoản học sinh; học sinh rời lớp; chuyển quỹ cho giáo viên khác | – | – | – | – | – | Pending Decision (PD-03 → PD-05) |
+| FR-28 | ~~GVCN khóa / mở khóa tài khoản học sinh; học sinh rời lớp; chuyển quỹ cho giáo viên khác~~ *(Bỏ 2026-11-09, D-41: hệ thống không có chức năng này)* | – | – | – | – | – | Loại bỏ (D-41) |
 
 ### 4.3 Thu chi & báo cáo
 
@@ -106,3 +106,4 @@ Cột vai trò: **G** = GVCN · **T** = Thủ quỹ · **H** = Học sinh chưa 
 | 2026-11-06 | 2.4 | Cột Trạng thái: FR-01, FR-08, FR-09, FR-12 → Partially Implemented (Backend) | Triển khai Tổng quan, Báo cáo, Thành viên (chưa có UI) |
 | 2026-11-06 | 2.5 | Cột Trạng thái: FR-27 → Partially Implemented (Backend) | Triển khai Phân công thủ quỹ (chưa có UI) |
 | 2026-11-09 | 2.6 | Backend đưa về codebase Foundation: cột Trạng thái → Not Implemented; thêm cột Module; NFR-06 → Desktop Web (D-37) | D-39 (làm theo module), D-37 |
+| 2026-11-09 | 2.7 | Bỏ FR-28 (khóa / mở khóa học sinh, học sinh rời lớp, chuyển quỹ) | D-41 |

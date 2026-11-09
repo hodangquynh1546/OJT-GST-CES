@@ -257,4 +257,6 @@ Module không được thêm yêu cầu ngoài các tài liệu nguồn. Thấy 
 
 ## 4. Ngoài phạm vi (cần lead quyết định trước khi thêm module)
 
-Đợt thu, duyệt chi, hoàn tiền · GVCN khóa / mở khóa tài khoản học sinh, học sinh rời lớp, chuyển quỹ (FR-28, PD-03 → PD-05) · quên mật khẩu / gửi email · deploy + CI/CD (chưa cần – chưa có môi trường deploy) · sinh model TypeScript tự động từ Swagger.
+Đợt thu, duyệt chi, hoàn tiền · quên mật khẩu / gửi email · deploy + CI/CD (chưa cần – chưa có môi trường deploy) · sinh model TypeScript tự động từ Swagger.
+
+**Không làm (đã chốt):** GVCN khóa / mở khóa tài khoản học sinh, học sinh rời lớp, chuyển quỹ cho giáo viên khác (D-41, bỏ FR-28).

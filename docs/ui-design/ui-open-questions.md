@@ -14,5 +14,5 @@
 | UQ-20 | Nút "Sao chép" thật và in phiếu thông tin đăng nhập cho học sinh? | Có nút Sao chép + tick xác nhận; chưa có in | Open |
 | UQ-21 | Nhập học sinh hàng loạt (CSV)? | Không trong v1 | Open |
 | UQ-22 | GVCN xem danh mục chỉ đọc trong "Thông tin quỹ"? | Chỉ ghi "Danh mục do thủ quỹ quản lý"; GVCN xem danh mục qua bộ lọc Thu chi | Open |
-| UQ-23 | Khóa / mở tài khoản học sinh trên giao diện | Chưa có nút (chờ PD-03) | Pending Decision |
+| UQ-23 | Khóa / mở tài khoản học sinh trên giao diện | **Đã chốt**: không có nút (D-41 – không có chức năng này) | Closed |
 | UQ-24 | Đăng nhập có chọn vai trò? | **Đã chốt**: không – một ô "Email hoặc tên đăng nhập" (2026-11-05) | Closed |

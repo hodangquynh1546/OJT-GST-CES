@@ -31,7 +31,7 @@ Giai đoạn hiện tại: Foundation xong → triển khai **từng module tr�
 | M7b Báo cáo (Dev B, đợt 4) | S-03 | FR-08, FR-09 | Not Implemented | – |
 | M8 E2E toàn luồng (cả hai, đợt 5) | Toàn bộ | UF-01 → UF-13 | Not Implemented | – |
 | CLI vận hành | – | TD-88, KI-03 | Not Implemented | – |
-| Khóa học sinh, rời lớp, chuyển quỹ | – | FR-28 | Pending Decision (PD-03 → PD-05) | – |
+| ~~Khóa học sinh, rời lớp, chuyển quỹ~~ | – | FR-28 | Loại bỏ (D-41) – không có chức năng này | – |
 
 Lịch sử triển khai backend trước khi đưa về codebase: [backend-progress.md](backend-progress.md) (*historical*).
 
@@ -87,3 +87,4 @@ Danh sách test case R3 và tên test tương ứng: [test-cases.md](../testing/
 | 2026-11-06 | Đổi tên dự án SchoolFund → **ClassFund**: thư mục `backend/SchoolFundAPI` → `ClassFundAPI/`, `frontend/SchoolFundUI` → `ClassFundUI/` (theo `training-doc.md`); project / namespace `ClassFund.*`; cookie, CSS, DB dev đổi tên (TD-112, KI-21) |
 | 2026-11-07 | UI/UX **v4.0 Desktop Web**: bỏ Mobile App / Mobile Responsive khỏi Canvas (16 artboard, trang Mobile, mọi `@media`), `docs/ui-design` và Frontend (`app-nav.ts`, `app-shell.ts`, `app-header.ts`, `nav-items.ts`, token `--cf-tabbar-height` / `--cf-nav-width-compact`, e2e mobile); thêm Design System (Canvas DS-01 / DS-02, `docs/ui-design/design-system.md`); màn hình G-01, G-04, S-01 khớp DTO backend |
 | 2026-11-09 | **Đưa backend về codebase Foundation** (nhánh `feature/foundation`): bỏ code + test của Auth, Funds, Students, Treasurers, Categories, Transactions, Overview, Reports (tham khảo tại `6b6645d`); giữ Domain, schema, `AccessService`, pipeline. Hoàn thiện Foundation BE / FE, thêm `api-conventions.md`, `foundation-guide.md`, `module-plan.md` (M0 → M8) |
+| 2026-11-09 | Bỏ chức năng khóa / mở khóa học sinh, rời lớp, chuyển quỹ (FR-28, D-41; đóng PD-03 → PD-05) |

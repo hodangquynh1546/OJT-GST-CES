@@ -88,7 +88,7 @@ Chạy lệnh `create-treasurer` → tạo tài khoản thủ quỹ đầu tiên
 ### P-07 Thêm thành viên (thủ quỹ) *(Thay 2026-11-05 bằng P-13 → P-15)*
 Thành viên → "+ Thêm thành viên" → họ tên, email, vai trò → "Tạo tài khoản" → sao chép mật khẩu tạm (chỉ hiển thị một lần) → gửi cho người dùng qua kênh ngoài hệ thống.
 
-### P-08 Khóa / mở / đặt lại mật khẩu / đổi vai trò (thủ quỹ) *(Thay 2026-11-05 bằng P-15, P-16; khóa / mở chỉ bằng lệnh server – PD-03)*
+### P-08 Khóa / mở / đặt lại mật khẩu / đổi vai trò (thủ quỹ) *(Thay 2026-11-05 bằng P-15, P-16; khóa / mở: không có chức năng trong ứng dụng – D-41)*
 Thành viên → chọn dòng (không phải chính mình) → Khóa (người đó bị đăng xuất ngay) / Mở khóa / Đặt lại MK (sinh mật khẩu tạm mới, bắt buộc đổi ở lần đăng nhập sau) / **Đổi vai trò** (chọn vai trò mới → Lưu; bị từ chối nếu làm quỹ mất thủ quỹ hoạt động cuối cùng).
 
 ### P-09 Đăng nhập lần đầu

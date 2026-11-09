@@ -87,7 +87,7 @@ Lớp test: `TS` = `Roles/TeacherStudentTreasurerTests`, `PP` = `Roles/ParentAnd
 | M-03 | Lịch sử migration có `_InitialClassFund`, `_AddDatabaseProtections` *(sửa 2026-11-05, D-36)* | Có | `DatabaseAccountTests` | M0 | Not Implemented – migration có trong Foundation, chưa có test tự động |
 | R-01 | Thu chi, sửa, hủy, chống trùng (5 request đồng thời), lọc, báo cáo tháng / năm, danh mục ẩn | Như R1 | TX, RC | M6, M7 | Not Implemented |
 | X-01 | Khởi động API bằng `dotnet run` và thao tác thủ công (smoke test) | Đăng ký → tạo quỹ → học sinh → phân công → ghi thu chi | – | M8 | Not Implemented |
-| X-02 | GVCN khóa học sinh, học sinh rời lớp, chuyển quỹ, phụ huynh quên mật khẩu | – | – | – | Pending Decision (PD-02 → PD-05) |
+| X-02 | Phụ huynh quên mật khẩu *(sửa 2026-11-09, D-41: bỏ ~~GVCN khóa học sinh, học sinh rời lớp, chuyển quỹ~~)* | – | – | – | Pending Decision (PD-02) |
 
 ---
 
