@@ -10,11 +10,15 @@ export class AppNotifications {
     this.show(content, 'success');
   }
 
+  warning(content: string): void {
+    this.show(content, 'warning');
+  }
+
   error(content: string): void {
     this.show(content, 'error');
   }
 
-  private show(content: string, style: 'success' | 'error'): void {
+  private show(content: string, style: 'success' | 'warning' | 'error'): void {
     this.notifications.show({
       content,
       hideAfter: 4000,

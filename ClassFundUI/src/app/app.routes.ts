@@ -3,9 +3,11 @@ import { Routes } from '@angular/router';
 import { authGuard, fundPermissionGuard, guestGuard, homeGuard } from './core/auth/auth.guards';
 import { Permissions } from './core/auth/permissions';
 import { AppShell } from './core/navigation/app-shell';
-import { comingSoon } from './shared/components/coming-soon/coming-soon';
 
-/** Route theo docs/ui-design/sitemap-and-navigation.md mục 1. */
+/**
+ * Route theo docs/ui-design/sitemap-and-navigation.md mục 1. File này là của Foundation: mỗi module chỉ sửa
+ * `features/<module>/<module>.routes.ts` của mình (docs/implementation/module-plan.md).
+ */
 export const routes: Routes = [
   { path: '', pathMatch: 'full', canActivate: [homeGuard], children: [] },
   {
@@ -16,7 +18,7 @@ export const routes: Routes = [
   {
     path: 'change-password',
     canActivate: [authGuard],
-    ...comingSoon('A-03', 'Đặt mật khẩu mới'),
+    loadChildren: () => import('./features/auth/auth.routes').then((m) => m.CHANGE_PASSWORD_ROUTES),
   },
   {
     path: '',
@@ -68,8 +70,14 @@ export const routes: Routes = [
             loadChildren: () => import('./features/members/members.routes').then((m) => m.MEMBER_ROUTES),
           },
           {
+            path: 'settings',
+            canActivate: [fundPermissionGuard(Permissions.FundManage)],
+            loadChildren: () => import('./features/funds/funds.routes').then((m) => m.FUND_SETTINGS_ROUTES),
+          },
+          {
             path: '',
-            loadChildren: () => import('./features/funds/funds.routes').then((m) => m.FUND_ROUTES),
+            pathMatch: 'full',
+            loadChildren: () => import('./features/overview/overview.routes').then((m) => m.OVERVIEW_ROUTES),
           },
         ],
       },

@@ -1,5 +1,7 @@
 # Số liệu tài chính
 
+> 2.0 · 2026-11-09 · Đặc tả công thức cho module **M6 Thu chi** và **M7 Tổng quan & Báo cáo** ([module-plan.md](../implementation/module-plan.md)). Trạng thái: Not Implemented (schema đã có trong Foundation).
+
 ## 1. Công thức (BR-02, BR-10)
 
 ```text
@@ -23,7 +25,7 @@ Mọi con số đều tính trực tiếp từ bảng giao dịch: sửa số ti
 Sửa khoản thu tháng 9 thành 1.100.000 → cuối tháng 9 = 900.000, đầu tháng 10 = 900.000, cuối tháng 10 = 750.000.
 
 ## 4. Số dư âm
-Được phép (D-03). API trả `isNegative = true` kèm số dư để giao diện cảnh báo.
+Được phép (D-03). Lệnh ghi giao dịch (thêm / sửa / hủy – M6) trả `isNegativeBalance = true` khi số dư sau thao tác < 0 để giao diện hiện cảnh báo vàng; Tổng quan (M7) trả `currentBalance` âm (giao diện tự cảnh báo).
 
 ## 5. Bản công khai cho phụ huynh và học sinh chưa phân công (v1.1, D-09; 2.0 – thiết kế hiện hành, Not Implemented)
 ```text

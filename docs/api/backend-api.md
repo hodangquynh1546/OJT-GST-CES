@@ -1,9 +1,9 @@
-# API Specification – Quỹ lớp (đặc tả 2.0)
+# API Specification – ClassFund (đặc tả 2.0)
 
-> Cập nhật: 2026-11-05 · Mô hình **Giáo viên · Học sinh · Phụ huynh** (D-24 → D-33). Trạng thái triển khai: **Auth, Categories, Transactions, Funds, Students, Tổng quan, Báo cáo, Thành viên đã có ở Backend (2026-11-06)**, phần còn lại Not Implemented – mã nguồn cũ (từng cài đặt và kiểm thử đúng đặc tả này) đã xóa ngày 2026-11-05; đặc tả giữ nguyên làm Source of Truth ([implementation-status.md](../implementation/implementation-status.md)). Swagger đầy đủ: `/swagger` (Development).
+> Cập nhật: 2026-11-09 · Mô hình **Giáo viên · Học sinh · Phụ huynh** (D-24 → D-33). **Đặc tả là hợp đồng để triển khai lại theo module** ([module-plan.md](../implementation/module-plan.md)); trạng thái: chỉ có Foundation (`GET /auth/antiforgery`, `GET /api/health`), các endpoint còn lại Not Implemented – bản cài đặt trước (đã kiểm thử đúng đặc tả này) tham khảo tại commit `6b6645d`. Quy ước chung (lỗi, định dạng, phân trang, DB): [api-conventions.md](api-conventions.md). Swagger: `/swagger` (Development).
 > Thiết kế v1.1 / v1.2 (`/members`, đổi vai trò, phạm vi theo `FundMember`) **không triển khai** – xem Git history.
 
-## Quy ước
+## Quy ước (tóm tắt – bản đầy đủ và có hiệu lực: [api-conventions.md](api-conventions.md))
 
 | Mục | Quy ước |
 |---|---|
@@ -20,7 +20,7 @@
 
 ## Endpoint
 
-### Auth
+### Auth – M1 (riêng `GET /auth/antiforgery`: Foundation, đã có)
 
 | Method | Path | Quyền | Mô tả |
 |---|---|---|---|
@@ -32,7 +32,7 @@
 | `POST` | `/auth/change-password` | Đăng nhập | `{ currentPassword, newPassword }` → phiên mới; xóa cờ `mustChangePassword`. 422 `auth.wrong_password`, `auth.password_policy`, `auth.password_reused` |
 | `GET` | `/auth/antiforgery` | Ẩn danh | Token mới |
 
-### Funds
+### Funds – M2 (`GET/POST /funds`, `PUT /funds/{fundId}`) · M7a (`GET /funds/{fundId}`) · M7b (`reports/*`) · M5 (`members`)
 
 | Method | Path | Permission | Mô tả |
 |---|---|---|---|
@@ -44,7 +44,7 @@
 | `GET` | `/funds/{fundId}/reports/yearly?year` | `Fund.View` | `{ year, months[{ month, openingBalance, totalIncome, totalExpense, netChange, closingBalance }] }`: luôn đủ 12 tháng, chỉ số tổng, giống nhau ở mọi vai trò |
 | `GET` | `/funds/{fundId}/members` | `Member.View` (GVCN, thủ quỹ) | `[{ fullName, role }]` – không email / username. `role`: `Teacher`, `Treasurer`, `Student`; gồm cả học sinh chưa có tài khoản, không gồm phụ huynh |
 
-### Transactions
+### Transactions – M6
 
 | Method | Path | Permission | Mô tả |
 |---|---|---|---|
@@ -55,7 +55,7 @@
 | `PUT` | `/funds/{fundId}/transactions/{id}` | `Transaction.Manage` | `{ amount, occurredOn, categoryId, description, note, isPublic }` đủ các trường, bỏ `note` là xóa ghi chú; ghi `UpdatedBy`; `type` không đổi được → 200 kèm `isNegativeBalance`. 422 như POST và `transaction.cancelled`; giữ được danh mục đã ẩn đang dùng |
 | `POST` | `/funds/{fundId}/transactions/{id}/cancel` | `Transaction.Manage` | `{ reason }` **bắt buộc** (1–500); ghi `CancelledBy` → 200 kèm `isNegativeBalance`. 422 `transaction.cancelled` |
 
-### Categories
+### Categories – M5
 
 | Method | Path | Permission | Mô tả |
 |---|---|---|---|
@@ -63,7 +63,7 @@
 | `POST` | `/funds/{fundId}/categories` | `Category.Manage` (thủ quỹ) | `{ type, name }` → 201 `{ id }`. 422 `category.name_taken` |
 | `PUT` | `/funds/{fundId}/categories/{id}` | `Category.Manage` | `{ name, isHidden }` đủ cả hai trường → 204. 422 `category.name_taken` |
 
-### Students (chỉ GVCN – `Student.Manage`)
+### Students – M3 (chỉ GVCN – `Student.Manage`)
 
 | Method | Path | Mô tả |
 |---|---|---|
@@ -75,7 +75,7 @@
 | `POST` | `/funds/{fundId}/students/{id}/parent` | `{ email, fullName? }` → `{ accountCreated, credential: { login, temporaryPassword } \| null, emailSent: false }`. 422 `parent_link.exists`, `parent.email_in_use` |
 | `POST` | `/funds/{fundId}/students/{id}/parent/unlink` | 204; 404 nếu chưa có liên kết |
 
-### Treasurers (chỉ GVCN – `Treasurer.Assign`)
+### Treasurers – M4 (chỉ GVCN – `Treasurer.Assign`)
 
 | Method | Path | Mô tả |
 |---|---|---|
@@ -83,7 +83,16 @@
 | `POST` | `/funds/{fundId}/treasurers` | `{ studentId }` → 201 `{ id }`. 404 học sinh ngoài quỹ; 422 `treasurer.no_account`, `treasurer.account_disabled`, `treasurer.account_not_activated`, `treasurer.already_assigned` |
 | `POST` | `/funds/{fundId}/treasurers/{assignmentId}/revoke` | 204. 422 `treasurer.last`; 409 `treasurer.already_revoked` |
 
-`GET /api/health` – ẩn danh – 200 Healthy / 503 Unhealthy.
+`GET /api/health` – ẩn danh – 200 Healthy / 503 Unhealthy (Foundation, đã có).
+
+**Khi làm module:** endpoint phải khớp bảng trên (đường dẫn, permission, body, mã lỗi). Cần đổi hợp đồng → sửa bảng này trong cùng PR, cập nhật snapshot `Contracts/snapshots/<Tag>.json` và ghi lý do ở mục "Lịch sử thay đổi" bên dưới.
+
+## Lịch sử thay đổi
+
+| Ngày | Thay đổi |
+|---|---|
+| 2026-11-05 | Đặc tả 2.0 (mô hình Giáo viên · Học sinh · Phụ huynh) |
+| 2026-11-09 | Gắn module cho từng nhóm endpoint; quy ước chung chuyển sang `api-conventions.md`; trạng thái: chỉ Foundation |
 
 ## Đánh giá thay đổi API so với R1 (*historical* – mã R1 / R3 đã xóa 2026-11-05)
 

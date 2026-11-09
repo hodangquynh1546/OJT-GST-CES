@@ -37,14 +37,8 @@ Clean Architecture gồm các tầng **Api → Application → Domain**, với *
 - [x] Thiết kế database (`docs/database`) và migration
 - [x] Khởi tạo project backend (.NET) và frontend (Angular) – Codebase Foundation
 - [x] Domain Entities, `AppDbContext`, `AccessService`
-- [x] Backend: Auth & User Session (đăng ký giáo viên, đăng nhập, mật khẩu tạm, phiên)
-- [x] Backend: Danh mục thu chi
-- [x] Backend: Thu chi (thêm, sửa, hủy, lịch sử)
-- [x] Backend: Fund Lifecycle (quỹ của tôi, tạo quỹ, đổi tên quỹ)
-- [x] Backend: Học sinh & phụ huynh (thêm học sinh, cấp tài khoản, liên kết / gỡ phụ huynh)
-- [x] Backend: Tổng quan, Báo cáo tháng / 12 tháng, Thành viên
-- [x] Backend: Phân công thủ quỹ (phân công / thu hồi, khóa dòng chống thu hồi thủ quỹ cuối cùng)
-- [ ] Frontend nghiệp vụ
+- [x] Foundation Backend + Frontend: quy ước API ([`docs/api/api-conventions.md`](docs/api/api-conventions.md)), Design System, khung ứng dụng, hạ tầng test / e2e ([`docs/architecture/foundation-guide.md`](docs/architecture/foundation-guide.md))
+- [ ] Module nghiệp vụ M1 → M8, mỗi module trọn luồng FE → BE → DB → Test ([`docs/implementation/module-plan.md`](docs/implementation/module-plan.md)) – backend bản trước tham khảo tại commit `6b6645d`
 
 Chi tiết: [`docs/implementation/implementation-status.md`](docs/implementation/implementation-status.md).
 
@@ -70,14 +64,16 @@ set -a && source .env && set +a
 dotnet tool restore
 dotnet ef database update --project src/ClassFund.Infrastructure --startup-project src/ClassFund.Infrastructure
 dotnet run --project src/ClassFund.Api
-dotnet test                        # Unit + Integration (cần Docker đang chạy)
+dotnet test                        # Unit + Integration + hợp đồng API (cần Docker đang chạy)
+# Đổi API có chủ đích: UPDATE_API_CONTRACTS=1 dotnet test --filter ApiContractTests (commit snapshot cùng PR)
 
 # Frontend: http://localhost:4200, /api chuyển tới backend
 cd ClassFundUI
 npm install
 npm start
 npm test
-npm run e2e
+npm run e2e                        # E2E mock (API giả lập)
+npm run e2e:full                   # E2E thật FE + BE + DB: cần DB dev đã migrate và đã source .env (xem docs/architecture/foundation-guide.md)
 ```
 
 Swagger: mọi POST / PUT cần header `X-XSRF-TOKEN` – gọi `GET /auth/antiforgery`, dán `antiforgeryToken` vào nút **Authorize**; lấy token mới sau mỗi lần đăng ký / đăng nhập / đăng xuất / đổi mật khẩu. Mật khẩu DB trong `.env` chỉ có tác dụng khi tạo volume lần đầu (KI-14).

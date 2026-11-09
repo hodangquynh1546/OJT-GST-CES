@@ -1,7 +1,7 @@
 # Quy tắc & Quy trình nghiệp vụ
 
 > Phiên bản: 2.0 · 2026-11-05 (mô hình Giáo viên · Học sinh · Phụ huynh, D-24 → D-33; BR-28 → BR-37, P-11 → P-16) · 1.2 · 2026-11-04 (áp dụng D-10, D-11, D-12, D-16 → D-23) · v1.1: thêm 3 vai trò, công khai, thành viên · Quyết định: [open-questions.md](../requirements/open-questions.md) · Quyền: [roles-and-permissions.md](roles-and-permissions.md).
-> **Trạng thái triển khai (2026-11-05): Not Implemented** – mã nguồn Backend / Frontend cũ đã xóa ngày 2026-11-05; đặc tả dưới đây giữ nguyên và là Source of Truth. Xem [implementation-status.md](../implementation/implementation-status.md).
+> **Trạng thái triển khai (2026-11-09): Not Implemented** – mới có Foundation (D-39); mỗi quy tắc được cài đặt trong module ghi ở [module-plan.md](../implementation/module-plan.md) (mục "Quy tắc" của từng module). Rule thuần dữ liệu đã có trong Domain của Foundation: `PasswordPolicy` (BR-28), `LoginName` (BR-29), `DefaultCategories` (Q-09), `VietnamTime` (BR-07, D-07), `FundTransaction` (BR-01, BR-05, BR-06). Đặc tả là Source of Truth; trạng thái: [implementation-status.md](../implementation/implementation-status.md).
 
 ## 1. Khái niệm
 
