@@ -1,6 +1,6 @@
 # Constraints & Indexes
 
-> Phiên bản 2.0 · 2026-11-05. Dòng **v1.1 / v1.2** về `FundMember` và `CK_FundTransaction_CancelledBy` là thiết kế **Not Implemented** (giữ để lưu lịch sử). Phần "2.0" là thiết kế hiện hành (migration `InitialClassFund` + `AddDatabaseProtections`). Trạng thái triển khai: **Implemented**, đã kiểm chứng trên PostgreSQL 16.
+> Phiên bản 2.0 · 2026-11-05. Dòng **v1.1 / v1.2** về `FundMember` và `CK_FundTransaction_CancelledBy` là thiết kế **Not Implemented** (giữ để lưu lịch sử). Phần "2.0" là thiết kế hiện hành (migration `InitialClassFund` + `AddDatabaseProtections`). Trạng thái triển khai: **Implemented trong Foundation** (migration), kiểm chứng thủ công trên PostgreSQL 16 (2026-11-05).
 
 | Tên | Bảng | Nội dung | Mục đích |
 |---|---|---|---|
@@ -44,7 +44,7 @@
 
 Hàm trigger: `fn_block_delete`, `fn_block_audit_change` (lỗi `P0001`), tạo trong `AddDatabaseProtections`.
 
-`app_user` không có DDL nên không tắt được trigger; không sửa được `__EFMigrationsHistory`. *(Chưa cấu hình tài khoản – KI-10.)*
+`app_user` không có DDL nên không tắt được trigger; không sửa được `__EFMigrationsHistory`. Hai tài khoản DB do `docker-compose.yml` + `docker/postgres/init/01-roles.sh` tạo (KI-10 đã xử lý). *Test tự động cho trigger / quyền `app_user` chưa có trong Foundation – thêm ở M3 / M4 (KI-23).*
 
 ## Lịch sử thay đổi
 | Ngày | Thay đổi |

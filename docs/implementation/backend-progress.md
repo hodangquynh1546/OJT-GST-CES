@@ -1,4 +1,6 @@
-# Backend Progress
+# Backend Progress (*historical*)
+
+> **2026-11-09:** backend nghiệp vụ đã được đưa về codebase Foundation (nhánh `feature/foundation`). Nội dung dưới đây mô tả bản cài đặt trước – mã nguồn tham khảo tại commit `6b6645d`. Trạng thái hiện tại: [implementation-status.md](implementation-status.md); kế hoạch làm lại: [module-plan.md](module-plan.md).
 
 > Cập nhật: 2026-11-06 · Nhánh `feature/devA/treasurers` (trên `main` đã có PR #5 → #10).
 

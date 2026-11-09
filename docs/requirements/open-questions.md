@@ -1,4 +1,4 @@
-# Quyết định & Câu hỏi cần xác nhận
+# Quyết định & Câu hỏi cần xác nhận – ClassFund
 
 > Phiên bản: 2.0 · 2026-11-05 – mô hình **Giáo viên · Học sinh · Phụ huynh** (D-24 → D-33, mục 1b); B1 → P1, X-01, X-02 đã chốt (mục 4). v1.2 · 2026-11-04 (PO duyệt D-10, D-11, D-12, Q-11, Q-12, B2–B7). D-01 → D-58 và Q-01 → Q-56 của phạm vi quỹ toàn trường không còn hiệu lực (Git history `f6cecab`).
 
@@ -16,7 +16,7 @@
 | D-08 | Thiết kế database cũ được thay bằng baseline `InitialClassFund`; tài liệu ghi đè tại chỗ |
 | D-13 | *(Thay bằng D-26, 2026-11-05)* **3 vai trò**: Thủ quỹ (quản lý), GVCN (chỉ xem toàn bộ), Phụ huynh (chỉ xem dữ liệu công khai). Phân quyền theo permission ở backend. Phụ huynh không có chức năng nộp tiền, báo chuyển khoản hay đề nghị chi (task 2026-11-04; trả lời Q-05) |
 | D-14 | Hủy giao dịch **bắt buộc có lý do** (task 2026-11-04: "hủy có lý do") |
-| D-15 | Thiết kế UI/UX v2 thay thế toàn bộ trên Design Canvas hiện có (cùng link), đổi tên dự án thành "Quỹ Lớp – UI/UX 3 vai trò" *(2026-11-05: Canvas đổi tên thành "Quỹ Lớp – UI/UX Giáo viên · Học sinh · Phụ huynh", cùng link – D-24 → D-34)* |
+| D-15 | Thiết kế UI/UX v2 thay thế toàn bộ trên Design Canvas hiện có (cùng link), đổi tên dự án thành "Quỹ Lớp – UI/UX 3 vai trò" *(2026-11-05: Canvas đổi tên thành "Quỹ Lớp – UI/UX Giáo viên · Học sinh · Phụ huynh", cùng link – D-24 → D-34; 2026-11-07: "ClassFund – UI/UX v4.0 Desktop Web" – D-37, D-38)* |
 | D-10 | *(Duyệt 2026-11-04 – trước đó là quyết định tạm ở mục 2)* *(Người cấp tài khoản đổi thành GVCN – D-27, D-28, 2026-11-05; nguyên tắc mật khẩu tạm giữ nguyên)* Thành viên được tạo với **mật khẩu tạm ngẫu nhiên**, bắt buộc đổi ở lần đăng nhập đầu; không ghi mật khẩu rõ vào log |
 | D-11 | *(Duyệt 2026-11-04; **giữ nguyên** 2026-11-05 – xem mục 1c)* Một quỹ có thể có **nhiều thủ quỹ**; mỗi thao tác ghi xác định đúng người thực hiện; **không khóa / hạ quyền thủ quỹ hoạt động cuối cùng**; lưu lịch sử thay đổi và người thực hiện |
 | D-12 | *(Duyệt 2026-11-04)* Phụ huynh xem báo cáo **mọi tháng**, chỉ dữ liệu công khai; không có thao tác công bố tháng |
@@ -46,8 +46,12 @@ PO duyệt cả 4 đề xuất (tài khoản học sinh, phụ huynh, thủ qu�
 | D-32 | API theo quỹ: `/api/v1/funds/{fundId}/…`. Không dùng đường dẫn cũ `/fund`, `/transactions`, `/categories` (của R1, đã xóa). Quyền xác định từ phiên đăng nhập + dữ liệu, không từ `teacherId` / `role` gửi lên | – | Not Implemented |
 | D-33 | Không có Email Service: hệ thống **không gửi** email; response liên kết phụ huynh có `emailSent = false`; UI ghi rõ "Hệ thống không gửi email – hãy tự chuyển thông tin" | – | Not Implemented; UI: Canvas |
 | D-34 | **Đăng nhập không chọn vai trò**: một ô "Email hoặc tên đăng nhập" + mật khẩu; hệ thống tự xác định loại tài khoản và vai trò trong từng quỹ (2026-11-05) | Sửa FR-13 | Not Implemented; UI: Canvas |
-| D-35 | **Xóa mã nguồn** Backend / Frontend cũ (2026-11-05); giai đoạn hiện tại chỉ hoàn thiện Docs + Canvas làm Source of Truth | – | Đã thực hiện |
+| D-35 | **Xóa mã nguồn** Backend / Frontend cũ (2026-11-05); giai đoạn đó chỉ hoàn thiện Docs + Canvas làm Source of Truth *(giai đoạn kết thúc – thay bằng D-39)* | – | Đã thực hiện |
 | D-36 | **Gộp schema 2.0 vào baseline** `InitialClassFund`, kèm `AddDatabaseProtections`; không có migration `TeacherStudentParent`. Mã nguồn cũ đã xóa, chưa có DB cần nâng cấp nên D-30 và luồng UF-12 chưa phát sinh (2026-11-05) | Thay DD-21, TD-87 | Đã thực hiện |
+| D-37 | **Desktop Web only** (2026-11-07): bỏ phạm vi Mobile App / Mobile Responsive; khung 1440 × 900, tối thiểu 1280 px; sửa NFR-06. *Lưu ý mã:* Canvas và `docs/ui-design` ghi quyết định này là "D-36" theo đánh số riêng của Canvas – cùng một quyết định, mã chuẩn là **D-37** | Sửa NFR-06 | Đã áp dụng (Canvas v4.0, Foundation Frontend) |
+| D-38 | Đổi tên dự án **SchoolFund / Quỹ Lớp → ClassFund** (2026-11-06): thư mục `ClassFundAPI/`, `ClassFundUI/`, namespace `ClassFund.*`, cookie `cf_session` / `cf_xsrf` (TD-112). Canvas ghi là "D-37" | – | Đã thực hiện |
+| D-39 | **Đưa backend về codebase Foundation và triển khai theo module trọn luồng** (2026-11-09, yêu cầu của lead): bỏ code nghiệp vụ backend đã làm (tham khảo tại commit `6b6645d`); hoàn thiện Foundation BE + FE dùng chung một chuẩn; mỗi module làm FE → BE → DB → Integration Test → E2E và chỉ nghiệm thu khi đạt Definition of Done ([module-plan.md](../implementation/module-plan.md), [foundation-guide.md](../architecture/foundation-guide.md)) | Thay D-35 (giai đoạn "chỉ Docs") | Foundation: Implemented; module: Not Implemented |
+| D-40 | **Quy ước API / DB chung** là một phần của Foundation ([api-conventions.md](../api/api-conventions.md)): đổi quy ước phải làm PR Foundation riêng, không đổi trong PR module | – | Implemented (Foundation) |
 
 ### 1c. Đối chiếu D-11 (yêu cầu của PO)
 
@@ -134,3 +138,4 @@ B2 không nói rõ. Đang **không** hiện lý do / người hủy cho phụ hu
 | 2026-11-05 | v2.0 – mô hình Giáo viên · Học sinh · Phụ huynh: D-24 → D-33 (mục 1b), đối chiếu D-11 (mục 1c), PD-01 → PD-06 (mục 1d); ghi nhận B1 = P1, X-01, X-02 đã chốt; đánh dấu D-01, D-02, D-10, D-13, D-16, D-23 bị thay / sửa. Không xóa dòng cũ |
 | 2026-11-05 | v2.1 – thêm D-34 (đăng nhập không chọn vai trò), D-35 (xóa mã nguồn); trạng thái D-24 → D-33 → Not Implemented |
 | 2026-11-05 | v2.2 – thêm D-36; D-30 không áp dụng |
+| 2026-11-09 | v2.3 – thêm D-37 (Desktop Web only), D-38 (ClassFund), D-39 (đưa backend về Foundation, làm theo module), D-40 (quy ước API chung); D-35 kết thúc |

@@ -1,6 +1,6 @@
 # Database Design Decisions
 
-> 2026-11-05: Schema **Implemented** theo DD-17 → DD-20, DD-22 → DD-24; DD-21 không triển khai. DD-09, DD-13, DD-16 (thiết kế `FundMember` / `AddFundMembers`) **không triển khai** – thay bằng DD-17 → DD-22. DD-14 phần CHECK `NOT VALID` không triển khai.
+> 2026-11-09: schema thuộc Foundation (D-39) – module dùng lại, không tạo lại. 2026-11-05: Schema **Implemented** theo DD-17 → DD-20, DD-22 → DD-24; DD-21 không triển khai. DD-09, DD-13, DD-16 (thiết kế `FundMember` / `AddFundMembers`) **không triển khai** – thay bằng DD-17 → DD-22. DD-14 phần CHECK `NOT VALID` không triển khai.
 
 | Mã | Quyết định | Lý do | Phương án đã bỏ |
 |---|---|---|---|

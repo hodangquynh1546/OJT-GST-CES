@@ -1,39 +1,39 @@
 # Trạng thái triển khai
 
-> Cập nhật: 2026-11-07 · Tài liệu này là nguồn duy nhất về **trạng thái triển khai**. Các tài liệu khác ghi trạng thái theo đây.
+> Cập nhật: 2026-11-09 · Tài liệu này là nguồn duy nhất về **trạng thái triển khai**. Các tài liệu khác ghi trạng thái theo đây. Chuẩn tài liệu: [docs/README.md](../README.md).
 
 ## 1. Hiện trạng
 
 | Hạng mục | Trạng thái | Ghi chú |
 |---|---|---|
-| Backend (.NET 10, Clean Architecture) | **Partially Implemented** – Foundation, Domain, AccessService, Auth, Categories, Transactions, Funds, Students, Tổng quan, Báo cáo, Thành viên, Treasurers | `ClassFundAPI`: solution, 4 tầng, 8 entity, `AccessService`, pipeline request, xử lý lỗi, `[RequirePermission]`, `GET /api/health`. Feature đã có (mục 1a): **Auth & User Session**, **Danh mục** (Dev B), **Thu chi** (Dev B), **Fund Lifecycle**, **Học sinh & phụ huynh**, **Tổng quan / Báo cáo / Thành viên** (Dev B), **Phân công thủ quỹ**. Chưa có: CLI vận hành |
-| Frontend (Angular 20 + Kendo) | **Partially Implemented** – chỉ có Codebase Foundation | `ClassFundUI`: `core` / `shared` / `features`, route theo sitemap, guard, interceptor, AppHeader, AppNav (sidebar desktop 232 px), AppState; `body` tối thiểu 1280 px, không còn mã mobile (thanh dưới, nav thu gọn). Các màn hình đang là trang giữ chỗ |
-| Database / migration | **Implemented** (schema) | Migration `InitialClassFund` + `AddDatabaseProtections`: 8 bảng, ràng buộc, index, trigger. Dev: `docker-compose.yml` (PostgreSQL 16) tạo `migrator_user` (DDL) / `app_user` (SELECT / INSERT / UPDATE, không đọc `__EFMigrationsHistory`) |
-| Test tự động | **Partially Implemented** | Unit (xUnit + Moq) và Integration (`ClassFund.IntegrationTests`, PostgreSQL thật qua Testcontainers) cho Foundation, `AccessService`, Auth, Danh mục, Thu chi, Funds, Học sinh & phụ huynh, Tổng quan, Báo cáo, Thành viên, Phân công thủ quỹ; Frontend: Karma, Playwright cho Foundation. Test nghiệp vụ còn lại của `test-cases.md` mục A chưa viết |
+| **Foundation Backend** | **Implemented** (nhánh `feature/foundation`) | `ClassFundAPI`: 4 tầng, pipeline (CorrelationId → xác thực → CurrentUser → `[RequirePermission]`), ProblemDetails + mã lỗi, validation, antiforgery, mật khẩu tạm, phân trang (`PageRequest`), `ApiControllerBase` / `ApiRoutes`, tự đăng ký service module (`FeatureRegistration`), Swagger hợp đồng chặt, `AccessService`, `AuditTrail`, Domain đầy đủ. Quy ước: [api-conventions.md](../api/api-conventions.md) |
+| Backend nghiệp vụ (M1 → M7) | **Not Implemented** – đưa về codebase 2026-11-09 | Mã cũ (đã code xong, 302 unit / 92 integration) bỏ khỏi nhánh, **tham khảo** tại commit `6b6645d` của `main`. Làm lại theo module: [module-plan.md](module-plan.md) |
+| **Foundation Frontend** | **Implemented** | `ClassFundUI`: shell (header, nav 232 px), guard, interceptor, `ApiError`, `CurrentFund`, `ConfirmDialog`, `AppNotifications`, `app-state`, `page-header`, `applyServerErrors`, `LoadState`, tiện ích ngày / query / mã lỗi, token Design System → Kendo, route giữ chỗ cho mọi module. Màn hình nghiệp vụ là trang giữ chỗ |
+| Database / migration | **Implemented** (schema, thuộc Foundation) | Migration `InitialClassFund` + `AddDatabaseProtections`: 8 bảng, ràng buộc, index, trigger. Dev: `docker-compose.yml` (PostgreSQL 16) tạo `migrator_user` / `app_user` |
+| Test tự động | **Foundation** | Backend: Unit 102 · Integration 19 (`FoundationTests`, `ApiContractTests` – snapshot hợp đồng theo module). Frontend: Unit 42 · E2E mock 9 · E2E full 3 (FE + BE + DB thật). Test nghiệp vụ `test-cases.md` mục A: Not Implemented (viết lại theo module) |
 | Tài liệu nghiệp vụ, DB, API, phân quyền, test case | Hoàn thiện – Source of Truth | `docs/requirements`, `docs/business-analysis`, `docs/database`, `docs/api`, `docs/testing` |
-| UI/UX | Hoàn thiện – Source of Truth **v4.0 Desktop Web** (prototype) | Canvas https://claude.ai/artifact/D5JVqKkBFqQhmcp5spfw6Y (version `1794024869-668f`, 37 artboard, có Design System DS-01 / DS-02), `docs/ui-design` (kèm `design-system.md`). Đã bỏ phạm vi Mobile (D-36) |
+| UI/UX | Hoàn thiện – Source of Truth **v4.0 Desktop Web** (prototype) | Canvas https://claude.ai/artifact/D5JVqKkBFqQhmcp5spfw6Y (version `1794024869-668f`), `docs/ui-design` (kèm `design-system.md`) |
 
-Giai đoạn hiện tại: triển khai các feature Backend theo Docs + Canvas; Frontend nghiệp vụ chưa bắt đầu.
+Giai đoạn hiện tại: Foundation xong → triển khai **từng module trọn luồng FE → BE → DB → Test** theo [module-plan.md](module-plan.md) và [foundation-guide.md](../architecture/foundation-guide.md). Phân công 2 dev: cột Module ở mục 1a và [module-plan.md](module-plan.md) mục 1. Không có deploy / CI/CD ở giai đoạn này.
 
-Phân công Backend: **Dev A** – Auth & User Session, Fund Lifecycle, Học sinh & phụ huynh, Phân công thủ quỹ (cả 4 module đã xong); **Dev B** – Danh mục, Thu chi.
+## 1a. Trạng thái theo module
 
-## 1a. Trạng thái theo feature Backend
-
-| Feature | Yêu cầu | Endpoint | Trạng thái | Nhánh / PR |
+| Module | Màn hình | Yêu cầu | Trạng thái | Nhánh / PR |
 |---|---|---|---|---|
-| Auth & User Session | FR-20, FR-13, FR-21, BR-17, BR-18, BR-26, BR-28, NFR-10, NFR-11 | `POST /auth/register-teacher`, `POST /auth/login`, `POST /auth/logout`, `GET/PUT /auth/me`, `POST /auth/change-password`, `GET /auth/antiforgery` | **Implemented** | `feature/devA/auth-session` – PR #5 (đã merge) |
-| Fund Lifecycle | FR-22, FR-23, FR-11, BR-02, BR-23, BR-36 | `GET /funds`, `POST /funds`, `PUT /funds/{fundId}` | **Implemented** | `feature/devA/fund-lifecycle` – PR #8 (đã merge) |
-| Danh mục | FR-10, BR-08, BR-25 | `GET/POST /funds/{fundId}/categories`, `PUT /funds/{fundId}/categories/{id}` | **Implemented** (Dev B) | `feature/be-categories` – PR #6 (đã merge) |
-| Tổng quan quỹ | FR-01, BR-02, BR-15 | `GET /funds/{fundId}` | **Implemented** (Dev B) – chờ review / merge | `feature/be-reports` |
-| Học sinh, phụ huynh | FR-24 → FR-26, BR-29, BR-30, BR-33, BR-35 | `GET/POST /funds/{fundId}/students`, `GET/PUT …/students/{id}`, `POST …/{id}/account`, `…/{id}/reset-password`, `…/{id}/parent`, `…/{id}/parent/unlink` | **Implemented** | `feature/devA/student-parent` – PR #9 (đã merge) |
-| Phân công thủ quỹ | FR-27, BR-31, BR-32, BR-33, BR-36 | `GET/POST /funds/{fundId}/treasurers`, `POST …/treasurers/{assignmentId}/revoke` | **Implemented** – chờ review / merge | `feature/devA/treasurers` |
-| Thu chi | FR-02 → FR-07 | `/funds/{fundId}/transactions…` (thêm, sửa, hủy, danh sách, chi tiết, lịch sử) | **Implemented** (Dev B) | `feature/be-transactions` – PR #7 (đã merge) |
-| Báo cáo | FR-08, FR-09, BR-09, BR-10, BR-15, P1 | `/funds/{fundId}/reports/monthly`, `/funds/{fundId}/reports/yearly` | **Implemented** (Dev B) – chờ review / merge | `feature/be-reports` |
-| Thành viên | FR-12 | `GET /funds/{fundId}/members` | **Implemented** (Dev B) – chờ review / merge | `feature/be-reports` |
-| CLI vận hành | TD-88, KI-03 | `create-teacher`, `reset-password`, `disable-account`, `enable-account` | Not Implemented | – |
-| Khóa học sinh, rời lớp, chuyển quỹ | FR-28 | – | Pending Decision (PD-03 → PD-05) | – |
+| M0 Foundation | Khung ứng dụng, X-01 | NFR-01, NFR-04, NFR-07, NFR-10 | **Implemented** – chờ review / merge | `feature/foundation` |
+| M1 Auth & Tài khoản (Dev A, đợt 1) | A-01 → A-04 | FR-20, FR-13, FR-21 | Not Implemented | – |
+| M2 Quỹ (Dev B, đợt 1) | G-01, G-04 | FR-22, FR-23, FR-11 | Not Implemented | – |
+| M3 Học sinh & Phụ huynh (Dev A, đợt 2) | G-02 | FR-24 → FR-26 | Not Implemented | – |
+| M4 Phân công thủ quỹ (Dev A, đợt 3) | G-03 | FR-27 | Not Implemented | – |
+| M5 Danh mục & Thành viên (Dev B, đợt 2) | T-02, T-03 | FR-10, FR-12 | Not Implemented | – |
+| M6 Thu chi (Dev B, đợt 3) | S-02, T-01 | FR-02 → FR-07 | Not Implemented | – |
+| M7a Tổng quan (Dev A, đợt 4) | S-01 | FR-01 | Not Implemented | – |
+| M7b Báo cáo (Dev B, đợt 4) | S-03 | FR-08, FR-09 | Not Implemented | – |
+| M8 E2E toàn luồng (cả hai, đợt 5) | Toàn bộ | UF-01 → UF-13 | Not Implemented | – |
+| CLI vận hành | – | TD-88, KI-03 | Not Implemented | – |
+| Khóa học sinh, rời lớp, chuyển quỹ | – | FR-28 | Pending Decision (PD-03 → PD-05) | – |
 
-Chi tiết từng feature đã làm: [backend-progress.md](backend-progress.md).
+Lịch sử triển khai backend trước khi đưa về codebase: [backend-progress.md](backend-progress.md) (*historical*).
 
 ## 2. Quy ước trạng thái trong tài liệu
 
@@ -46,10 +46,11 @@ Chi tiết từng feature đã làm: [backend-progress.md](backend-progress.md).
 
 Đặc tả (nghiệp vụ, database, API, roles & permissions, validation, test case) **giữ nguyên** và là căn cứ cho lần triển khai tiếp theo.
 
-## 3a. Kết quả kiểm chứng hiện tại
+## 3a. Kết quả kiểm chứng
 
 | Ngày | Phạm vi | Kết quả | Môi trường |
 |---|---|---|---|
+| 2026-11-09 | **Foundation** sau khi đưa backend về codebase (nhánh `feature/foundation`) | Build 0 warning / 0 error · Backend **Unit 102 / 102** · **Integration 19 / 19** · Frontend **Unit 42 / 42** · **E2E mock 9 / 9** · **E2E full 3 / 3** (FE + BE + PostgreSQL docker) · `ng build` đạt | .NET SDK 10, PostgreSQL 16 (Testcontainers + docker compose), Chrome |
 | 2026-11-05 | Backend Foundation + Domain + AccessService | Build 0 warning / 0 error · Unit 50 / 50 | .NET SDK 10.0.403 |
 | 2026-11-05 | Frontend Foundation | Unit 29 / 29 · E2E 9 / 9 (`/auth/me` giả lập) | Chrome |
 | 2026-11-05 | Migration trên DB thật | Áp, rollback về 0, áp lại đều đạt · 17 / 17 kịch bản. Bộ kịch bản này chạy tạm, không nằm trong repo | PostgreSQL 16.15 (container tạm, đã xóa) |
@@ -85,3 +86,4 @@ Danh sách test case R3 và tên test tương ứng: [test-cases.md](../testing/
 | 2026-11-06 | Feature Phân công thủ quỹ & khóa dòng chống thu hồi thủ quỹ cuối cùng (nhánh `feature/devA/treasurers`) |
 | 2026-11-06 | Đổi tên dự án SchoolFund → **ClassFund**: thư mục `backend/SchoolFundAPI` → `ClassFundAPI/`, `frontend/SchoolFundUI` → `ClassFundUI/` (theo `training-doc.md`); project / namespace `ClassFund.*`; cookie, CSS, DB dev đổi tên (TD-112, KI-21) |
 | 2026-11-07 | UI/UX **v4.0 Desktop Web**: bỏ Mobile App / Mobile Responsive khỏi Canvas (16 artboard, trang Mobile, mọi `@media`), `docs/ui-design` và Frontend (`app-nav.ts`, `app-shell.ts`, `app-header.ts`, `nav-items.ts`, token `--cf-tabbar-height` / `--cf-nav-width-compact`, e2e mobile); thêm Design System (Canvas DS-01 / DS-02, `docs/ui-design/design-system.md`); màn hình G-01, G-04, S-01 khớp DTO backend |
+| 2026-11-09 | **Đưa backend về codebase Foundation** (nhánh `feature/foundation`): bỏ code + test của Auth, Funds, Students, Treasurers, Categories, Transactions, Overview, Reports (tham khảo tại `6b6645d`); giữ Domain, schema, `AccessService`, pipeline. Hoàn thiện Foundation BE / FE, thêm `api-conventions.md`, `foundation-guide.md`, `module-plan.md` (M0 → M8) |

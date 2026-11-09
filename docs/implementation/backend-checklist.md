@@ -1,6 +1,54 @@
-# Backend Checklist
+# Checklist kiểm thử
 
-## Hiện hành (mã nguồn làm lại – cập nhật 2026-11-06)
+## Hiện hành – Foundation (M0, cập nhật 2026-11-09)
+
+Trạng thái từng module: [implementation-status.md](implementation-status.md) mục 1a. Unit test ở `ClassFundAPI/tests/ClassFund.UnitTests`, integration ở `ClassFundAPI/tests/ClassFund.IntegrationTests`, frontend ở `ClassFundUI/src/**/*.spec.ts` và `ClassFundUI/e2e/`.
+
+| Yêu cầu kiểm thử | Test | Kết quả |
+|---|---|---|
+| Build toàn solution, `TreatWarningsAsErrors` | `dotnet build` | ✅ 0 warning, 0 error (2026-11-09) |
+| Unit / Integration (PostgreSQL thật) | `dotnet test` | ✅ 102 / 102 · 19 / 19 |
+| Dependency rule Clean Architecture | `DependencyRuleTests` | ✅ |
+| Ma trận vai trò → permission; suy ra vai trò theo quỹ (G-01) | `RolePermissionsTests`, `AccessServiceTests`, `AccessServiceMembershipTests` | ✅ |
+| `[RequirePermission]`: không thuộc quỹ 404, thiếu quyền 403 | `PermissionAuthorizationHandlerTests`, `FoundationTests.Fund_route_returns_404_when_not_member_and_200_when_permitted` | ✅ |
+| Mặc định cần đăng nhập (401 `unauthorized`) | `FoundationTests.Endpoints_require_sign_in_by_default` | ✅ |
+| Antiforgery cho request ghi (G-02) | `FoundationTests.Write_without_antiforgery_header_is_rejected` | ✅ |
+| Mật khẩu tạm → 403 `password.change_required` | `PasswordChangeRequiredFilterTests`, `FoundationTests.Temporary_password_blocks_everything_except_allowed_endpoints` | ✅ |
+| Tài khoản bị khóa → phiên hết hiệu lực (G-03, một phần) | `FoundationTests.Disabled_account_session_is_treated_as_signed_out` | ✅ |
+| Exception → status + `code`; 500 không lộ chi tiết | `GlobalExceptionHandlerTests`, `FoundationTests.Exceptions_map_to_status_and_code` | ✅ |
+| 400 `validation_failed` có `errors` theo ô, content type `application/problem+json` | `ValidationFilterTests`, `FoundationTests.Json_uses_string_enums_iso_dates_and_integer_money` | ✅ |
+| JSON: enum chuỗi, ngày `yyyy-MM-dd`, thời điểm ISO UTC, tiền `long` | `FoundationTests.Json_uses_string_enums_iso_dates_and_integer_money` | ✅ |
+| Phân trang mặc định 1 / 20, tối đa 100 | `PageRequestValidatorTests`, `FoundationTests.Paging_defaults_and_limits` | ✅ |
+| Route API không tồn tại → 404 ProblemDetails; Correlation ID | `FoundationTests.Unknown_api_route_returns_problem_404_not_spa`, `…Correlation_id_from_request_is_echoed`, `CorrelationIdMiddlewareTests` | ✅ |
+| Health check có DB | `FoundationTests.Health_is_anonymous_and_checks_database` | ✅ |
+| Service module tự đăng ký DI theo quy ước | `FeatureRegistrationTests` | ✅ |
+| Hợp đồng API theo module (snapshot Swagger) | `ApiContractTests.Swagger_matches_reviewed_snapshots_per_module` | ✅ (mới có `Antiforgery`) |
+| Băm mật khẩu có pepper; Domain rule (mật khẩu, giao dịch, user) | `AspNetPasswordHasherTests`, `PasswordPolicyTests`, `FundTransactionTests`, `UserTests`, `CredentialsTests` | ✅ |
+| Trigger `TR_NoDelete` / `TR_AppendOnly`, quyền `app_user` (M-02, M-03) | – | ⬜ Chưa có test tự động (KI-23) – thêm ở M3 / M4 |
+| Frontend unit (guard, interceptor, nav, pipe, tiện ích, ConfirmDialog, LoadState) | `npm test` | ✅ 42 / 42 |
+| E2E mock (shell, guard, 403 / 404, layout desktop) | `npm run e2e` | ✅ 9 / 9 |
+| E2E full (SPA → API → PostgreSQL) | `npm run e2e:full` | ✅ 3 / 3 |
+
+## Mẫu checklist cho mỗi module (copy vào mô tả PR)
+
+```text
+Module: M_ – <tên>        Nhánh: feature/m_-<tên>        Người review: <thành viên còn lại>
+[ ] Hợp đồng: endpoint khớp backend-api.md; snapshot Contracts/snapshots/<Tag>.json đã cập nhật và review
+[ ] BE: controller kế thừa ApiControllerBase, [ApiVersion(1)], [RequirePermission]; validator; mã lỗi ở <Module>Errors.cs
+[ ] BE: service kiểm tra phạm vi bằng IAccessService; AuditTrail cho mọi thao tác ghi; không log bí mật
+[ ] DB: dùng schema có sẵn / migration mới (nêu lý do, đã rebase main, một migration)
+[ ] Unit test cho rule; integration test cho từng case test-cases.md của module (mọi vai trò liên quan)
+[ ] FE: màn hình đúng Canvas; models khớp snapshot; đủ trạng thái loading / empty / error / 403 / 404 / lỗi từng ô
+[ ] FE: chỉ sửa features/<module>/ (ngoại lệ ghi rõ); không mã màu cứng; Kendo theo design-system.md
+[ ] E2E mock + E2E full cho luồng chính và vai trò liên quan
+[ ] dotnet build 0 warning · dotnet test · npm test · npm run e2e · npm run e2e:full đều đạt (dán số liệu)
+[ ] Docs: implementation-status (1a, 3a), test-cases (cột Trạng thái), functional-requirements (Trạng thái), backend-api (nếu đổi), known-issues (nếu có)
+```
+
+## Historical (bản cài đặt theo feature 2026-11-05 → 06, đã bỏ khỏi codebase 2026-11-09)
+
+> ✅ dưới đây là kết quả của bản trước (tham khảo tại `6b6645d`), không phản ánh codebase hiện tại; tên test dùng để tham khảo khi viết lại.
+
 
 Trạng thái từng feature: [implementation-status.md](implementation-status.md) mục 1a. Test integration nằm trong `tests/ClassFund.IntegrationTests`, unit trong `tests/ClassFund.UnitTests`.
 
@@ -57,7 +105,7 @@ Trạng thái từng feature: [implementation-status.md](implementation-status.m
 | 6 lệnh phân công cùng một học sinh: đúng 1 thành công, còn lại 422 `already_assigned` | `TreasurerTests.Concurrent_assignments_of_the_same_student_create_only_one_assignment` | ✅ |
 | Chỉ GVCN quản lý thủ quỹ (403 / 404 / 401, Id sai định dạng 404) | `TreasurerTests.Only_homeroom_teacher_manages_treasurers` | ✅ |
 
-## Historical
+## Historical (R1 / R3, mã nguồn đã xóa 2026-11-05)
 
 > **Historical** – checklist của mã nguồn R1 / R3 đã xóa ngày 2026-11-05; ✅ dưới đây là kết quả cũ, không phản ánh mã nguồn hiện tại.
 

@@ -6,7 +6,7 @@ Hướng dẫn cho Claude Code khi làm việc trong repository này.
 
 **ClassFund** (Class Fund Management, trước đây là SchoolFund) – hệ thống quản lý quỹ lớp học sinh (thu, chi, theo dõi số dư và minh bạch quỹ lớp).
 
-Trạng thái: đã có Codebase Foundation, Domain, schema, `AccessService` và feature Backend Auth, Categories, Transactions, Funds, Students, Overview, Reports, Treasurers; Frontend chưa có feature nghiệp vụ. Chi tiết ở `docs/implementation/implementation-status.md`.
+Trạng thái: Foundation Backend + Frontend (Domain, schema, `AccessService`, pipeline, quy ước API, Design System, shell); backend nghiệp vụ đã đưa về codebase (2026-11-09) và làm lại **theo module trọn luồng FE → BE → DB → Test** (`docs/implementation/module-plan.md`, `docs/architecture/foundation-guide.md`, `docs/api/api-conventions.md`). Chi tiết ở `docs/implementation/implementation-status.md`.
 
 ## 2. Tài liệu chuẩn
 
@@ -45,9 +45,10 @@ Angular UI --/api--> Api --> Application --> Domain
 |---|---|
 | `ClassFundAPI/` | Workspace .NET (`{ProjectName}` = `ClassFund`): `ClassFund.sln`, `src/`, `tests/`, `docker-compose.yml` |
 | `ClassFundUI/` | Workspace Angular (npm workspace độc lập) |
+| `docs/README.md` | **Chỉ mục + chuẩn tài liệu** (bản đồ, thứ tự ưu tiên, mã định danh, tài liệu cần cập nhật khi làm module) |
 | `docs/requirements/` | Yêu cầu nghiệp vụ, user story |
 | `docs/business-analysis/` | Phân tích nghiệp vụ, use case, quy trình |
-| `docs/architecture/` | Thiết kế kiến trúc, quyết định kỹ thuật (ADR) |
+| `docs/architecture/` | Thiết kế kiến trúc; `foundation-guide.md` – cách làm một module FE → BE → DB → Test |
 | `docs/database/` | Thiết kế CSDL, ERD |
 | `docs/api/` | Đặc tả API |
 | `docs/ui-design/` | Wireframe, thiết kế giao diện |

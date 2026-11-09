@@ -17,14 +17,6 @@ using ClassFund.Api.Filters;
 using ClassFund.Api.Health;
 using ClassFund.Application.Common.Auditing;
 using ClassFund.Application.Common.Security;
-using ClassFund.Application.Features.Auth;
-using ClassFund.Application.Features.Categories;
-using ClassFund.Application.Features.Funds;
-using ClassFund.Application.Features.Students;
-using ClassFund.Application.Features.Overview;
-using ClassFund.Application.Features.Reports;
-using ClassFund.Application.Features.Treasurers;
-using ClassFund.Application.Features.Transactions;
 using ClassFund.Infrastructure;
 using ClassFund.Infrastructure.Security;
 using Swashbuckle.AspNetCore.SwaggerGen;
@@ -137,14 +129,9 @@ public static class ServiceRegistration
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IRequestInfo, HttpRequestInfo>();
         services.AddScoped<AuditTrail>();
-        services.AddScoped<AuthService>();
-        services.AddScoped<ICategoryService, CategoryService>();
-        services.AddScoped<IFundService, FundService>();
-        services.AddScoped<IStudentService, StudentService>();
-        services.AddScoped<ITreasurerService, TreasurerService>();
-        services.AddScoped<TransactionService>();
-        services.AddScoped<ReportService>();
-        services.AddScoped<OverviewService>();
+
+        // Service của các module (Application/Features/*) tự đăng ký theo quy ước tên – không thêm dòng ở đây.
+        services.AddFeatureServices(typeof(AuditTrail).Assembly, FeatureRegistration.ApplicationFeaturesNamespace);
 
         services.AddScoped<CurrentUser>();
         services.AddScoped<ICurrentUser>(provider => provider.GetRequiredService<CurrentUser>());

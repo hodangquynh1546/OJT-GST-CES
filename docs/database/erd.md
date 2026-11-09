@@ -1,6 +1,6 @@
 # ERD
 
-> Phiên bản 2.0 · 2026-11-05 – thiết kế hiện hành (migration `InitialClassFund` + `AddDatabaseProtections`). Trạng thái triển khai: **Implemented**. Thiết kế `FundMember` v1.1 / v1.2 không dùng (Git history).
+> Phiên bản 2.0 · 2026-11-05 – thiết kế hiện hành (migration `InitialClassFund` + `AddDatabaseProtections`). Trạng thái triển khai: **Implemented trong Foundation** (schema dùng chung cho mọi module). Thiết kế `FundMember` v1.1 / v1.2 không dùng (Git history).
 
 ```mermaid
 erDiagram

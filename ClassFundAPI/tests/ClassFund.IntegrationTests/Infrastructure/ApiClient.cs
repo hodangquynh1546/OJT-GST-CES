@@ -1,10 +1,13 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using ClassFund.Api.Features.Auth;
 
 namespace ClassFund.IntegrationTests.Infrastructure;
 
-/// <summary>HttpClient giữ cookie và token antiforgery như SPA: lấy token ẩn danh, thay bằng token mới sau đăng nhập.</summary>
+/// <summary>
+/// HttpClient giữ cookie và token antiforgery như SPA: lấy token ẩn danh lần đầu; response nào có
+/// <c>antiforgeryToken</c> (đăng nhập, đăng ký, đổi mật khẩu…) thì thay token mới.
+/// </summary>
 public sealed class ApiClient(HttpClient http) : IDisposable
 {
     public const string Base = "/api/v1";
@@ -22,10 +25,14 @@ public sealed class ApiClient(HttpClient http) : IDisposable
     public Task<HttpResponseMessage> PostWithoutAntiforgeryAsync(string path, object body) =>
         http.PostAsJsonAsync(Base + path, body, Json);
 
-    public async Task<SessionResponse> LoginAsync(string login, string password)
+    /// <summary>
+    /// Đăng nhập thẳng bằng cookie phiên cho <paramref name="userId"/> qua endpoint chỉ có trong test
+    /// (<see cref="ProbeController"/>) – để test của một module không phụ thuộc màn hình / API đăng nhập.
+    /// </summary>
+    public async Task SignInAsAsync(Guid userId)
     {
-        var response = await PostAsync("/auth/login", new { login, password });
-        return await response.ReadSessionAsync(System.Net.HttpStatusCode.OK);
+        var response = await PostAsync($"/test-probe/sign-in/{userId}");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     public async Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, object? body)
@@ -37,13 +44,17 @@ public sealed class ApiClient(HttpClient http) : IDisposable
         request.Headers.Add("X-XSRF-TOKEN", await AntiforgeryTokenAsync());
 
         var response = await http.SendAsync(request);
-        if (response.IsSuccessStatusCode && path is "/auth/login" or "/auth/register-teacher" or "/auth/change-password")
+        if (response.IsSuccessStatusCode && response.Content.Headers.ContentType?.MediaType == "application/json")
         {
             // Đọc body một lần rồi gắn lại để test vẫn đọc được response.
             var json = await response.Content.ReadAsStringAsync();
-            var mediaType = response.Content.Headers.ContentType?.MediaType ?? "application/json";
-            response.Content = new StringContent(json, System.Text.Encoding.UTF8, mediaType);
-            _antiforgeryToken = JsonSerializer.Deserialize<SessionResponse>(json, Json)!.AntiforgeryToken;
+            response.Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+            if (json.StartsWith('{')
+                && JsonDocument.Parse(json).RootElement.TryGetProperty("antiforgeryToken", out var token)
+                && token.ValueKind == JsonValueKind.String)
+            {
+                _antiforgeryToken = token.GetString();
+            }
         }
 
         return response;
@@ -65,23 +76,8 @@ public sealed class ApiClient(HttpClient http) : IDisposable
 
 public static class HttpResponseExtensions
 {
-    public static async Task<SessionResponse> ReadSessionAsync(this HttpResponseMessage response, System.Net.HttpStatusCode expected)
-    {
-        Assert.Equal(expected, response.StatusCode);
-        var session = await response.Content.ReadFromJsonAsync<SessionResponse>(ApiClient.Json);
-        Assert.NotNull(session);
-        Assert.False(string.IsNullOrEmpty(session.AntiforgeryToken));
-        return session;
-    }
-
-    public static async Task<MeResponse> ReadMeAsync(this HttpResponseMessage response)
-    {
-        Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
-        return (await response.Content.ReadFromJsonAsync<MeResponse>(ApiClient.Json))!;
-    }
-
     /// <summary>Kiểm tra status và <c>code</c> của ProblemDetails; trả về toàn bộ body JSON.</summary>
-    public static async Task<JsonElement> AssertProblemAsync(this HttpResponseMessage response, System.Net.HttpStatusCode status, string code)
+    public static async Task<JsonElement> AssertProblemAsync(this HttpResponseMessage response, HttpStatusCode status, string code)
     {
         var body = await response.Content.ReadAsStringAsync();
         Assert.True(response.StatusCode == status, $"Mong đợi {(int)status}, nhận {(int)response.StatusCode}: {body}");

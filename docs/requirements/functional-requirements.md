@@ -1,8 +1,9 @@
-# Yêu cầu chức năng – Quản lý quỹ lớp
+# Yêu cầu chức năng – ClassFund (Quản lý quỹ lớp)
 
 > Phiên bản: 2.0 · 2026-11-05 – mô hình **Giáo viên · Học sinh · Phụ huynh** (D-24 → D-33). v1.2 (3 vai trò Thủ quỹ / GVCN / Phụ huynh trong một quỹ), v1.0 và v0.7 nằm trong Git history.
 >
-> Cột **Trạng thái** = trạng thái triển khai: `Implemented` · `Partially Implemented` · `Not Implemented` · `Pending Decision`. **2026-11-06: FR-20, FR-13, FR-21 (Auth), FR-22, FR-23, FR-11 (Fund Lifecycle), FR-24 → FR-27 (Học sinh & phụ huynh, Phân công thủ quỹ), FR-02 → FR-07 (Thu chi), FR-10 (Danh mục), FR-01, FR-08, FR-09, FR-12 (Tổng quan, Báo cáo, Thành viên) đã có ở Backend, chưa có UI → `Partially Implemented (Backend)`; các yêu cầu khác xem cột Trạng thái** (chi tiết: [implementation-status.md](../implementation/implementation-status.md)). *2026-11-05: mọi yêu cầu Not Implemented* – mã nguồn Backend / Frontend cũ đã xóa ngày 2026-11-05; đặc tả giữ nguyên. Giao diện: prototype Canvas.
+> Cột **Module** = module triển khai yêu cầu ([module-plan.md](../implementation/module-plan.md)). Cột **Trạng thái** = trạng thái triển khai: `Implemented` · `Partially Implemented` · `Not Implemented` · `Pending Decision` – nguồn duy nhất: [implementation-status.md](../implementation/implementation-status.md).
+> **2026-11-09:** mới có Foundation (M0); mọi yêu cầu chức năng `Not Implemented`. Giao diện chuẩn: Canvas v4.0 Desktop Web ([ui-design-overview.md](../ui-design/ui-design-overview.md)).
 
 ## 1. Mục tiêu
 
@@ -32,7 +33,7 @@ Ghi một khoản phải nhanh: "Thêm khoản thu / chi" → nhập vài thông
 | **Giáo viên** (`Teacher`) | Tự đăng ký (D-24) hoặc người vận hành chạy `create-teacher` | Nhiều quỹ do mình tạo (vai trò GVCN) |
 | **Học sinh** (`Student`) | GVCN thêm vào quỹ rồi cấp tài khoản (D-27) | Đúng một quỹ; vai trò *Học sinh*, hoặc *Thủ quỹ* khi được phân công |
 | **Phụ huynh** (`Parent`) | GVCN liên kết email phụ huynh với học sinh (D-28) | Mọi quỹ có con được liên kết |
-| Người vận hành | Không phải người dùng ứng dụng | Lệnh server: `create-teacher`, `reset-password`, `disable-account`, `enable-account` |
+| Người vận hành | Không phải người dùng ứng dụng | Lệnh server: `create-teacher`, `reset-password`, `disable-account`, `enable-account` (TD-88 – **chưa có module**, cần lead xếp lịch: [module-plan.md](../implementation/module-plan.md) mục 4) |
 
 Vai trò trong quỹ (**GVCN / Thủ quỹ / Học sinh / Phụ huynh**) do backend suy ra từ dữ liệu ở mỗi request (D-26). *Quy tắc v1.2 "mỗi tài khoản thuộc đúng một quỹ" (dẫn sai là D-11) hết hiệu lực – D-31, xem `open-questions.md` mục 1c.*
 
@@ -42,38 +43,38 @@ Cột vai trò: **G** = GVCN · **T** = Thủ quỹ · **H** = Học sinh chưa 
 
 ### 4.1 Tài khoản & quỹ
 
-| Mã | Yêu cầu | G | T | H | P | Trạng thái |
-|---|---|---|---|---|---|---|
-| FR-20 | **Đăng ký giáo viên**: họ tên, email (duy nhất), mật khẩu, xác nhận; đăng nhập luôn sau khi đăng ký | – | – | – | – | Partially Implemented (Backend) |
-| FR-13 | **Đăng nhập** bằng một ô "Email hoặc tên đăng nhập" (email: giáo viên, phụ huynh; tên đăng nhập: học sinh) – **không chọn vai trò**, vai trò do hệ thống xác định; sai → thông báo chung; đúng nhưng bị khóa → "liên hệ giáo viên chủ nhiệm". Đăng xuất, đổi mật khẩu; **bắt buộc đổi mật khẩu tạm** trước khi dùng chức năng khác (403 `password.change_required`) | ✔ | ✔ | ✔ | ✔ | Partially Implemented (Backend) |
-| FR-21 | **Tài khoản cá nhân**: xem thông tin, đổi họ tên (`PUT /auth/me`) | ✔ | ✔ | ✔ | ✔ | Partially Implemented (Backend) |
-| FR-22 | **Quỹ của tôi**: danh sách quỹ kèm vai trò; GVCN thấy thêm số học sinh, tên thủ quỹ, trạng thái "Chưa phân công / Đã có thủ quỹ"; phụ huynh thấy tên con | ✔ | ✔ | ✔ | ✔ | Partially Implemented (Backend) |
-| FR-23 | **Tạo quỹ** (chỉ giáo viên): tên quỹ → quỹ mới + danh mục mặc định, chưa có thủ quỹ | ✔ | – | – | – | Partially Implemented (Backend) |
-| FR-11 | **Thông tin quỹ**: đổi tên quỹ | ✔ | – | – | – | Partially Implemented (Backend) |
+| Mã | Yêu cầu | G | T | H | P | Module | Trạng thái |
+|---|---|---|---|---|---|---|---|
+| FR-20 | **Đăng ký giáo viên**: họ tên, email (duy nhất), mật khẩu, xác nhận; đăng nhập luôn sau khi đăng ký | – | – | – | – | M1 | Not Implemented |
+| FR-13 | **Đăng nhập** bằng một ô "Email hoặc tên đăng nhập" (email: giáo viên, phụ huynh; tên đăng nhập: học sinh) – **không chọn vai trò**, vai trò do hệ thống xác định; sai → thông báo chung; đúng nhưng bị khóa → "liên hệ giáo viên chủ nhiệm". Đăng xuất, đổi mật khẩu; **bắt buộc đổi mật khẩu tạm** trước khi dùng chức năng khác (403 `password.change_required`) | ✔ | ✔ | ✔ | ✔ | M1 | Not Implemented |
+| FR-21 | **Tài khoản cá nhân**: xem thông tin, đổi họ tên (`PUT /auth/me`) | ✔ | ✔ | ✔ | ✔ | M1 | Not Implemented |
+| FR-22 | **Quỹ của tôi**: danh sách quỹ kèm vai trò; GVCN thấy thêm số học sinh, tên thủ quỹ, trạng thái "Chưa phân công / Đã có thủ quỹ"; phụ huynh thấy tên con | ✔ | ✔ | ✔ | ✔ | M2 | Not Implemented |
+| FR-23 | **Tạo quỹ** (chỉ giáo viên): tên quỹ → quỹ mới + danh mục mặc định, chưa có thủ quỹ | ✔ | – | – | – | M2 | Not Implemented |
+| FR-11 | **Thông tin quỹ**: đổi tên quỹ | ✔ | – | – | – | M2 | Not Implemented |
 ### 4.2 Học sinh, phụ huynh, thủ quỹ
 
-| Mã | Yêu cầu | G | T | H | P | Trạng thái |
-|---|---|---|---|---|---|---|
-| FR-24 | **Học sinh**: danh sách (họ tên, tên đăng nhập, trạng thái tài khoản *Chưa cấp / Chờ kích hoạt / Đang hoạt động / Bị khóa*, thủ quỹ, phụ huynh); thêm (họ tên, email phụ huynh tùy chọn); sửa họ tên; chi tiết | ✔ | – | – | – | Partially Implemented (Backend) |
-| FR-25 | **Cấp tài khoản học sinh**: tên đăng nhập (bỏ trống → hệ thống gợi ý) + mật khẩu tạm ngẫu nhiên, hiển thị một lần; **cấp lại mật khẩu tạm** (phiên cũ hết hiệu lực) | ✔ | – | – | – | Partially Implemented (Backend) |
-| FR-26 | **Liên kết phụ huynh** theo email: có tài khoản phụ huynh → chỉ liên kết; chưa có → tạo tài khoản + mật khẩu tạm hiển thị một lần; ghi rõ hệ thống không gửi email; **gỡ liên kết** (giữ lịch sử) | ✔ | – | – | – | Partially Implemented (Backend) |
-| FR-27 | **Phân công thủ quỹ**: chọn học sinh đã kích hoạt tài khoản; nhiều thủ quỹ; **thu hồi** (không thu hồi được thủ quỹ cuối cùng); lịch sử người / thời điểm phân công, thu hồi | ✔ | – | – | – | Partially Implemented (Backend) |
-| FR-12 | **Thành viên**: chỉ họ tên + vai trò (GVCN, thủ quỹ, học sinh) – không email / tên đăng nhập / liên hệ. *(v1.2: thủ quỹ tạo / khóa / đổi vai trò thành viên – thay bằng FR-24 → FR-27)* | ✔ | ✔ (chỉ xem) | – | – | Partially Implemented (Backend) |
-| FR-28 | GVCN khóa / mở khóa tài khoản học sinh; học sinh rời lớp; chuyển quỹ cho giáo viên khác | – | – | – | – | Pending Decision (PD-03 → PD-05) |
+| Mã | Yêu cầu | G | T | H | P | Module | Trạng thái |
+|---|---|---|---|---|---|---|---|
+| FR-24 | **Học sinh**: danh sách (họ tên, tên đăng nhập, trạng thái tài khoản *Chưa cấp / Chờ kích hoạt / Đang hoạt động / Bị khóa*, thủ quỹ, phụ huynh); thêm (họ tên, email phụ huynh tùy chọn); sửa họ tên; chi tiết | ✔ | – | – | – | M3 | Not Implemented |
+| FR-25 | **Cấp tài khoản học sinh**: tên đăng nhập (bỏ trống → hệ thống gợi ý) + mật khẩu tạm ngẫu nhiên, hiển thị một lần; **cấp lại mật khẩu tạm** (phiên cũ hết hiệu lực) | ✔ | – | – | – | M3 | Not Implemented |
+| FR-26 | **Liên kết phụ huynh** theo email: có tài khoản phụ huynh → chỉ liên kết; chưa có → tạo tài khoản + mật khẩu tạm hiển thị một lần; ghi rõ hệ thống không gửi email; **gỡ liên kết** (giữ lịch sử) | ✔ | – | – | – | M3 | Not Implemented |
+| FR-27 | **Phân công thủ quỹ**: chọn học sinh đã kích hoạt tài khoản; nhiều thủ quỹ; **thu hồi** (không thu hồi được thủ quỹ cuối cùng); lịch sử người / thời điểm phân công, thu hồi | ✔ | – | – | – | M4 | Not Implemented |
+| FR-12 | **Thành viên**: chỉ họ tên + vai trò (GVCN, thủ quỹ, học sinh) – không email / tên đăng nhập / liên hệ. *(v1.2: thủ quỹ tạo / khóa / đổi vai trò thành viên – thay bằng FR-24 → FR-27)* | ✔ | ✔ (chỉ xem) | – | – | M5 | Not Implemented |
+| FR-28 | GVCN khóa / mở khóa tài khoản học sinh; học sinh rời lớp; chuyển quỹ cho giáo viên khác | – | – | – | – | – | Pending Decision (PD-03 → PD-05) |
 
 ### 4.3 Thu chi & báo cáo
 
-| Mã | Yêu cầu | G | T | H | P | Trạng thái |
-|---|---|---|---|---|---|---|
-| FR-01 | **Tổng quan**: cộng dồn (số dư, tổng thu, tổng chi) + tháng hiện tại; 5 giao dịch gần nhất (bản công khai với H, P); người quản lý (GVCN + thủ quỹ: họ tên, vai trò); trạng thái thủ quỹ; cảnh báo số dư âm | ✔ | ✔ | ✔ | ✔ | Partially Implemented (Backend) |
-| FR-02 / FR-03 | **Thêm khoản thu / chi**: nội dung, số tiền, ngày, danh mục, ghi chú (tùy chọn), cờ công khai (mặc định bật) | – | ✔ | – | – | Partially Implemented (Backend) |
-| FR-04 | **Sửa** (số tiền, ngày, danh mục, nội dung, ghi chú, cờ công khai); lưu người sửa | – | ✔ | – | – | Partially Implemented (Backend) |
-| FR-05 | **Hủy** bắt buộc lý do; lưu người hủy; không tính vào số dư / báo cáo | – | ✔ | – | – | Partially Implemented (Backend) |
-| FR-06 | **Lịch sử thu chi**: lọc ngày, loại, danh mục, từ khóa, trạng thái | ✔ | ✔ | ✔ công khai | ✔ công khai | Partially Implemented (Backend) |
-| FR-07 | **Chi tiết** + lịch sử thay đổi (người, thời điểm, trước / sau). H, P: chỉ nội dung, ngày, danh mục, số tiền của khoản công khai; khoản không công khai → 404 | ✔ | ✔ | công khai | công khai | Partially Implemented (Backend) |
-| FR-08 | **Báo cáo tháng** (mọi tháng): đầu / cuối tháng, tổng thu / chi, theo danh mục, danh sách. H, P: phần không công khai gộp "Khoản khác", không số lượng (P1) | ✔ | ✔ | ✔ | ✔ | Partially Implemented (Backend) |
-| FR-09 | **Thống kê 12 tháng** | ✔ | ✔ | ✔ | ✔ | Partially Implemented (Backend) |
-| FR-10 | **Danh mục**: thêm, đổi tên, ẩn / hiện. H, P chỉ thấy danh mục đang hiện có khoản công khai (X-01) | xem | ✔ | xem | xem | Partially Implemented (Backend) |
+| Mã | Yêu cầu | G | T | H | P | Module | Trạng thái |
+|---|---|---|---|---|---|---|---|
+| FR-01 | **Tổng quan**: cộng dồn (số dư, tổng thu, tổng chi) + tháng hiện tại; 5 giao dịch gần nhất (bản công khai với H, P); người quản lý (GVCN + thủ quỹ: họ tên, vai trò); trạng thái thủ quỹ; cảnh báo số dư âm | ✔ | ✔ | ✔ | ✔ | M7 | Not Implemented |
+| FR-02 / FR-03 | **Thêm khoản thu / chi**: nội dung, số tiền, ngày, danh mục, ghi chú (tùy chọn), cờ công khai (mặc định bật) | – | ✔ | – | – | M6 | Not Implemented |
+| FR-04 | **Sửa** (số tiền, ngày, danh mục, nội dung, ghi chú, cờ công khai); lưu người sửa | – | ✔ | – | – | M6 | Not Implemented |
+| FR-05 | **Hủy** bắt buộc lý do; lưu người hủy; không tính vào số dư / báo cáo | – | ✔ | – | – | M6 | Not Implemented |
+| FR-06 | **Lịch sử thu chi**: lọc ngày, loại, danh mục, từ khóa, trạng thái | ✔ | ✔ | ✔ công khai | ✔ công khai | M6 | Not Implemented |
+| FR-07 | **Chi tiết** + lịch sử thay đổi (người, thời điểm, trước / sau). H, P: chỉ nội dung, ngày, danh mục, số tiền của khoản công khai; khoản không công khai → 404 | ✔ | ✔ | công khai | công khai | M6 | Not Implemented |
+| FR-08 | **Báo cáo tháng** (mọi tháng): đầu / cuối tháng, tổng thu / chi, theo danh mục, danh sách. H, P: phần không công khai gộp "Khoản khác", không số lượng (P1) | ✔ | ✔ | ✔ | ✔ | M7 | Not Implemented |
+| FR-09 | **Thống kê 12 tháng** | ✔ | ✔ | ✔ | ✔ | M7 | Not Implemented |
+| FR-10 | **Danh mục**: thêm, đổi tên, ẩn / hiện. H, P chỉ thấy danh mục đang hiện có khoản công khai (X-01) | xem | ✔ | xem | xem | M5 | Not Implemented |
 ## 5. Yêu cầu phi chức năng
 
 | Mã | Yêu cầu |
@@ -83,7 +84,7 @@ Cột vai trò: **G** = GVCN · **T** = Thủ quỹ · **H** = Học sinh chưa 
 | NFR-03 | Số dư luôn khớp lịch sử giao dịch, kể cả khi sửa / hủy; nhấn Lưu nhiều lần không ghi trùng |
 | NFR-04 | **Phân quyền ở backend** theo permission (`[RequirePermission]`). Vai trò trong quỹ suy ra từ dữ liệu (người phụ trách, học sinh, phân công thủ quỹ, liên kết phụ huynh) của phiên đăng nhập; `fundId` trên đường dẫn chỉ chọn quỹ, không cấp quyền; không nhận `teacherId` / `role` từ client. Không thuộc quỹ → 404 *(sửa 2026-11-05)* |
 | NFR-05 | Không xóa vĩnh viễn giao dịch; mọi thêm / sửa / hủy và thao tác tài khoản thành viên đều ghi nhật ký (ai, lúc nào, giá trị trước / sau) |
-| NFR-06 | Giao diện dùng tốt trên điện thoại (phụ huynh chủ yếu dùng điện thoại) |
+| NFR-06 | *(Sửa 2026-11-07, D-37)* Giao diện **Desktop Web**: khung chuẩn 1440 × 900, tối thiểu 1280 px (hẹp hơn thì cuộn ngang); không làm Mobile App / Mobile Responsive. ~~Dùng tốt trên điện thoại~~ |
 | NFR-07 | Frontend ẩn nút không có quyền. Backend vẫn chặn khi gọi API trực tiếp (403) |
 | NFR-08 | Phụ huynh *(và học sinh chưa phân công – 2026-11-05)* không bao giờ nhận được ghi chú nội bộ, người ghi / sửa / hủy, lý do hủy, nhật ký, nội dung / ngày / danh mục / số lượng của khoản không công khai, hay email / liên hệ / trạng thái tài khoản khác – qua bất kỳ API nào (danh sách, chi tiết, tìm kiếm, phân trang, báo cáo, thống kê, danh mục). Dữ liệu bị loại ngay trong truy vấn, không chỉ ẩn ở giao diện |
 | NFR-09 | Mỗi thao tác ghi lưu đúng người thực hiện (`CreatedBy`, `UpdatedBy`, `CancelledBy` + nhật ký). Thao tác đồng thời của nhiều thủ quỹ không làm sai số dư, không mất lịch sử, không để quỹ mất thủ quỹ hoạt động cuối cùng |
@@ -104,3 +105,4 @@ Cột vai trò: **G** = GVCN · **T** = Thủ quỹ · **H** = Học sinh chưa 
 | 2026-11-06 | 2.3 | Cột Trạng thái: FR-24, FR-25, FR-26 → Partially Implemented (Backend) | Triển khai Học sinh & phụ huynh (chưa có UI) |
 | 2026-11-06 | 2.4 | Cột Trạng thái: FR-01, FR-08, FR-09, FR-12 → Partially Implemented (Backend) | Triển khai Tổng quan, Báo cáo, Thành viên (chưa có UI) |
 | 2026-11-06 | 2.5 | Cột Trạng thái: FR-27 → Partially Implemented (Backend) | Triển khai Phân công thủ quỹ (chưa có UI) |
+| 2026-11-09 | 2.6 | Backend đưa về codebase Foundation: cột Trạng thái → Not Implemented; thêm cột Module; NFR-06 → Desktop Web (D-37) | D-39 (làm theo module), D-37 |
