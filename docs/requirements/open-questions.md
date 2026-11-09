@@ -52,6 +52,7 @@ PO duyệt cả 4 đề xuất (tài khoản học sinh, phụ huynh, thủ qu�
 | D-38 | Đổi tên dự án **SchoolFund / Quỹ Lớp → ClassFund** (2026-11-06): thư mục `ClassFundAPI/`, `ClassFundUI/`, namespace `ClassFund.*`, cookie `cf_session` / `cf_xsrf` (TD-112). Canvas ghi là "D-37" | – | Đã thực hiện |
 | D-39 | **Đưa backend về codebase Foundation và triển khai theo module trọn luồng** (2026-11-09, yêu cầu của lead): bỏ code nghiệp vụ backend đã làm (tham khảo tại commit `6b6645d`); hoàn thiện Foundation BE + FE dùng chung một chuẩn; mỗi module làm FE → BE → DB → Integration Test → E2E và chỉ nghiệm thu khi đạt Definition of Done ([module-plan.md](../implementation/module-plan.md), [foundation-guide.md](../architecture/foundation-guide.md)) | Thay D-35 (giai đoạn "chỉ Docs") | Foundation: Implemented; module: Not Implemented |
 | D-40 | **Quy ước API / DB chung** là một phần của Foundation ([api-conventions.md](../api/api-conventions.md)): đổi quy ước phải làm PR Foundation riêng, không đổi trong PR module | – | Implemented (Foundation) |
+| D-41 | **Không có chức năng** GVCN khóa / mở khóa tài khoản học sinh, học sinh rời lớp / chuyển lớp, chuyển quỹ cho giáo viên khác (2026-11-09): bỏ FR-28; PD-03, PD-04, PD-05 đóng; không thuộc module nào. **Vẫn giữ** trạng thái tài khoản *Bị khóa* (`User.IsDisabled`) và mọi hành vi đi kèm: đăng nhập → `auth.account_disabled`, phiên đang mở → 401, hiển thị "Bị khóa" ở G-02 (M3), không phân công làm thủ quỹ được (`treasurer.account_disabled`, M4). Ứng dụng không có nút khóa / mở; khóa / mở bằng lệnh server `disable-account` / `enable-account` của người vận hành (TD-88 – CLI chưa có module) | Đóng PD-03 → PD-05, bỏ FR-28 | Đã chốt |
 
 ### 1c. Đối chiếu D-11 (yêu cầu của PO)
 
@@ -66,9 +67,9 @@ PO duyệt cả 4 đề xuất (tài khoản học sinh, phụ huynh, thủ qu�
 |---|---|---|---|
 | PD-01 | Đăng ký giáo viên **chưa xác minh email**: người khác có thể đăng ký trước bằng email của một phụ huynh → GVCN không tạo được tài khoản phụ huynh cho email đó (`parent.email_in_use`) | Chấp nhận rủi ro, ghi nhận | Thêm xác minh email khi có Email Service |
 | PD-02 | Phụ huynh quên mật khẩu | Chỉ người vận hành (`reset-password`); GVCN **không** đặt lại được vì phụ huynh có thể thuộc quỹ của giáo viên khác | GVCN của học sinh liên kết được đặt lại khi tài khoản chưa kích hoạt |
-| PD-03 | GVCN khóa / mở khóa tài khoản học sinh | Chưa có trong ứng dụng (chỉ lệnh server) | Thêm thao tác trên Chi tiết học sinh |
-| PD-04 | Học sinh rời lớp / chuyển lớp | Chưa có; không xóa học sinh | Đánh dấu "đã rời", thu hồi thủ quỹ, khóa tài khoản |
-| PD-05 | Chuyển quỹ cho giáo viên khác (đổi GVCN) | Chưa có | Lệnh vận hành hoặc màn hình chuyển giao |
+| PD-03 | ~~GVCN khóa / mở khóa tài khoản học sinh~~ *(Đóng 2026-11-09 – D-41: không làm)* | Chưa có trong ứng dụng (chỉ lệnh server) | Thêm thao tác trên Chi tiết học sinh |
+| PD-04 | ~~Học sinh rời lớp / chuyển lớp~~ *(Đóng 2026-11-09 – D-41: không làm)* | Chưa có; không xóa học sinh | Đánh dấu "đã rời", thu hồi thủ quỹ, khóa tài khoản |
+| PD-05 | ~~Chuyển quỹ cho giáo viên khác (đổi GVCN)~~ *(Đóng 2026-11-09 – D-41: không làm)* | Chưa có | Lệnh vận hành hoặc màn hình chuyển giao |
 | PD-06 | Thu hồi thủ quỹ khi tài khoản học sinh đó bị khóa / đặt lại mật khẩu (thủ quỹ "tạm không hoạt động") | Phân công vẫn còn; học sinh không thao tác được tới khi đổi mật khẩu / mở khóa; quy tắc thủ quỹ cuối cùng chỉ đếm phân công | Đếm cả trạng thái tài khoản như BR-19 cũ |
 
 ## 2. Quyết định tạm – áp dụng phương án đề xuất, chờ PO xác nhận
@@ -139,3 +140,4 @@ B2 không nói rõ. Đang **không** hiện lý do / người hủy cho phụ hu
 | 2026-11-05 | v2.1 – thêm D-34 (đăng nhập không chọn vai trò), D-35 (xóa mã nguồn); trạng thái D-24 → D-33 → Not Implemented |
 | 2026-11-05 | v2.2 – thêm D-36; D-30 không áp dụng |
 | 2026-11-09 | v2.3 – thêm D-37 (Desktop Web only), D-38 (ClassFund), D-39 (đưa backend về Foundation, làm theo module), D-40 (quy ước API chung); D-35 kết thúc |
+| 2026-11-09 | v2.4 – thêm D-41: bỏ chức năng khóa học sinh, rời lớp, chuyển quỹ (FR-28); đóng PD-03 → PD-05 |

@@ -1,6 +1,6 @@
 # Thao tác dữ liệu
 
-> 2.0 · 2026-11-05: dòng "(v1.1 / v1.2)" về thành viên là thiết kế cũ **không dùng**; các dòng "2.0" là thiết kế hiện hành. Schema đã có (Foundation); các thao tác dưới đây **Not Implemented**, làm cùng module tương ứng: tài khoản / mật khẩu → M1, quỹ → M2, học sinh / phụ huynh → M3, thủ quỹ → M4, danh mục → M5, giao dịch → M6 ([module-plan.md](../implementation/module-plan.md)). Dòng "Thêm thành viên / Khóa / mở / Đặt lại mật khẩu thành viên / Đổi vai trò" là thiết kế v1.1 / v1.2 **không dùng** (khóa / mở: PD-03). Đoạn "Đồng thời" cuối file về SERIALIZABLE là thiết kế v1.2; thiết kế hiện hành dùng khóa dòng `Fund` (DD-19, TD-85).
+> 2.0 · 2026-11-05: dòng "(v1.1 / v1.2)" về thành viên là thiết kế cũ **không dùng**; các dòng "2.0" là thiết kế hiện hành. Schema đã có (Foundation); các thao tác dưới đây **Not Implemented**, làm cùng module tương ứng: tài khoản / mật khẩu → M1, quỹ → M2, học sinh / phụ huynh → M3, thủ quỹ → M4, danh mục → M5, giao dịch → M6 ([module-plan.md](../implementation/module-plan.md)). Dòng "Thêm thành viên / Khóa / mở / Đặt lại mật khẩu thành viên / Đổi vai trò" là thiết kế v1.1 / v1.2 **không dùng** (khóa / mở: không có chức năng – D-41). Đoạn "Đồng thời" cuối file về SERIALIZABLE là thiết kế v1.2; thiết kế hiện hành dùng khóa dòng `Fund` (DD-19, TD-85).
 
 | Thao tác | Ghi DB | Ghi chú |
 |---|---|---|
