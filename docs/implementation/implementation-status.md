@@ -22,7 +22,7 @@ Giai đoạn hiện tại: Foundation xong → triển khai **từng module tr�
 |---|---|---|---|---|
 | M0 Foundation | Khung ứng dụng, X-01 | NFR-01, NFR-04, NFR-07, NFR-10 | **Implemented** – chờ review / merge | `feature/foundation` |
 | M1 Auth & Tài khoản (Quỳnh, đợt 1) | A-01 → A-04 | FR-20, FR-13, FR-21 | **Implemented** – chờ review / merge | `feature/m1-auth` |
-| M2 Quỹ (Dev B, đợt 1) | G-01, G-04 | FR-22, FR-23, FR-11 | Not Implemented | – |
+| M2 Quỹ (Dev B, đợt 1) | G-01, G-04 | FR-22, FR-23, FR-11 | **Implemented** – chờ review / merge | `feature/m2-funds` |
 | M3 Học sinh & Phụ huynh (Dev A, đợt 2) | G-02 | FR-24 → FR-26 | Not Implemented | – |
 | M4 Phân công thủ quỹ (Dev A, đợt 3) | G-03 | FR-27 | Not Implemented | – |
 | M5 Danh mục & Thành viên (Dev B, đợt 2) | T-02, T-03 | FR-10, FR-12 | Not Implemented | – |
@@ -50,6 +50,7 @@ Lịch sử triển khai backend trước khi đưa về codebase: [backend-prog
 
 | Ngày | Phạm vi | Kết quả | Môi trường |
 |---|---|---|---|
+| 2026-11-10 | **M2 Quỹ** (nhánh `feature/m2-funds`, rebase trên `main` có M1): `GET/POST /funds`, `PUT /funds/{fundId}`, G-01, G-04 | Build 0 warning / 0 error · Backend **Unit 132 / 132** · **Integration 51 / 51** (M2: 16; snapshot `Funds.json`) · Frontend **Unit 66 / 66** · **E2E mock 38 / 38** (M2: 9) · **E2E full 7 / 7** (M2: đăng ký → tạo 2 quỹ → đổi tên) · `ng build` đạt | .NET SDK 10, PostgreSQL 16 (Testcontainers + docker compose), Chrome |
 | 2026-11-10 | **M1 Auth & Tài khoản** (nhánh `feature/m1-auth`) | Build 0 warning / 0 error · Backend **Unit 116 / 116** · **Integration 35 / 35** (snapshot `Auth.json`) · Frontend **Unit 54 / 54** · **E2E mock 29 / 29** · **E2E full 6 / 6** · `ng build` đạt | .NET SDK 10, PostgreSQL 16 (Testcontainers + docker compose), Chrome |
 | 2026-11-09 | **Foundation** sau khi đưa backend về codebase (nhánh `feature/foundation`) | Build 0 warning / 0 error · Backend **Unit 102 / 102** · **Integration 19 / 19** · Frontend **Unit 42 / 42** · **E2E mock 9 / 9** · **E2E full 3 / 3** (FE + BE + PostgreSQL docker) · `ng build` đạt | .NET SDK 10, PostgreSQL 16 (Testcontainers + docker compose), Chrome |
 | 2026-11-05 | Backend Foundation + Domain + AccessService | Build 0 warning / 0 error · Unit 50 / 50 | .NET SDK 10.0.403 |
@@ -92,3 +93,4 @@ Danh sách test case R3 và tên test tương ứng: [test-cases.md](../testing/
 | 2026-11-10 | Foundation UI khớp Canvas v4.0 (nhánh `feature/foundation-ui-polish`): AppHeader (logo, tên quỹ + Đổi quỹ, nhãn vai trò, dòng vai trò dưới tên, ▾); header / menu ở trang ngoài quỹ (Tài khoản, 403, 404) hiện quỹ mở gần nhất (`CurrentFund.context`); AppNav 44 px; control Kendo medium 40 px / small 32 px, nhãn 13 px đậm, gợi ý không nghiêng, nút phụ nền trắng; `.cf-alert` padding 10 / 12 px. E2E mock 14 / 14 |
 | 2026-11-10 | Sửa Foundation UI (nhánh `fix/foundation-kendo-sizes`): Kendo 23 không gắn `.k-input-md` / `.k-button-md` / `.k-button-solid` / `.k-button-base` với giá trị mặc định nên style kích thước chưa áp vào component thật; chọn lại theo `.k-input`, `.k-picker`, `.k-button`. Thêm `shared/styles/kendo-sizes.spec.ts` dựng component Kendo thật. Frontend unit 45 / 45 · E2E mock 14 / 14 |
 | 2026-11-10 | **M1 Auth & Tài khoản**: `POST /auth/register-teacher`, `/auth/login`, `/auth/logout`, `GET` / `PUT /auth/me`, `POST /auth/change-password`; màn A-01 → A-04; helper e2e `registerTeacher()` / `login()` |
+| 2026-11-10 | **M2 Quỹ** (nhánh `feature/m2-funds`): `FundsController` / `FundsService` (danh sách quỹ theo vai trò, tạo quỹ + 6 danh mục mặc định, đổi tên + AuditLog `Fund.Create` / `Fund.Rename`); G-01 Quỹ của tôi / Quỹ của con + dialog tạo quỹ, G-04 Thông tin quỹ (khớp Canvas, so bằng Playwright MCP); sau tạo / đổi tên gọi `restoreSession()` để header cập nhật |
