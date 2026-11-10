@@ -147,7 +147,7 @@ a:hover {
 
 // Thông báo trong trang (banner): role="status" cho cảnh báo, role="alert" cho lỗi.
 .cf-alert {
-  padding: 12px 16px;
+  padding: 10px 12px;
   border-radius: var(--cf-radius-md);
   background: var(--cf-primary-tint);
   color: var(--cf-primary-dark);
@@ -181,4 +181,59 @@ a:hover {
 :focus-visible {
   outline: 2px solid var(--cf-primary);
   outline-offset: 2px;
+}
+
+// Kích thước Kendo theo design-system.md mục 6 và Canvas DS-02: control medium 40 px, small 32 px.
+// Nhãn 13 px đậm; gợi ý / lỗi chữ thẳng 12 px; nút phụ nền trắng có viền (board DSComponents, Account).
+.k-input-md,
+.k-picker-md {
+  min-height: 40px;
+}
+
+.k-input-sm,
+.k-picker-sm {
+  min-height: 32px;
+}
+
+.k-button-md {
+  min-height: 40px;
+  padding-inline: 16px;
+}
+
+.k-button-sm {
+  min-height: 32px;
+}
+
+.k-input,
+.k-picker {
+  border-color: var(--cf-border-strong);
+}
+
+.k-button-solid.k-button-primary {
+  font-weight: 600;
+}
+
+.k-button-solid.k-button-base {
+  border-color: var(--cf-border-strong);
+  background-color: var(--cf-surface);
+  font-weight: 500;
+
+  &:hover {
+    background-color: var(--cf-background);
+  }
+}
+
+.k-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.k-form-hint,
+.k-form-error {
+  font-size: 12px;
+  font-style: normal;
+}
+
+.k-form-hint {
+  color: var(--cf-text-muted);
 }

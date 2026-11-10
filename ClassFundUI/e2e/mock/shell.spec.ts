@@ -90,3 +90,44 @@ test('cửa sổ hẹp hơn 1280px giữ layout desktop và cuộn ngang', async
   const width = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(width).toBeGreaterThanOrEqual(1280);
 });
+
+test('AppHeader theo Canvas: logo, tên quỹ + Đổi quỹ, nhãn vai trò, dòng vai trò dưới tên', async ({ page }) => {
+  await signInAs(page, TEACHER);
+  await page.goto(`/funds/${FUND}`);
+  const header = page.locator('app-header');
+  await expect(header.getByRole('link', { name: /Quỹ lớp 5A · Đổi quỹ/ })).toBeVisible();
+  await expect(header.getByText('GVCN', { exact: true })).toBeVisible();
+  await expect(header.getByText('Giáo viên chủ nhiệm')).toBeVisible();
+});
+
+test('trang ngoài quỹ (Tài khoản) vẫn hiện quỹ đang dùng ở header và menu', async ({ page }) => {
+  await signInAs(page, PARENT);
+  await page.goto('/account');
+  await expect(page.locator('app-header')).toContainText('Quỹ lớp 5A');
+  await expect(page.locator('app-header')).toContainText('Phụ huynh em Phạm Gia Huy');
+  const nav = page.getByRole('navigation', { name: 'Điều hướng chính' });
+  await expect(nav.getByRole('link', { name: 'Tổng quan' })).toBeVisible();
+  await expect(nav.getByText('Phụ huynh · chỉ xem dữ liệu công khai.')).toBeVisible();
+});
+
+test('Quỹ của tôi (/funds) không gắn quỹ nào', async ({ page }) => {
+  await signInAs(page, TEACHER);
+  await page.goto('/funds');
+  await expect(page.locator('app-header')).not.toContainText('Quỹ lớp 5A');
+  await expect(page.getByRole('navigation', { name: 'Điều hướng chính' }).getByRole('link', { name: 'Tổng quan' })).toHaveCount(0);
+});
+
+test('control Kendo medium cao 40 px, banner padding 10/12 px (design-system mục 6)', async ({ page }) => {
+  await signInAs(page, TEACHER);
+  await page.goto('/funds');
+  const sizes = await page.evaluate(() => {
+    const host = document.createElement('div');
+    host.innerHTML = '<span class="k-input k-input-md"><input class="k-input-inner"></span><button class="k-button k-button-md k-button-solid k-button-base">x</button><div class="cf-alert">x</div>';
+    document.body.appendChild(host);
+    const [input, button, alert] = Array.from(host.children) as HTMLElement[];
+    return { input: input.offsetHeight, button: button.offsetHeight, padding: getComputedStyle(alert).padding };
+  });
+  expect(sizes.input).toBeGreaterThanOrEqual(40);
+  expect(sizes.button).toBeGreaterThanOrEqual(40);
+  expect(sizes.padding).toBe('10px 12px');
+});
