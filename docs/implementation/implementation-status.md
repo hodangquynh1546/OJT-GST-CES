@@ -1,13 +1,13 @@
 # Trạng thái triển khai
 
-> Cập nhật: 2026-11-09 · Tài liệu này là nguồn duy nhất về **trạng thái triển khai**. Các tài liệu khác ghi trạng thái theo đây. Chuẩn tài liệu: [docs/README.md](../README.md).
+> Cập nhật: 2026-11-10 · Tài liệu này là nguồn duy nhất về **trạng thái triển khai**. Các tài liệu khác ghi trạng thái theo đây. Chuẩn tài liệu: [docs/README.md](../README.md).
 
 ## 1. Hiện trạng
 
 | Hạng mục | Trạng thái | Ghi chú |
 |---|---|---|
 | **Foundation Backend** | **Implemented** (nhánh `feature/foundation`) | `ClassFundAPI`: 4 tầng, pipeline (CorrelationId → xác thực → CurrentUser → `[RequirePermission]`), ProblemDetails + mã lỗi, validation, antiforgery, mật khẩu tạm, phân trang (`PageRequest`), `ApiControllerBase` / `ApiRoutes`, tự đăng ký service module (`FeatureRegistration`), Swagger hợp đồng chặt, `AccessService`, `AuditTrail`, Domain đầy đủ. Quy ước: [api-conventions.md](../api/api-conventions.md) |
-| Backend nghiệp vụ (M1 → M7) | **Not Implemented** – đưa về codebase 2026-11-09 | Mã cũ (đã code xong, 302 unit / 92 integration) bỏ khỏi nhánh, **tham khảo** tại commit `6b6645d` của `main`. Làm lại theo module: [module-plan.md](module-plan.md) |
+| Backend nghiệp vụ (M1 → M7) | **M1 Implemented**; M2 → M7 Not Implemented – đưa về codebase 2026-11-09 | Mã cũ (đã code xong, 302 unit / 92 integration) bỏ khỏi nhánh, **tham khảo** tại commit `6b6645d` của `main`. Làm lại theo module: [module-plan.md](module-plan.md) |
 | **Foundation Frontend** | **Implemented** | `ClassFundUI`: shell (header, nav 232 px), guard, interceptor, `ApiError`, `CurrentFund`, `ConfirmDialog`, `AppNotifications`, `app-state`, `page-header`, `applyServerErrors`, `LoadState`, tiện ích ngày / query / mã lỗi, token Design System → Kendo, route giữ chỗ cho mọi module. Màn hình nghiệp vụ là trang giữ chỗ |
 | Database / migration | **Implemented** (schema, thuộc Foundation) | Migration `InitialClassFund` + `AddDatabaseProtections`: 8 bảng, ràng buộc, index, trigger. Dev: `docker-compose.yml` (PostgreSQL 16) tạo `migrator_user` / `app_user` |
 | Test tự động | **Foundation** | Backend: Unit 102 · Integration 19 (`FoundationTests`, `ApiContractTests` – snapshot hợp đồng theo module). Frontend: Unit 42 · E2E mock 9 · E2E full 3 (FE + BE + DB thật). Test nghiệp vụ `test-cases.md` mục A: Not Implemented (viết lại theo module) |
@@ -21,7 +21,7 @@ Giai đoạn hiện tại: Foundation xong → triển khai **từng module tr�
 | Module | Màn hình | Yêu cầu | Trạng thái | Nhánh / PR |
 |---|---|---|---|---|
 | M0 Foundation | Khung ứng dụng, X-01 | NFR-01, NFR-04, NFR-07, NFR-10 | **Implemented** – chờ review / merge | `feature/foundation` |
-| M1 Auth & Tài khoản (Dev A, đợt 1) | A-01 → A-04 | FR-20, FR-13, FR-21 | Not Implemented | – |
+| M1 Auth & Tài khoản (Quỳnh, đợt 1) | A-01 → A-04 | FR-20, FR-13, FR-21 | **Implemented** – chờ review / merge | `feature/m1-auth` |
 | M2 Quỹ (Dev B, đợt 1) | G-01, G-04 | FR-22, FR-23, FR-11 | Not Implemented | – |
 | M3 Học sinh & Phụ huynh (Dev A, đợt 2) | G-02 | FR-24 → FR-26 | Not Implemented | – |
 | M4 Phân công thủ quỹ (Dev A, đợt 3) | G-03 | FR-27 | Not Implemented | – |
@@ -50,6 +50,7 @@ Lịch sử triển khai backend trước khi đưa về codebase: [backend-prog
 
 | Ngày | Phạm vi | Kết quả | Môi trường |
 |---|---|---|---|
+| 2026-11-10 | **M1 Auth & Tài khoản** (nhánh `feature/m1-auth`) | Build 0 warning / 0 error · Backend **Unit 116 / 116** · **Integration 35 / 35** (snapshot `Auth.json`) · Frontend **Unit 54 / 54** · **E2E mock 29 / 29** · **E2E full 6 / 6** · `ng build` đạt | .NET SDK 10, PostgreSQL 16 (Testcontainers + docker compose), Chrome |
 | 2026-11-09 | **Foundation** sau khi đưa backend về codebase (nhánh `feature/foundation`) | Build 0 warning / 0 error · Backend **Unit 102 / 102** · **Integration 19 / 19** · Frontend **Unit 42 / 42** · **E2E mock 9 / 9** · **E2E full 3 / 3** (FE + BE + PostgreSQL docker) · `ng build` đạt | .NET SDK 10, PostgreSQL 16 (Testcontainers + docker compose), Chrome |
 | 2026-11-05 | Backend Foundation + Domain + AccessService | Build 0 warning / 0 error · Unit 50 / 50 | .NET SDK 10.0.403 |
 | 2026-11-05 | Frontend Foundation | Unit 29 / 29 · E2E 9 / 9 (`/auth/me` giả lập) | Chrome |
@@ -90,3 +91,4 @@ Danh sách test case R3 và tên test tương ứng: [test-cases.md](../testing/
 | 2026-11-09 | Bỏ chức năng khóa / mở khóa học sinh, rời lớp, chuyển quỹ (FR-28, D-41; đóng PD-03 → PD-05) |
 | 2026-11-10 | Foundation UI khớp Canvas v4.0 (nhánh `feature/foundation-ui-polish`): AppHeader (logo, tên quỹ + Đổi quỹ, nhãn vai trò, dòng vai trò dưới tên, ▾); header / menu ở trang ngoài quỹ (Tài khoản, 403, 404) hiện quỹ mở gần nhất (`CurrentFund.context`); AppNav 44 px; control Kendo medium 40 px / small 32 px, nhãn 13 px đậm, gợi ý không nghiêng, nút phụ nền trắng; `.cf-alert` padding 10 / 12 px. E2E mock 14 / 14 |
 | 2026-11-10 | Sửa Foundation UI (nhánh `fix/foundation-kendo-sizes`): Kendo 23 không gắn `.k-input-md` / `.k-button-md` / `.k-button-solid` / `.k-button-base` với giá trị mặc định nên style kích thước chưa áp vào component thật; chọn lại theo `.k-input`, `.k-picker`, `.k-button`. Thêm `shared/styles/kendo-sizes.spec.ts` dựng component Kendo thật. Frontend unit 45 / 45 · E2E mock 14 / 14 |
+| 2026-11-10 | **M1 Auth & Tài khoản**: `POST /auth/register-teacher`, `/auth/login`, `/auth/logout`, `GET` / `PUT /auth/me`, `POST /auth/change-password`; màn A-01 → A-04; helper e2e `registerTeacher()` / `login()` |

@@ -45,9 +45,9 @@ Cột vai trò: **G** = GVCN · **T** = Thủ quỹ · **H** = Học sinh chưa 
 
 | Mã | Yêu cầu | G | T | H | P | Module | Trạng thái |
 |---|---|---|---|---|---|---|---|
-| FR-20 | **Đăng ký giáo viên**: họ tên, email (duy nhất), mật khẩu, xác nhận; đăng nhập luôn sau khi đăng ký | – | – | – | – | M1 | Not Implemented |
-| FR-13 | **Đăng nhập** bằng một ô "Email hoặc tên đăng nhập" (email: giáo viên, phụ huynh; tên đăng nhập: học sinh) – **không chọn vai trò**, vai trò do hệ thống xác định; sai → thông báo chung; đúng nhưng bị khóa → "liên hệ giáo viên chủ nhiệm". Đăng xuất, đổi mật khẩu; **bắt buộc đổi mật khẩu tạm** trước khi dùng chức năng khác (403 `password.change_required`) | ✔ | ✔ | ✔ | ✔ | M1 | Not Implemented |
-| FR-21 | **Tài khoản cá nhân**: xem thông tin, đổi họ tên (`PUT /auth/me`) | ✔ | ✔ | ✔ | ✔ | M1 | Not Implemented |
+| FR-20 | **Đăng ký giáo viên**: họ tên, email (duy nhất), mật khẩu, xác nhận; đăng nhập luôn sau khi đăng ký | – | – | – | – | M1 | Implemented |
+| FR-13 | **Đăng nhập** bằng một ô "Email hoặc tên đăng nhập" (email: giáo viên, phụ huynh; tên đăng nhập: học sinh) – **không chọn vai trò**, vai trò do hệ thống xác định; sai → thông báo chung; đúng nhưng bị khóa → "liên hệ giáo viên chủ nhiệm". Đăng xuất, đổi mật khẩu; **bắt buộc đổi mật khẩu tạm** trước khi dùng chức năng khác (403 `password.change_required`) | ✔ | ✔ | ✔ | ✔ | M1 | Implemented |
+| FR-21 | **Tài khoản cá nhân**: xem thông tin, đổi họ tên (`PUT /auth/me`) | ✔ | ✔ | ✔ | ✔ | M1 | Implemented |
 | FR-22 | **Quỹ của tôi**: danh sách quỹ kèm vai trò; GVCN thấy thêm số học sinh, tên thủ quỹ, trạng thái "Chưa phân công / Đã có thủ quỹ"; phụ huynh thấy tên con | ✔ | ✔ | ✔ | ✔ | M2 | Not Implemented |
 | FR-23 | **Tạo quỹ** (chỉ giáo viên): tên quỹ → quỹ mới + danh mục mặc định, chưa có thủ quỹ | ✔ | – | – | – | M2 | Not Implemented |
 | FR-11 | **Thông tin quỹ**: đổi tên quỹ | ✔ | – | – | – | M2 | Not Implemented |
@@ -107,3 +107,4 @@ Cột vai trò: **G** = GVCN · **T** = Thủ quỹ · **H** = Học sinh chưa 
 | 2026-11-06 | 2.5 | Cột Trạng thái: FR-27 → Partially Implemented (Backend) | Triển khai Phân công thủ quỹ (chưa có UI) |
 | 2026-11-09 | 2.6 | Backend đưa về codebase Foundation: cột Trạng thái → Not Implemented; thêm cột Module; NFR-06 → Desktop Web (D-37) | D-39 (làm theo module), D-37 |
 | 2026-11-09 | 2.7 | Bỏ FR-28 (khóa / mở khóa học sinh, học sinh rời lớp, chuyển quỹ) | D-41 |
+| 2026-11-10 | 2.8 | Cột Trạng thái: FR-20, FR-13, FR-21 → Implemented | M1 Auth & Tài khoản |
