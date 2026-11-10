@@ -33,11 +33,11 @@ import { ROLE_DISPLAY } from './role-display';
     .nav {
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 4px;
       box-sizing: border-box;
       width: var(--cf-nav-width);
       height: 100%;
-      padding: 12px 8px;
+      padding: 16px 12px;
       border-right: 1px solid var(--cf-border);
       background: var(--cf-surface);
     }
@@ -45,8 +45,8 @@ import { ROLE_DISPLAY } from './role-display';
       display: flex;
       align-items: center;
       gap: 10px;
-      min-height: 40px;
-      padding: 0 10px;
+      min-height: 44px;
+      padding: 0 12px;
       border-radius: var(--cf-radius-md);
       color: var(--cf-text);
       text-decoration: none;
@@ -66,16 +66,18 @@ import { ROLE_DISPLAY } from './role-display';
     }
     svg {
       flex: none;
-      width: 20px;
-      height: 20px;
+      width: 18px;
+      height: 18px;
       fill: none;
       stroke: currentColor;
       stroke-linecap: round;
       stroke-linejoin: round;
-      stroke-width: 1.8;
+      stroke-width: 2;
     }
     .footnote {
-      margin: auto 10px 4px;
+      margin: auto 0 0;
+      padding: 12px;
+      border-top: 1px solid var(--cf-subtle);
       color: var(--cf-text-muted);
       font-size: 12px;
       line-height: 16px;
@@ -91,15 +93,15 @@ export class AppNav {
     return user
       ? buildNavItems({
           kind: user.kind,
-          fundId: this.currentFund.membership()?.fundId ?? null,
-          role: this.currentFund.membership()?.role ?? null,
-          permissions: this.currentFund.permissions(),
+          fundId: this.currentFund.context()?.fundId ?? null,
+          role: this.currentFund.context()?.role ?? null,
+          permissions: this.currentFund.context()?.permissions ?? [],
         })
       : [];
   });
 
   protected readonly footnote = computed(() => {
-    const role = this.currentFund.membership()?.role;
+    const role = this.currentFund.context()?.role;
     return role ? ROLE_DISPLAY[role].footnote : null;
   });
 }
