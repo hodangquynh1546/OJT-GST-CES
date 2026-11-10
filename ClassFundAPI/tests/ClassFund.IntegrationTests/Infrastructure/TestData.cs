@@ -25,7 +25,7 @@ public sealed class TestData(ApiFactory factory)
         var ownerId = ownerUserId;
         if (ownerId is null)
         {
-            var owner = NewUser(scope, UserKind.Teacher, "Cô Hạnh", "Matkhau123", NewEmail(), null, false);
+            var owner = NewUser(scope, UserKind.Teacher, "Cô Hạnh", TeacherPassword, NewEmail(), null, false);
             db.Add(owner);
             ownerId = owner.Id;
         }
@@ -34,6 +34,24 @@ public sealed class TestData(ApiFactory factory)
         db.Add(fund);
         await db.SaveChangesAsync();
         return new SeededFund(fund.Id, fund.Name, ownerId.Value);
+    }
+
+    public const string TeacherPassword = "Matkhau123";
+
+    /// <summary>
+    /// Giáo viên (GVCN) tự đăng ký, <b>chưa có quỹ</b>: đã đặt mật khẩu (không còn mật khẩu tạm), đang hoạt động.
+    /// Đăng nhập trong test bằng <c>client.SignInAsAsync(teacher.UserId)</c>, hoặc bằng <c>Login</c> / <c>Password</c> khi đã có API đăng nhập (M1).
+    /// </summary>
+    public async Task<SeededAccount> CreateTeacherAsync(string fullName = "Cô Hạnh", string password = TeacherPassword)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var email = NewEmail();
+        var teacher = NewUser(scope, UserKind.Teacher, fullName, password, email, null, mustChangePassword: false);
+        db.Add(teacher);
+        await db.SaveChangesAsync();
+        return new SeededAccount(teacher.Id, email, password, null);
     }
 
     /// <summary>Học sinh đã được GVCN cấp tài khoản (mật khẩu tạm, chưa kích hoạt).</summary>

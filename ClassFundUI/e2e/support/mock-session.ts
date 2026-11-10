@@ -10,21 +10,41 @@ export const TEACHER_PERMISSIONS = ['Fund.View', 'Ledger.ViewFull', 'Fund.Manage
 export const TREASURER_PERMISSIONS = ['Fund.View', 'Ledger.ViewFull', 'Member.View', 'Transaction.Manage', 'Category.Manage'];
 export const PUBLIC_PERMISSIONS = ['Fund.View', 'Ledger.ViewPublic'];
 
-export function user(kind: string, role: string, permissions: string[], mustChangePassword = false) {
+export interface MockMembership {
+  fundId: string;
+  fundName: string;
+  role: string;
+  permissions: string[];
+  linkedStudents?: string[];
+}
+
+/** Người dùng giả cho GET /auth/me (hợp đồng: docs/api/backend-api.md – Auth). Mặc định là thành viên của quỹ `FUND`. */
+export function user(
+  kind: string,
+  role: string,
+  permissions: string[],
+  mustChangePassword = false,
+  memberships: MockMembership[] = [{ fundId: FUND, fundName: 'Quỹ lớp 5A', role, permissions }],
+) {
   return {
     id: 'u1',
     kind,
     fullName: 'Nguyễn Minh Khang',
     mustChangePassword,
     accountPermissions: kind === 'Teacher' ? ['Fund.Create'] : [],
-    memberships: [{ fundId: FUND, fundName: 'Quỹ lớp 5A', role, permissions }],
+    memberships,
   };
 }
 
 export const TEACHER = user('Teacher', 'Teacher', TEACHER_PERMISSIONS);
+/** GVCN vừa đăng ký, chưa có quỹ nào (G-01 trống, chỉ có "+ Tạo quỹ"). */
+export const TEACHER_NO_FUND = user('Teacher', 'Teacher', TEACHER_PERMISSIONS, false, []);
 export const TREASURER = user('Student', 'Treasurer', TREASURER_PERMISSIONS);
 export const STUDENT = user('Student', 'Student', PUBLIC_PERMISSIONS);
-export const PARENT = user('Parent', 'Parent', PUBLIC_PERMISSIONS);
+/** Phụ huynh có con trong quỹ `FUND` ("Quỹ của con"). */
+export const PARENT = user('Parent', 'Parent', PUBLIC_PERMISSIONS, false, [
+  { fundId: FUND, fundName: 'Quỹ lớp 5A', role: 'Parent', permissions: PUBLIC_PERMISSIONS, linkedStudents: ['Phạm Gia Huy'] },
+]);
 
 /** Giả lập GET /auth/me (null = chưa đăng nhập → 401). */
 export async function signInAs(page: Page, me: object | null): Promise<void> {

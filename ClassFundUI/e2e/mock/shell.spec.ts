@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { FUND, PARENT, TEACHER, TREASURER, signInAs, user } from '../support/mock-session';
+import { FUND, PARENT, TEACHER, TEACHER_NO_FUND, TREASURER, signInAs, user } from '../support/mock-session';
 
 /** Khung ứng dụng (header, menu, guard) – API giả lập. */
 test('chưa đăng nhập bị chuyển về trang đăng nhập', async ({ page }) => {
@@ -54,6 +54,14 @@ test('thiếu quyền vào trang 403', async ({ page }) => {
 test('quỹ không thuộc mình vào trang 404', async ({ page }) => {
   await signInAs(page, TEACHER);
   await page.goto('/funds/019a0000-0000-7000-8000-00000000ffff');
+  await expect(page.getByText('Không tìm thấy trang')).toBeVisible();
+});
+
+test('GVCN chưa có quỹ: trang chính là /funds, mở quỹ bất kỳ → 404', async ({ page }) => {
+  await signInAs(page, TEACHER_NO_FUND);
+  await page.goto('/');
+  await expect(page).toHaveURL(/\/funds$/);
+  await page.goto(`/funds/${FUND}`);
   await expect(page.getByText('Không tìm thấy trang')).toBeVisible();
 });
 
