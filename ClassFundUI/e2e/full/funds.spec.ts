@@ -1,21 +1,13 @@
 import { expect, test } from '@playwright/test';
 
-import { RealApi, isFullE2E, unique } from '../support/real-api';
+import { RealApi, isFullE2E, registerTeacher } from '../support/real-api';
 
-/**
- * M2 – luồng thật FE + BE + DB (module-plan.md M2: "GVCN đăng ký → tạo 2 quỹ → đổi tên").
- * Cần `POST /auth/register-teacher` của M1: bỏ `fixme` khi M1 đã merge (foundation-guide.md mục 4).
- */
+/** M2 – luồng thật FE + BE + PostgreSQL (module-plan.md M2): GVCN đăng ký (M1) → tạo 2 quỹ trên G-01 → đổi tên ở G-04. */
 test.skip(!isFullE2E, 'Chỉ chạy khi E2E_FULL=1 (cần backend + DB, xem docs/architecture/foundation-guide.md)');
 
-test.fixme('GVCN đăng ký → tạo 2 quỹ trên G-01 → đổi tên ở G-04 → header cập nhật', async ({ page }) => {
-  const password = 'Matkhau123';
-  await new RealApi(page.request).post('/auth/register-teacher', {
-    fullName: 'Cô Hạnh',
-    email: `${unique('gv')}@example.vn`,
-    password,
-    confirmPassword: password,
-  });
+test('GVCN đăng ký → tạo 2 quỹ trên G-01 → đổi tên ở G-04 → header và danh sách cập nhật', async ({ page }) => {
+  // Cookie phiên dùng chung giữa page.request và trang → trang đã đăng nhập bằng GVCN mới.
+  await registerTeacher(new RealApi(page.request), 'Cô Hạnh M2');
 
   await page.goto('/funds');
   await expect(page.getByText('Bạn chưa có quỹ nào')).toBeVisible();
@@ -26,16 +18,22 @@ test.fixme('GVCN đăng ký → tạo 2 quỹ trên G-01 → đổi tên ở G-0
     await dialog.getByRole('textbox', { name: 'Tên quỹ *' }).fill(name);
     await dialog.getByRole('button', { name: 'Tạo quỹ', exact: true }).click();
     await expect(dialog).toBeHidden();
-    await expect(page.getByRole('link', { name: new RegExp(name) })).toContainText('Chưa phân công thủ quỹ');
+    const card = page.getByRole('link', { name: new RegExp(name) });
+    await expect(card).toContainText('Chưa phân công thủ quỹ');
+    await expect(card).toContainText('0 học sinh');
+    await expect(card).toContainText('0 đ');
   }
   await expect(page.getByText('Các quỹ bạn là giáo viên chủ nhiệm · 2 quỹ')).toBeVisible();
 
-  const card = page.getByRole('link', { name: /Quỹ lớp 5A/ });
-  const fundId = (await card.getAttribute('href'))!.split('/')[2];
+  const fundId = (await page.getByRole('link', { name: /Quỹ lớp 5A/ }).getAttribute('href'))!.split('/')[2];
   await page.goto(`/funds/${fundId}/settings`);
   const form = page.getByRole('form', { name: 'Thông tin quỹ' });
+  await expect(form).toContainText('Cô Hạnh M2 (bạn)');
   await form.getByRole('textbox', { name: 'Tên quỹ *' }).fill('Quỹ lớp 5A – 2026');
   await form.getByRole('button', { name: 'Lưu' }).click();
   await expect(page.getByText('Đã đổi tên quỹ.')).toBeVisible();
   await expect(page.locator('app-header')).toContainText('Quỹ lớp 5A – 2026');
+
+  await page.goto('/funds');
+  await expect(page.getByRole('link', { name: /Quỹ lớp 5A – 2026/ })).toBeVisible();
 });

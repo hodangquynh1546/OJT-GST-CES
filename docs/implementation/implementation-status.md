@@ -22,7 +22,7 @@ Giai đoạn hiện tại: Foundation xong → triển khai **từng module tr�
 |---|---|---|---|---|
 | M0 Foundation | Khung ứng dụng, X-01 | NFR-01, NFR-04, NFR-07, NFR-10 | **Implemented** – chờ review / merge | `feature/foundation` |
 | M1 Auth & Tài khoản (Quỳnh, đợt 1) | A-01 → A-04 | FR-20, FR-13, FR-21 | **Implemented** – chờ review / merge | `feature/m1-auth` |
-| M2 Quỹ (Dev B, đợt 1) | G-01, G-04 | FR-22, FR-23, FR-11 | **Implemented** – chờ review / merge; e2e full viết sẵn (`test.fixme`), chạy khi M1 merge | `feature/m2-funds` |
+| M2 Quỹ (Dev B, đợt 1) | G-01, G-04 | FR-22, FR-23, FR-11 | **Implemented** – chờ review / merge | `feature/m2-funds` |
 | M3 Học sinh & Phụ huynh (Dev A, đợt 2) | G-02 | FR-24 → FR-26 | Not Implemented | – |
 | M4 Phân công thủ quỹ (Dev A, đợt 3) | G-03 | FR-27 | Not Implemented | – |
 | M5 Danh mục & Thành viên (Dev B, đợt 2) | T-02, T-03 | FR-10, FR-12 | Not Implemented | – |
@@ -50,7 +50,7 @@ Lịch sử triển khai backend trước khi đưa về codebase: [backend-prog
 
 | Ngày | Phạm vi | Kết quả | Môi trường |
 |---|---|---|---|
-| 2026-11-10 | **M2 Quỹ** (nhánh `feature/m2-funds`): `GET/POST /funds`, `PUT /funds/{fundId}`, G-01, G-04 | Build 0 warning / 0 error · Backend **Unit 118 / 118** · **Integration 36 / 36** (M2: 16) · snapshot `Contracts/snapshots/Funds.json` · Frontend **Unit 57 / 57** · **E2E mock 23 / 23** (M2: 9) · `ng build` đạt · E2E full M2 chưa chạy (cần `register-teacher` của M1) | .NET SDK 10, PostgreSQL 16 (Testcontainers), Chrome |
+| 2026-11-10 | **M2 Quỹ** (nhánh `feature/m2-funds`, rebase trên `main` có M1): `GET/POST /funds`, `PUT /funds/{fundId}`, G-01, G-04 | Build 0 warning / 0 error · Backend **Unit 132 / 132** · **Integration 51 / 51** (M2: 16; snapshot `Funds.json`) · Frontend **Unit 66 / 66** · **E2E mock 38 / 38** (M2: 9) · **E2E full 7 / 7** (M2: đăng ký → tạo 2 quỹ → đổi tên) · `ng build` đạt | .NET SDK 10, PostgreSQL 16 (Testcontainers + docker compose), Chrome |
 | 2026-11-10 | **M1 Auth & Tài khoản** (nhánh `feature/m1-auth`) | Build 0 warning / 0 error · Backend **Unit 116 / 116** · **Integration 35 / 35** (snapshot `Auth.json`) · Frontend **Unit 54 / 54** · **E2E mock 29 / 29** · **E2E full 6 / 6** · `ng build` đạt | .NET SDK 10, PostgreSQL 16 (Testcontainers + docker compose), Chrome |
 | 2026-11-09 | **Foundation** sau khi đưa backend về codebase (nhánh `feature/foundation`) | Build 0 warning / 0 error · Backend **Unit 102 / 102** · **Integration 19 / 19** · Frontend **Unit 42 / 42** · **E2E mock 9 / 9** · **E2E full 3 / 3** (FE + BE + PostgreSQL docker) · `ng build` đạt | .NET SDK 10, PostgreSQL 16 (Testcontainers + docker compose), Chrome |
 | 2026-11-05 | Backend Foundation + Domain + AccessService | Build 0 warning / 0 error · Unit 50 / 50 | .NET SDK 10.0.403 |
