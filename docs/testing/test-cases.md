@@ -12,6 +12,7 @@
 | Ngày | Phạm vi | Kết quả |
 |---|---|---|
 | 2026-11-09 | Foundation (M0) – `Foundation/FoundationTests`, `Contracts/ApiContractTests` + unit nền | Build 0 warning · Unit 102 / 102 · Integration 19 / 19 Passed · Frontend unit 42 / 42 · E2E mock 9 / 9 · E2E full 3 / 3 |
+| 2026-11-10 | M1 Auth & Tài khoản – `Auth/AuthTests`, `AuthServiceTests`, `auth.service.spec`, `e2e/mock/auth.spec`, `e2e/full/auth.spec` (T-01, T-02, S-03, S-04, G-03, G-05) | Build 0 warning · Unit 116 / 116 · Integration 35 / 35 · Frontend unit 54 / 54 · E2E mock 29 / 29 · E2E full 6 / 6 |
 
 Chi tiết: [implementation-status.md](../implementation/implementation-status.md) mục 3a.
 
@@ -30,8 +31,8 @@ Lớp test: `TS` = `Roles/TeacherStudentTreasurerTests`, `PP` = `Roles/ParentAnd
 ### A.1 Giáo viên
 | Mã | Tình huống | Kỳ vọng | Test (bản trước, tham khảo) | Module | Trạng thái |
 |---|---|---|---|---|---|
-| T-01 | Đăng ký: xác nhận mật khẩu sai / mật khẩu yếu / email trùng (khác hoa thường) | 400 `validation_failed` / 422 `auth.password_policy` / 422 `user.email_taken` | TS `Teacher_registers…` | M1 | Not Implemented |
-| T-02 | Đăng ký gửi kèm `kind`, `role = Treasurer` | Vẫn là `Teacher`, `accountPermissions = [Fund.Create]`, không có quỹ | TS `Teacher_registers…` | M1 | Not Implemented |
+| T-01 | Đăng ký: xác nhận mật khẩu sai / mật khẩu yếu / email trùng (khác hoa thường) | 400 `validation_failed` / 422 `auth.password_policy` / 422 `user.email_taken` | TS `Teacher_registers…` | M1 | Passed – `AuthTests.Register_rejects_mismatched_confirmation_weak_password_and_taken_email` |
+| T-02 | Đăng ký gửi kèm `kind`, `role = Treasurer` | Vẫn là `Teacher`, `accountPermissions = [Fund.Create]`, không có quỹ | TS `Teacher_registers…` | M1 | Passed – `AuthTests.Teacher_registers_and_is_signed_in_as_teacher` |
 | T-03 | Tạo 2 quỹ | `GET /funds`: 2 quỹ, vai trò Teacher, `Unassigned`, 0 học sinh, có danh mục mặc định | TS `Teacher_registers…` | M2 | Not Implemented |
 | T-04 | GVCN thêm giao dịch / thêm danh mục | 403 `forbidden` | TS `Teacher_registers…` | M5, M6 | Not Implemented |
 | T-05 | Giáo viên B xem / thêm học sinh / thu hồi / đổi tên quỹ của giáo viên A; Id sai định dạng | 404 `not_found`; `GET /funds` của B rỗng | TS `Teacher_cannot_see…` | M2, M3, M4 | Not Implemented |
@@ -42,8 +43,8 @@ Lớp test: `TS` = `Roles/TeacherStudentTreasurerTests`, `PP` = `Roles/ParentAnd
 |---|---|---|---|---|---|
 | S-01 | Thêm học sinh → chi tiết | `accountStatus = None` | TS `Student_account…` | M3 | Not Implemented |
 | S-02 | Cấp tài khoản | Username gợi ý `huy.pham.NNN`; mật khẩu tạm dạng `Xxxx-xxxx-0000-xxxx`; cấp lần 2 → 422 `student.account_exists`; trạng thái `PendingActivation` | TS `Student_account…`, U `CredentialsTests` | M3 | Not Implemented |
-| S-03 | Học sinh đăng nhập bằng mật khẩu tạm, gọi `/funds`, `/funds/{id}` | 403 `password.change_required`; `me.mustChangePassword = true` | TS `Student_account…` | M1 | Not Implemented |
-| S-04 | Đổi mật khẩu | Dùng được; mật khẩu tạm cũ → 401 | TS `Student_account…` | M1 | Not Implemented |
+| S-03 | Học sinh đăng nhập bằng mật khẩu tạm, gọi `/funds`, `/funds/{id}` | 403 `password.change_required`; `me.mustChangePassword = true` | TS `Student_account…` | M1 | Passed – `AuthTests.Temporary_password_blocks_other_endpoints_until_changed` (endpoint thử của test; `/funds` kiểm lại khi có M2) |
+| S-04 | Đổi mật khẩu | Dùng được; mật khẩu tạm cũ → 401 | TS `Student_account…` | M1 | Passed – `AuthTests.Temporary_password_blocks_other_endpoints_until_changed` |
 | S-05 | Mật khẩu tạm trong AuditLog / log | Không có | TS `Student_account…` | M3 | Not Implemented |
 | S-06 | GVCN cấp lại mật khẩu | Phiên cũ 401; đăng nhập lại phải đổi mật khẩu | TS `Student_account…` | M3 | Not Implemented |
 | S-07 | Học sinh chưa phân công: tổng quan, danh sách | Số dư gồm khoản không công khai; chỉ khoản công khai; không `note`, `createdByName` | TS `Unassigned_student…` | M6, M7 | Not Implemented |
@@ -79,9 +80,9 @@ Lớp test: `TS` = `Roles/TeacherStudentTreasurerTests`, `PP` = `Roles/ParentAnd
 |---|---|---|---|---|---|
 | G-01 | Ma trận permission theo vai trò; chỉ giáo viên tạo quỹ | Đúng bảng `roles-and-permissions.md` | `RolePermissionsTests`, `AccessServiceTests` | M0 | Passed – `RolePermissionsTests`, `AccessServiceTests`, `AccessServiceMembershipTests`, `PermissionAuthorizationHandlerTests` (Foundation) |
 | G-02 | Thiếu header antiforgery khi ghi | 400 | RC `Treasurer_signs_in…` | M0 | Passed – `FoundationTests.Write_without_antiforgery_header_is_rejected` (Foundation) |
-| G-03 | Đổi mật khẩu / khóa tài khoản → phiên cũ | 401 | RC `Treasurer_signs_in…` | M0, M1 | Partially Implemented – khóa tài khoản → 401: `FoundationTests.Disabled_account_session_is_treated_as_signed_out` (Foundation); đổi mật khẩu → M1 |
+| G-03 | Đổi mật khẩu / khóa tài khoản → phiên cũ | 401 | RC `Treasurer_signs_in…` | M0, M1 | Passed – `FoundationTests.Disabled_account_session_is_treated_as_signed_out` (khóa), `AuthTests.Changing_password_ends_every_other_session` (đổi mật khẩu) |
 | G-04 | Thủ quỹ quỹ B dùng Id giao dịch / đường dẫn quỹ A | 404 | TX `A_treasurer_cannot…` | M6 | Not Implemented |
-| G-05 | Đăng nhập bằng một ô `login`: email giáo viên / phụ huynh, tên đăng nhập học sinh; request không có tham số vai trò; gửi kèm `role` bị bỏ qua (D-34) | 200 với mọi loại tài khoản; `/auth/me` trả loại tài khoản + vai trò theo quỹ | – (mới) | M1 | Not Implemented |
+| G-05 | Đăng nhập bằng một ô `login`: email giáo viên / phụ huynh, tên đăng nhập học sinh; request không có tham số vai trò; gửi kèm `role` bị bỏ qua (D-34) | 200 với mọi loại tài khoản; `/auth/me` trả loại tài khoản + vai trò theo quỹ | – (mới) | M1 | Passed – `AuthTests.Teacher_signs_in_with_email_case_insensitively_without_role_parameter`, `Student_signs_in_with_username_and_must_change_temporary_password`, `Me_lists_memberships_with_roles_derived_from_data` |
 | M-01 | Nâng cấp DB `InitialClassFund` có dữ liệu | Owner → Teacher, không phân công, giao dịch / AuditLog giữ nguyên, `IsPublic = true`, `CancelledBy` từ AuditLog | UP | – | Không áp dụng (D-36) |
 | M-02 | DELETE Student / ParentLink / TreasurerAssignment bằng `app_user` | P0001 | PT | M3, M4 | Not Implemented |
 | M-03 | Lịch sử migration có `_InitialClassFund`, `_AddDatabaseProtections` *(sửa 2026-11-05, D-36)* | Có | `DatabaseAccountTests` | M0 | Not Implemented – migration có trong Foundation, chưa có test tự động |

@@ -1,0 +1,62 @@
+// Kiểu dùng chung cho form M1 (A-01 → A-04). Màu chỉ dùng token --cf-*.
+.title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  h1 {
+    margin: 0;
+    font-size: 22px;
+    line-height: 30px;
+  }
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+kendo-formfield {
+  margin: 0;
+}
+
+.submit {
+  width: 100%;
+}
+
+.note {
+  padding: 10px 12px;
+  border-radius: var(--cf-radius-md);
+  font-size: 13px;
+  background: var(--cf-role-teacher-tint);
+  color: var(--cf-role-teacher);
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--cf-subtle);
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.small {
+  font-size: 13px;
+}
+
+// Kích thước chung (nhãn, gợi ý, nút phụ, control 40 px) do Foundation (styles.scss) lo.
+// Trang khách A-01, A-02 trên Canvas cao hơn: ô nhập / nút 44 px; A-03, A-04 đặt lại 40 px qua --auth-control-height.
+kendo-textbox {
+  height: var(--auth-control-height, 44px);
+}
+
+button[kendoButton] {
+  min-height: var(--auth-control-height, 44px);
+}

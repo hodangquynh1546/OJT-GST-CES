@@ -47,6 +47,30 @@ export class RealApi {
   }
 }
 
+/** Tài khoản thật tạo bằng API (M1). `login` là email (giáo viên, phụ huynh) hoặc tên đăng nhập (học sinh). */
+export interface RealAccount {
+  login: string;
+  password: string;
+  fullName: string;
+}
+
+export const E2E_PASSWORD = 'Matkhau123';
+
+/**
+ * M1: đăng ký GVCN mới bằng `POST /auth/register-teacher` – `api` được đăng nhập luôn bằng tài khoản này
+ * (cookie phiên + token antiforgery mới), dùng tiếp để seed (ví dụ M2: `api.post('/funds', { name })`).
+ */
+export async function registerTeacher(api: RealApi, fullName = 'Cô Hạnh', password = E2E_PASSWORD): Promise<RealAccount> {
+  const login = `${unique('gv')}@example.vn`;
+  await api.post('/auth/register-teacher', { fullName, email: login, password, confirmPassword: password });
+  return { login, password, fullName };
+}
+
+/** M1: đăng nhập bằng `POST /auth/login` (không có vai trò); `api` chuyển sang phiên của tài khoản này. */
+export async function login(api: RealApi, account: Pick<RealAccount, 'login' | 'password'>): Promise<void> {
+  await api.post('/auth/login', { login: account.login, password: account.password });
+}
+
 /** Email / tên không trùng giữa các lần chạy (DB e2e dùng chung). */
 export function unique(prefix: string): string {
   return `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
