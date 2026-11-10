@@ -51,6 +51,23 @@ public sealed class FoundationTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task Seeded_teacher_without_fund_signs_in_but_sees_no_fund()
+    {
+        var teacher = await _data.CreateTeacherAsync();
+        var otherFund = await _data.CreateFundAsync();
+
+        var user = await _data.FindUserAsync(teacher.UserId);
+        Assert.Equal(ClassFund.Domain.Enums.UserKind.Teacher, user.Kind);
+        Assert.Equal(teacher.Login, user.Email);
+        Assert.False(user.MustChangePassword);
+
+        using var client = NewClient();
+        await client.SignInAsAsync(teacher.UserId);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/test-probe")).StatusCode);
+        await (await client.GetAsync($"/test-probe/funds/{otherFund.Id}")).AssertProblemAsync(HttpStatusCode.NotFound, "not_found");
+    }
+
+    [Fact]
     public async Task Write_without_antiforgery_header_is_rejected()
     {
         var fund = await _data.CreateFundAsync();
