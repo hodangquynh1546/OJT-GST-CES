@@ -117,17 +117,14 @@ test('Quỹ của tôi (/funds) không gắn quỹ nào', async ({ page }) => {
   await expect(page.getByRole('navigation', { name: 'Điều hướng chính' }).getByRole('link', { name: 'Tổng quan' })).toHaveCount(0);
 });
 
-test('control Kendo medium cao 40 px, banner padding 10/12 px (design-system mục 6)', async ({ page }) => {
+test('banner .cf-alert padding 10 / 12 px (kích thước Kendo: shared/styles/kendo-sizes.spec.ts)', async ({ page }) => {
   await signInAs(page, TEACHER);
   await page.goto('/funds');
-  const sizes = await page.evaluate(() => {
-    const host = document.createElement('div');
-    host.innerHTML = '<span class="k-input k-input-md"><input class="k-input-inner"></span><button class="k-button k-button-md k-button-solid k-button-base">x</button><div class="cf-alert">x</div>';
-    document.body.appendChild(host);
-    const [input, button, alert] = Array.from(host.children) as HTMLElement[];
-    return { input: input.offsetHeight, button: button.offsetHeight, padding: getComputedStyle(alert).padding };
+  const padding = await page.evaluate(() => {
+    const alert = document.createElement('div');
+    alert.className = 'cf-alert';
+    document.body.appendChild(alert);
+    return getComputedStyle(alert).padding;
   });
-  expect(sizes.input).toBeGreaterThanOrEqual(40);
-  expect(sizes.button).toBeGreaterThanOrEqual(40);
-  expect(sizes.padding).toBe('10px 12px');
+  expect(padding).toBe('10px 12px');
 });

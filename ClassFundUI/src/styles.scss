@@ -184,9 +184,11 @@ a:hover {
 }
 
 // Kích thước Kendo theo design-system.md mục 6 và Canvas DS-02: control medium 40 px, small 32 px.
-// Nhãn 13 px đậm; gợi ý / lỗi chữ thẳng 12 px; nút phụ nền trắng có viền (board DSComponents, Account).
-.k-input-md,
-.k-picker-md {
+// Kendo 23 không gắn class khi dùng giá trị mặc định (size medium → không có .k-input-md / .k-button-md,
+// fillMode solid + themeColor base → không có .k-button-solid / .k-button-base), nên chọn theo class luôn có
+// (.k-input, .k-picker, .k-button) và loại các biến thể có class riêng (sm / lg, flat, outline, icon…).
+.k-input:not(.k-input-sm, .k-input-lg),
+.k-picker:not(.k-picker-sm, .k-picker-lg) {
   min-height: 40px;
 }
 
@@ -195,25 +197,28 @@ a:hover {
   min-height: 32px;
 }
 
-.k-button-md {
-  min-height: 40px;
-  padding-inline: 16px;
-}
-
-.k-button-sm {
-  min-height: 32px;
-}
-
 .k-input,
 .k-picker {
   border-color: var(--cf-border-strong);
 }
 
-.k-button-solid.k-button-primary {
+.k-button:not(.k-icon-button, .k-button-sm, .k-button-lg, .k-button-flat, .k-button-link, .k-button-clear) {
+  min-height: 40px;
+  padding-inline: 16px;
+}
+
+.k-button-sm:not(.k-icon-button) {
+  min-height: 32px;
+}
+
+.k-button-primary {
   font-weight: 600;
 }
 
-.k-button-solid.k-button-base {
+// Nút phụ (themeColor base, fillMode solid): nền trắng, viền (board DSComponents, Account).
+.k-button:not(.k-icon-button, .k-button-primary, .k-button-error, .k-button-secondary, .k-button-tertiary, .k-button-info,
+    .k-button-success, .k-button-warning, .k-button-dark, .k-button-light, .k-button-inverse, .k-button-flat,
+    .k-button-outline, .k-button-link, .k-button-clear) {
   border-color: var(--cf-border-strong);
   background-color: var(--cf-surface);
   font-weight: 500;
@@ -223,6 +228,7 @@ a:hover {
   }
 }
 
+// Nhãn 13 px đậm; gợi ý / lỗi chữ thẳng 12 px.
 .k-label {
   font-size: 13px;
   font-weight: 600;
