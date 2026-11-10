@@ -1,9 +1,11 @@
 import { Routes } from '@angular/router';
 
-import { comingSoon } from '../../shared/components/coming-soon/coming-soon';
-
 /** Module Quỹ (M2) – G-01 tại `/funds`. */
-export const FUND_LIST_ROUTES: Routes = [{ path: '', ...comingSoon('G-01', 'Quỹ của tôi') }];
+export const FUND_LIST_ROUTES: Routes = [
+  { path: '', loadComponent: () => import('./fund-list/fund-list').then((m) => m.FundList) },
+];
 
 /** Module Quỹ (M2) – G-04 tại `/funds/:fundId/settings` (guard Fund.Manage ở app.routes.ts). */
-export const FUND_SETTINGS_ROUTES: Routes = [{ path: '', ...comingSoon('G-04', 'Thông tin quỹ') }];
+export const FUND_SETTINGS_ROUTES: Routes = [
+  { path: '', loadComponent: () => import('./fund-settings/fund-settings').then((m) => m.FundSettings) },
+];
