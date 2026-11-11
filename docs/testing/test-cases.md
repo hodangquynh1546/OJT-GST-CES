@@ -35,7 +35,7 @@ Lớp test: `TS` = `Roles/TeacherStudentTreasurerTests`, `PP` = `Roles/ParentAnd
 | T-02 | Đăng ký gửi kèm `kind`, `role = Treasurer` | Vẫn là `Teacher`, `accountPermissions = [Fund.Create]`, không có quỹ | TS `Teacher_registers…` | M1 | Passed – `AuthTests.Teacher_registers_and_is_signed_in_as_teacher` |
 | T-03 | Tạo 2 quỹ | `GET /funds`: 2 quỹ, vai trò Teacher, `Unassigned`, 0 học sinh, có danh mục mặc định | TS `Teacher_registers…` | M2 | Passed – `Funds/FundsTests.Teacher_creates_two_funds_with_default_categories_unassigned_and_no_students` |
 | T-04 | GVCN thêm giao dịch / thêm danh mục | 403 `forbidden` | TS `Teacher_registers…` | M5, M6 | Not Implemented |
-| T-05 | Giáo viên B xem / thêm học sinh / thu hồi / đổi tên quỹ của giáo viên A; Id sai định dạng | 404 `not_found`; `GET /funds` của B rỗng | TS `Teacher_cannot_see…` | M2, M3, M4 | Partially Implemented – M2 Passed (`Funds/FundsTests.Teacher_cannot_see_or_rename_another_teachers_fund`); phần học sinh Passed (`Students/StudentsTests.Only_homeroom_teacher_manages_students`); phần thu hồi chờ M4 |
+| T-05 | Giáo viên B xem / thêm học sinh / thu hồi / đổi tên quỹ của giáo viên A; Id sai định dạng | 404 `not_found`; `GET /funds` của B rỗng | TS `Teacher_cannot_see…` | M2, M3, M4 | Passed – M2 Passed (`Funds/FundsTests.Teacher_cannot_see_or_rename_another_teachers_fund`); M4 Passed (`Treasurers/TreasurersTests.Teacher_cannot_see_assign_or_revoke_in_another_teachers_fund`); phần học sinh Passed (`Students/StudentsTests.Only_homeroom_teacher_manages_students`) |
 | T-06 | GVCN xem chi tiết: ghi chú, người ghi, lý do hủy, người hủy, lịch sử thay đổi | Có đủ | TS `Treasurer_manages…`, PP `Parent_sees…` | M6 | Not Implemented |
 
 ### A.2 Học sinh
@@ -54,13 +54,13 @@ Lớp test: `TS` = `Roles/TeacherStudentTreasurerTests`, `PP` = `Roles/ParentAnd
 ### A.3 Thủ quỹ
 | Mã | Tình huống | Kỳ vọng | Test (bản trước, tham khảo) | Module | Trạng thái |
 |---|---|---|---|---|---|
-| TR-01 | Phân công học sinh chưa kích hoạt / chưa có tài khoản / đang là thủ quỹ / thuộc quỹ khác | 422 `treasurer.account_not_activated` / `treasurer.no_account` / `treasurer.already_assigned`; 404 | TS `Student_account…`, `Changing_treasurer…` | M4 | Not Implemented |
+| TR-01 | Phân công học sinh chưa kích hoạt / chưa có tài khoản / đang là thủ quỹ / thuộc quỹ khác | 422 `treasurer.account_not_activated` / `treasurer.no_account` / `treasurer.already_assigned`; 404 | TS `Student_account…`, `Changing_treasurer…` | M4 | Passed (M4) – `Treasurers/TreasurersTests.Assign_rejects_students_without_activated_account_already_assigned_or_outside_fund` (thêm `treasurer.account_disabled`) |
 | TR-02 | Thủ quỹ thêm thu chi, danh mục; xem thành viên (chỉ họ tên + vai trò) | 201; members chỉ 2 trường | TS `Treasurer_manages…` | M5, M6 | Not Implemented |
-| TR-03 | Thủ quỹ xem / thêm học sinh, phân công, thu hồi, đổi tên quỹ, tạo quỹ | 403 `forbidden` | TS `Treasurer_manages…` | M2, M3, M4 | Partially Implemented – M2 Passed (`Funds/FundsTests.Treasurer_student_and_parent_cannot_create_or_rename_fund`); phần học sinh Passed (`Students/StudentsTests.Only_homeroom_teacher_manages_students`); phần phân công / thu hồi chờ M4 |
-| TR-04 | Thu hồi thủ quỹ duy nhất | 422 `treasurer.last` | TS `Changing_treasurer…` | M4 | Not Implemented |
-| TR-05 | Phân công người mới rồi thu hồi người cũ | 204; người cũ ghi → 403 ngay request kế tiếp; người mới ghi được; lịch sử có người phân công / thu hồi; AuditLog `Treasurer.Revoke` | TS `Changing_treasurer…` | M4 | Not Implemented |
-| TR-06 | Thu hồi lại phân công đã thu hồi | 409 `treasurer.already_revoked` | TS `Changing_treasurer…` | M4 | Not Implemented |
-| TR-07 | Hai lệnh thu hồi đồng thời (2 thủ quỹ) | Đúng 1 thành công; còn 1 thủ quỹ | TS `Concurrent_revokes…` | M4 | Not Implemented |
+| TR-03 | Thủ quỹ xem / thêm học sinh, phân công, thu hồi, đổi tên quỹ, tạo quỹ | 403 `forbidden` | TS `Treasurer_manages…` | M2, M3, M4 | Passed – M2 Passed (`Funds/FundsTests.Treasurer_student_and_parent_cannot_create_or_rename_fund`); M4 Passed (`Treasurers/TreasurersTests.Treasurer_student_and_parent_cannot_view_assign_or_revoke`); phần học sinh Passed (`Students/StudentsTests.Only_homeroom_teacher_manages_students`) |
+| TR-04 | Thu hồi thủ quỹ duy nhất | 422 `treasurer.last` | TS `Changing_treasurer…` | M4 | Passed (M4) – `Treasurers/TreasurersTests.Revoking_the_only_treasurer_is_rejected` |
+| TR-05 | Phân công người mới rồi thu hồi người cũ | 204; người cũ ghi → 403 ngay request kế tiếp; người mới ghi được; lịch sử có người phân công / thu hồi; AuditLog `Treasurer.Revoke` | TS `Changing_treasurer…` | M4 | Partially Implemented – M4 Passed (`Treasurers/TreasurersTests.Changing_treasurer_assign_new_then_revoke_old_moves_permissions_and_keeps_history`: người cũ mất `Transaction.Manage` ngay request kế tiếp, người mới có; lịch sử; AuditLog). Ghi thu chi thật → 403 kiểm lại khi có M6 |
+| TR-06 | Thu hồi lại phân công đã thu hồi | 409 `treasurer.already_revoked` | TS `Changing_treasurer…` | M4 | Passed (M4) – `Treasurers/TreasurersTests.Revoking_an_already_revoked_assignment_is_conflict` |
+| TR-07 | Hai lệnh thu hồi đồng thời (2 thủ quỹ) | Đúng 1 thành công; còn 1 thủ quỹ | TS `Concurrent_revokes…` | M4 | Passed (M4) – `Treasurers/TreasurersTests.Concurrent_revokes_of_two_treasurers_leave_exactly_one` (5 vòng; khóa dòng `Fund`) |
 | TR-08 | Hủy không lý do / có lý do | 400 / 200 + `cancelledByName` | PP `Cancelling_requires…`, U | M6 | Not Implemented |
 
 ### A.4 Phụ huynh
@@ -84,7 +84,7 @@ Lớp test: `TS` = `Roles/TeacherStudentTreasurerTests`, `PP` = `Roles/ParentAnd
 | G-04 | Thủ quỹ quỹ B dùng Id giao dịch / đường dẫn quỹ A | 404 | TX `A_treasurer_cannot…` | M6 | Not Implemented |
 | G-05 | Đăng nhập bằng một ô `login`: email giáo viên / phụ huynh, tên đăng nhập học sinh; request không có tham số vai trò; gửi kèm `role` bị bỏ qua (D-34) | 200 với mọi loại tài khoản; `/auth/me` trả loại tài khoản + vai trò theo quỹ | – (mới) | M1 | Passed – `AuthTests.Teacher_signs_in_with_email_case_insensitively_without_role_parameter`, `Student_signs_in_with_username_and_must_change_temporary_password`, `Me_lists_memberships_with_roles_derived_from_data` |
 | M-01 | Nâng cấp DB `InitialClassFund` có dữ liệu | Owner → Teacher, không phân công, giao dịch / AuditLog giữ nguyên, `IsPublic = true`, `CancelledBy` từ AuditLog | UP | – | Không áp dụng (D-36) |
-| M-02 | DELETE Student / ParentLink / TreasurerAssignment bằng `app_user` | P0001 | PT | M3, M4 | Partially Implemented – Student, ParentLink Passed (`Students/StudentsTests.Students_and_parent_links_cannot_be_hard_deleted`); TreasurerAssignment chờ M4 |
+| M-02 | DELETE Student / ParentLink / TreasurerAssignment bằng `app_user` | P0001 | PT | M3, M4 | Passed – Student, ParentLink (M3 – `Students/StudentsTests.Students_and_parent_links_cannot_be_hard_deleted`); TreasurerAssignment (M4 – `Treasurers/TreasurersTests.Treasurer_assignment_cannot_be_hard_deleted`) |
 | M-03 | Lịch sử migration có `_InitialClassFund`, `_AddDatabaseProtections` *(sửa 2026-11-05, D-36)* | Có | `DatabaseAccountTests` | M0 | Not Implemented – migration có trong Foundation, chưa có test tự động |
 | R-01 | Thu chi, sửa, hủy, chống trùng (5 request đồng thời), lọc, báo cáo tháng / năm, danh mục ẩn | Như R1 | TX, RC | M6, M7 | Not Implemented |
 | X-01 | Khởi động API bằng `dotnet run` và thao tác thủ công (smoke test) | Đăng ký → tạo quỹ → học sinh → phân công → ghi thu chi | – | M8 | Not Implemented |
