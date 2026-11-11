@@ -58,7 +58,7 @@ Cột vai trò: **G** = GVCN · **T** = Thủ quỹ · **H** = Học sinh chưa 
 | FR-24 | **Học sinh**: danh sách (họ tên, tên đăng nhập, trạng thái tài khoản *Chưa cấp / Chờ kích hoạt / Đang hoạt động / Bị khóa*, thủ quỹ, phụ huynh); thêm (họ tên, email phụ huynh tùy chọn); sửa họ tên; chi tiết | ✔ | – | – | – | M3 | Not Implemented |
 | FR-25 | **Cấp tài khoản học sinh**: tên đăng nhập (bỏ trống → hệ thống gợi ý) + mật khẩu tạm ngẫu nhiên, hiển thị một lần; **cấp lại mật khẩu tạm** (phiên cũ hết hiệu lực) | ✔ | – | – | – | M3 | Not Implemented |
 | FR-26 | **Liên kết phụ huynh** theo email: có tài khoản phụ huynh → chỉ liên kết; chưa có → tạo tài khoản + mật khẩu tạm hiển thị một lần; ghi rõ hệ thống không gửi email; **gỡ liên kết** (giữ lịch sử) | ✔ | – | – | – | M3 | Not Implemented |
-| FR-27 | **Phân công thủ quỹ**: chọn học sinh đã kích hoạt tài khoản; nhiều thủ quỹ; **thu hồi** (không thu hồi được thủ quỹ cuối cùng); lịch sử người / thời điểm phân công, thu hồi | ✔ | – | – | – | M4 | Not Implemented |
+| FR-27 | **Phân công thủ quỹ**: chọn học sinh đã kích hoạt tài khoản; nhiều thủ quỹ; **thu hồi** (không thu hồi được thủ quỹ cuối cùng); lịch sử người / thời điểm phân công, thu hồi | ✔ | – | – | – | M4 | Implemented (M4, chờ merge) |
 | FR-12 | **Thành viên**: chỉ họ tên + vai trò (GVCN, thủ quỹ, học sinh) – không email / tên đăng nhập / liên hệ. *(v1.2: thủ quỹ tạo / khóa / đổi vai trò thành viên – thay bằng FR-24 → FR-27)* | ✔ | ✔ (chỉ xem) | – | – | M5 | Not Implemented |
 | FR-28 | ~~GVCN khóa / mở khóa tài khoản học sinh; học sinh rời lớp; chuyển quỹ cho giáo viên khác~~ *(Bỏ 2026-11-09, D-41: hệ thống không có chức năng này)* | – | – | – | – | – | Loại bỏ (D-41) |
 
