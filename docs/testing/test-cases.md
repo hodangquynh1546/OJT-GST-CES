@@ -35,28 +35,28 @@ Lớp test: `TS` = `Roles/TeacherStudentTreasurerTests`, `PP` = `Roles/ParentAnd
 | T-02 | Đăng ký gửi kèm `kind`, `role = Treasurer` | Vẫn là `Teacher`, `accountPermissions = [Fund.Create]`, không có quỹ | TS `Teacher_registers…` | M1 | Passed – `AuthTests.Teacher_registers_and_is_signed_in_as_teacher` |
 | T-03 | Tạo 2 quỹ | `GET /funds`: 2 quỹ, vai trò Teacher, `Unassigned`, 0 học sinh, có danh mục mặc định | TS `Teacher_registers…` | M2 | Passed – `Funds/FundsTests.Teacher_creates_two_funds_with_default_categories_unassigned_and_no_students` |
 | T-04 | GVCN thêm giao dịch / thêm danh mục | 403 `forbidden` | TS `Teacher_registers…` | M5, M6 | Not Implemented |
-| T-05 | Giáo viên B xem / thêm học sinh / thu hồi / đổi tên quỹ của giáo viên A; Id sai định dạng | 404 `not_found`; `GET /funds` của B rỗng | TS `Teacher_cannot_see…` | M2, M3, M4 | Partially Implemented – M2 Passed (`Funds/FundsTests.Teacher_cannot_see_or_rename_another_teachers_fund`); M4 Passed (`Treasurers/TreasurersTests.Teacher_cannot_see_assign_or_revoke_in_another_teachers_fund`); phần học sinh chờ M3 |
+| T-05 | Giáo viên B xem / thêm học sinh / thu hồi / đổi tên quỹ của giáo viên A; Id sai định dạng | 404 `not_found`; `GET /funds` của B rỗng | TS `Teacher_cannot_see…` | M2, M3, M4 | Passed – M2 Passed (`Funds/FundsTests.Teacher_cannot_see_or_rename_another_teachers_fund`); M4 Passed (`Treasurers/TreasurersTests.Teacher_cannot_see_assign_or_revoke_in_another_teachers_fund`); phần học sinh Passed (`Students/StudentsTests.Only_homeroom_teacher_manages_students`) |
 | T-06 | GVCN xem chi tiết: ghi chú, người ghi, lý do hủy, người hủy, lịch sử thay đổi | Có đủ | TS `Treasurer_manages…`, PP `Parent_sees…` | M6 | Not Implemented |
 
 ### A.2 Học sinh
 | Mã | Tình huống | Kỳ vọng | Test (bản trước, tham khảo) | Module | Trạng thái |
 |---|---|---|---|---|---|
-| S-01 | Thêm học sinh → chi tiết | `accountStatus = None` | TS `Student_account…` | M3 | Not Implemented |
-| S-02 | Cấp tài khoản | Username gợi ý `huy.pham.NNN`; mật khẩu tạm dạng `Xxxx-xxxx-0000-xxxx`; cấp lần 2 → 422 `student.account_exists`; trạng thái `PendingActivation` | TS `Student_account…`, U `CredentialsTests` | M3 | Not Implemented |
+| S-01 | Thêm học sinh → chi tiết | `accountStatus = None` | TS `Student_account…` | M3 | Passed – `Students/StudentsTests.Teacher_adds_lists_views_and_renames_students` |
+| S-02 | Cấp tài khoản | Username gợi ý `huy.pham.NNN`; mật khẩu tạm dạng `Xxxx-xxxx-0000-xxxx`; cấp lần 2 → 422 `student.account_exists`; trạng thái `PendingActivation` | TS `Student_account…`, U `CredentialsTests` | M3 | Passed – `Students/StudentsTests.Issuing_account_suggests_username_and_returns_one_time_temporary_password`, `…Issuing_account_with_chosen_username_validates_format_and_uniqueness`; unit `CredentialsTests` |
 | S-03 | Học sinh đăng nhập bằng mật khẩu tạm, gọi `/funds`, `/funds/{id}` | 403 `password.change_required`; `me.mustChangePassword = true` | TS `Student_account…` | M1 | Passed – `AuthTests.Temporary_password_blocks_other_endpoints_until_changed` (endpoint thử của test; `/funds` kiểm lại khi có M2) |
 | S-04 | Đổi mật khẩu | Dùng được; mật khẩu tạm cũ → 401 | TS `Student_account…` | M1 | Passed – `AuthTests.Temporary_password_blocks_other_endpoints_until_changed` |
-| S-05 | Mật khẩu tạm trong AuditLog / log | Không có | TS `Student_account…` | M3 | Not Implemented |
-| S-06 | GVCN cấp lại mật khẩu | Phiên cũ 401; đăng nhập lại phải đổi mật khẩu | TS `Student_account…` | M3 | Not Implemented |
+| S-05 | Mật khẩu tạm trong AuditLog / log | Không có | TS `Student_account…` | M3 | Passed – `Students/StudentsTests.Temporary_passwords_never_reach_audit_log_or_logs` |
+| S-06 | GVCN cấp lại mật khẩu | Phiên cũ 401; đăng nhập lại phải đổi mật khẩu | TS `Student_account…` | M3 | Passed – `Students/StudentsTests.Resetting_password_ends_every_session_and_requires_a_new_change` |
 | S-07 | Học sinh chưa phân công: tổng quan, danh sách | Số dư gồm khoản không công khai; chỉ khoản công khai; không `note`, `createdByName` | TS `Unassigned_student…` | M6, M7 | Not Implemented |
 | S-08 | Học sinh chưa phân công ghi thu chi / danh mục / xem thành viên / học sinh / tạo quỹ | 403 `forbidden` | TS `Unassigned_student…` | M2 → M6 | Partially Implemented – tạo quỹ 403 Passed (`Funds/FundsTests.Treasurer_student_and_parent_cannot_create_or_rename_fund`); phần còn lại chờ M3 → M6 |
-| S-09 | Danh sách học sinh | Có username, `isTreasurer` | TS `Student_account…` | M3 | Not Implemented |
+| S-09 | Danh sách học sinh | Có username, `isTreasurer` | TS `Student_account…` | M3 | Passed – `Students/StudentsTests.List_shows_treasurer_flag_and_parent_of_each_student`, `…List_reports_all_four_account_statuses` |
 
 ### A.3 Thủ quỹ
 | Mã | Tình huống | Kỳ vọng | Test (bản trước, tham khảo) | Module | Trạng thái |
 |---|---|---|---|---|---|
 | TR-01 | Phân công học sinh chưa kích hoạt / chưa có tài khoản / đang là thủ quỹ / thuộc quỹ khác | 422 `treasurer.account_not_activated` / `treasurer.no_account` / `treasurer.already_assigned`; 404 | TS `Student_account…`, `Changing_treasurer…` | M4 | Passed (M4) – `Treasurers/TreasurersTests.Assign_rejects_students_without_activated_account_already_assigned_or_outside_fund` (thêm `treasurer.account_disabled`) |
 | TR-02 | Thủ quỹ thêm thu chi, danh mục; xem thành viên (chỉ họ tên + vai trò) | 201; members chỉ 2 trường | TS `Treasurer_manages…` | M5, M6 | Not Implemented |
-| TR-03 | Thủ quỹ xem / thêm học sinh, phân công, thu hồi, đổi tên quỹ, tạo quỹ | 403 `forbidden` | TS `Treasurer_manages…` | M2, M3, M4 | Partially Implemented – M2 Passed (`Funds/FundsTests.Treasurer_student_and_parent_cannot_create_or_rename_fund`); M4 Passed (`Treasurers/TreasurersTests.Treasurer_student_and_parent_cannot_view_assign_or_revoke`); phần học sinh chờ M3 |
+| TR-03 | Thủ quỹ xem / thêm học sinh, phân công, thu hồi, đổi tên quỹ, tạo quỹ | 403 `forbidden` | TS `Treasurer_manages…` | M2, M3, M4 | Passed – M2 Passed (`Funds/FundsTests.Treasurer_student_and_parent_cannot_create_or_rename_fund`); M4 Passed (`Treasurers/TreasurersTests.Treasurer_student_and_parent_cannot_view_assign_or_revoke`); phần học sinh Passed (`Students/StudentsTests.Only_homeroom_teacher_manages_students`) |
 | TR-04 | Thu hồi thủ quỹ duy nhất | 422 `treasurer.last` | TS `Changing_treasurer…` | M4 | Passed (M4) – `Treasurers/TreasurersTests.Revoking_the_only_treasurer_is_rejected` |
 | TR-05 | Phân công người mới rồi thu hồi người cũ | 204; người cũ ghi → 403 ngay request kế tiếp; người mới ghi được; lịch sử có người phân công / thu hồi; AuditLog `Treasurer.Revoke` | TS `Changing_treasurer…` | M4 | Partially Implemented – M4 Passed (`Treasurers/TreasurersTests.Changing_treasurer_assign_new_then_revoke_old_moves_permissions_and_keeps_history`: người cũ mất `Transaction.Manage` ngay request kế tiếp, người mới có; lịch sử; AuditLog). Ghi thu chi thật → 403 kiểm lại khi có M6 |
 | TR-06 | Thu hồi lại phân công đã thu hồi | 409 `treasurer.already_revoked` | TS `Changing_treasurer…` | M4 | Passed (M4) – `Treasurers/TreasurersTests.Revoking_an_already_revoked_assignment_is_conflict` |
@@ -66,11 +66,11 @@ Lớp test: `TS` = `Roles/TeacherStudentTreasurerTests`, `PP` = `Roles/ParentAnd
 ### A.4 Phụ huynh
 | Mã | Tình huống | Kỳ vọng | Test (bản trước, tham khảo) | Module | Trạng thái |
 |---|---|---|---|---|---|
-| P-01 | Thêm học sinh kèm email phụ huynh mới | `accountCreated = true`, `emailSent = false`, có mật khẩu tạm | PP `Parent_account…` | M3 | Not Implemented |
-| P-02 | Cùng email (khác hoa thường) ở quỹ khác | Chỉ liên kết; `credential = null`; 1 tài khoản | PP `Parent_account…` | M3 | Not Implemented |
-| P-03 | Liên kết thứ hai cho cùng học sinh; email của giáo viên | 422 `parent_link.exists`; 422 `parent.email_in_use` | PP `Parent_account…` | M3 | Not Implemented |
+| P-01 | Thêm học sinh kèm email phụ huynh mới | `accountCreated = true`, `emailSent = false`, có mật khẩu tạm | PP `Parent_account…` | M3 | Passed – `Students/StudentsTests.Linking_new_parent_email_creates_parent_account_with_one_time_password`, `…Adding_student_with_parent_email_links_parent_in_one_step` |
+| P-02 | Cùng email (khác hoa thường) ở quỹ khác | Chỉ liên kết; `credential = null`; 1 tài khoản | PP `Parent_account…` | M3 | Passed – `Students/StudentsTests.Linking_existing_parent_email_only_links_without_new_account` |
+| P-03 | Liên kết thứ hai cho cùng học sinh; email của giáo viên | 422 `parent_link.exists`; 422 `parent.email_in_use` | PP `Parent_account…` | M3 | Passed – `Students/StudentsTests.Linking_new_parent_email_creates_parent_account_with_one_time_password` (`parent_link.exists`), `…Teacher_or_student_email_cannot_be_linked_as_parent` (`parent.email_in_use`) |
 | P-04 | Phụ huynh xem `/funds` | 2 quỹ, vai trò Parent, tên con, không `studentCount` | PP `Parent_account…` | M2, M3 | Passed – `Funds/FundsTests.Parent_sees_child_funds_without_student_count` (liên kết phụ huynh seed bằng DB, chờ M3 cho API) |
-| P-05 | Gỡ liên kết | Quỹ đó → 404; quỹ kia vẫn 200 | PP `Parent_account…` | M3 | Not Implemented |
+| P-05 | Gỡ liên kết | Quỹ đó → 404; quỹ kia vẫn 200 | PP `Parent_account…` | M3 | Partially Implemented – quỹ đó → 404 Passed (`Students/StudentsTests.Unlinking_parent_marks_link_removed_keeps_history_and_account`); phần "quỹ kia vẫn 200" chưa có test |
 | P-06 | Danh sách, tìm kiếm theo nội dung / ghi chú khoản không công khai, chi tiết khoản không công khai, lịch sử | Không có trường nội bộ; tìm → 0; chi tiết → 404; lịch sử → 403 | PP `Parent_sees…` | M6 | Not Implemented |
 | P-07 | Danh mục; báo cáo tháng | Không có danh mục chỉ dùng cho khoản không công khai; "Khoản khác" `count = null`; tổng chi tháng đầy đủ | PP `Parent_sees…` | M5, M7 | Not Implemented |
 | P-08 | Con là thủ quỹ – phụ huynh ghi / hủy / xem thành viên / học sinh / tạo quỹ | 403 | PP `Parent_sees…` | M2 → M6 | Partially Implemented – tạo quỹ 403 Passed (`Funds/FundsTests.Treasurer_student_and_parent_cannot_create_or_rename_fund`); phần còn lại chờ M3 → M6 |
@@ -84,7 +84,7 @@ Lớp test: `TS` = `Roles/TeacherStudentTreasurerTests`, `PP` = `Roles/ParentAnd
 | G-04 | Thủ quỹ quỹ B dùng Id giao dịch / đường dẫn quỹ A | 404 | TX `A_treasurer_cannot…` | M6 | Not Implemented |
 | G-05 | Đăng nhập bằng một ô `login`: email giáo viên / phụ huynh, tên đăng nhập học sinh; request không có tham số vai trò; gửi kèm `role` bị bỏ qua (D-34) | 200 với mọi loại tài khoản; `/auth/me` trả loại tài khoản + vai trò theo quỹ | – (mới) | M1 | Passed – `AuthTests.Teacher_signs_in_with_email_case_insensitively_without_role_parameter`, `Student_signs_in_with_username_and_must_change_temporary_password`, `Me_lists_memberships_with_roles_derived_from_data` |
 | M-01 | Nâng cấp DB `InitialClassFund` có dữ liệu | Owner → Teacher, không phân công, giao dịch / AuditLog giữ nguyên, `IsPublic = true`, `CancelledBy` từ AuditLog | UP | – | Không áp dụng (D-36) |
-| M-02 | DELETE Student / ParentLink / TreasurerAssignment bằng `app_user` | P0001 | PT | M3, M4 | Partially Implemented – TreasurerAssignment Passed (M4 – `Treasurers/TreasurersTests.Treasurer_assignment_cannot_be_hard_deleted`); Student / ParentLink chờ M3 |
+| M-02 | DELETE Student / ParentLink / TreasurerAssignment bằng `app_user` | P0001 | PT | M3, M4 | Passed – Student, ParentLink (M3 – `Students/StudentsTests.Students_and_parent_links_cannot_be_hard_deleted`); TreasurerAssignment (M4 – `Treasurers/TreasurersTests.Treasurer_assignment_cannot_be_hard_deleted`) |
 | M-03 | Lịch sử migration có `_InitialClassFund`, `_AddDatabaseProtections` *(sửa 2026-11-05, D-36)* | Có | `DatabaseAccountTests` | M0 | Not Implemented – migration có trong Foundation, chưa có test tự động |
 | R-01 | Thu chi, sửa, hủy, chống trùng (5 request đồng thời), lọc, báo cáo tháng / năm, danh mục ẩn | Như R1 | TX, RC | M6, M7 | Not Implemented |
 | X-01 | Khởi động API bằng `dotnet run` và thao tác thủ công (smoke test) | Đăng ký → tạo quỹ → học sinh → phân công → ghi thu chi | – | M8 | Not Implemented |
