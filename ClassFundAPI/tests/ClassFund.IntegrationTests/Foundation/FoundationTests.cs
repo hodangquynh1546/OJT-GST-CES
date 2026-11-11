@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using ClassFund.Domain.Enums;
+using ClassFund.Domain.Rules;
 using ClassFund.IntegrationTests.Infrastructure;
 
 namespace ClassFund.IntegrationTests.Foundation;
@@ -99,6 +101,29 @@ public sealed class FoundationTests(PostgresFixture fixture)
         using var client = NewClient();
         await client.SignInAsAsync(student.UserId);
         await (await client.GetAsync("/test-probe")).AssertProblemAsync(HttpStatusCode.Forbidden, "password.change_required");
+    }
+
+    [Fact]
+    public async Task Seeded_student_states_match_their_account_status()
+    {
+        var fund = await _data.CreateFundAsync();
+        var pending = await _data.CreateStudentAccountAsync(fund, "Chờ kích hoạt");
+        var active = await _data.CreateStudentAccountAsync(fund, "Đang hoạt động", activated: true);
+        var treasurer = await _data.CreateStudentAccountAsync(fund, "Thủ quỹ", treasurer: true);
+        var none = await _data.CreateStudentAsync(fund);
+
+        Assert.Equal(StudentAccountStatus.PendingActivation, StudentAccount.StatusOf(await _data.FindUserAsync(pending.UserId)));
+        Assert.Equal(StudentAccountStatus.Active, StudentAccount.StatusOf(await _data.FindUserAsync(active.UserId)));
+        Assert.Equal(StudentAccountStatus.Active, StudentAccount.StatusOf(await _data.FindUserAsync(treasurer.UserId)));
+
+        await _data.DisableUserAsync(active.UserId);
+        Assert.Equal(StudentAccountStatus.Disabled, StudentAccount.StatusOf(await _data.FindUserAsync(active.UserId)));
+        Assert.NotEqual(Guid.Empty, none.StudentId);
+
+        // Học sinh đã kích hoạt (thủ quỹ) không bị chặn đổi mật khẩu tạm.
+        using var activeClient = NewClient();
+        await activeClient.SignInAsAsync(treasurer.UserId);
+        Assert.Equal(HttpStatusCode.OK, (await activeClient.GetAsync("/test-probe")).StatusCode);
     }
 
     [Fact]

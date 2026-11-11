@@ -12,6 +12,9 @@ public sealed class TestData(ApiFactory factory)
 {
     public const string TemporaryPassword = "Tam-1234-abcd-5678";
 
+    /// <summary>Mật khẩu của học sinh đã kích hoạt (đã đổi mật khẩu tạm).</summary>
+    public const string ActivatedPassword = "Matkhau123";
+
     public static string Unique(string prefix) => $"{prefix}{Guid.NewGuid():N}"[..(prefix.Length + 10)];
 
     public static string NewEmail() => $"{Unique("u")}@example.vn";
@@ -54,15 +57,21 @@ public sealed class TestData(ApiFactory factory)
         return new SeededAccount(teacher.Id, email, password, null);
     }
 
-    /// <summary>Học sinh đã được GVCN cấp tài khoản (mật khẩu tạm, chưa kích hoạt).</summary>
-    public async Task<SeededAccount> CreateStudentAccountAsync(SeededFund fund, string fullName = "Nguyễn Minh Khang", bool treasurer = false)
+    /// <summary>
+    /// Học sinh đã được GVCN cấp tài khoản. Mặc định <c>PendingActivation</c> (mật khẩu tạm <see cref="TemporaryPassword"/>);
+    /// <paramref name="activated"/> = true → <c>Active</c> (đã đổi mật khẩu, đăng nhập bằng <see cref="ActivatedPassword"/>).
+    /// Thủ quỹ luôn là học sinh đã kích hoạt (BR-31). Khóa tài khoản: <see cref="DisableUserAsync"/>.
+    /// </summary>
+    public async Task<SeededAccount> CreateStudentAccountAsync(SeededFund fund, string fullName = "Nguyễn Minh Khang", bool treasurer = false, bool activated = false)
     {
+        activated |= treasurer;
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var now = DateTimeOffset.UtcNow;
 
         var username = Unique("hs.");
-        var user = NewUser(scope, UserKind.Student, fullName, TemporaryPassword, null, username, mustChangePassword: true);
+        var password = activated ? ActivatedPassword : TemporaryPassword;
+        var user = NewUser(scope, UserKind.Student, fullName, password, null, username, mustChangePassword: !activated);
         var student = new Student(fund.Id, fullName, fund.OwnerUserId, now);
         student.LinkAccount(user.Id, now);
         db.AddRange(user, student);
@@ -72,7 +81,18 @@ public sealed class TestData(ApiFactory factory)
         }
 
         await db.SaveChangesAsync();
-        return new SeededAccount(user.Id, username, TemporaryPassword, student.Id);
+        return new SeededAccount(user.Id, username, password, student.Id);
+    }
+
+    /// <summary>Học sinh chưa được cấp tài khoản (<c>accountStatus = None</c>): <c>UserId</c> null, không đăng nhập được.</summary>
+    public async Task<SeededStudent> CreateStudentAsync(SeededFund fund, string fullName = "Lê Gia Bảo")
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var student = new Student(fund.Id, fullName, fund.OwnerUserId, DateTimeOffset.UtcNow);
+        db.Add(student);
+        await db.SaveChangesAsync();
+        return new SeededStudent(student.Id, fullName);
     }
 
     /// <summary>Phụ huynh do GVCN tạo khi liên kết email với học sinh (mật khẩu tạm).</summary>
@@ -144,3 +164,6 @@ public sealed class TestData(ApiFactory factory)
 public sealed record SeededFund(Guid Id, string Name, Guid OwnerUserId);
 
 public sealed record SeededAccount(Guid UserId, string Login, string Password, Guid? StudentId);
+
+/// <summary>Học sinh chưa có tài khoản.</summary>
+public sealed record SeededStudent(Guid StudentId, string FullName);

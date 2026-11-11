@@ -1,9 +1,9 @@
 # Kế hoạch module – ClassFund
 
-> v1.0 · 2026-11-09 · Backend đã đưa về **codebase Foundation** (nhánh `feature/foundation`). Bản backend đầy đủ trước đó dùng để **tham khảo** tại commit `6b6645d` trên `main` (`git show 6b6645d:<đường dẫn>`).
+> v1.1 · 2026-11-11 (đổi phân công Quỳnh / Cường, v1.0 · 2026-11-09) · Backend đã đưa về **codebase Foundation** (nhánh `feature/foundation`). Bản backend đầy đủ trước đó dùng để **tham khảo** tại commit `6b6645d` trên `main` (`git show 6b6645d:<đường dẫn>`).
 > Mỗi module làm **trọn luồng FE → BE → DB → Integration Test → E2E**, theo [foundation-guide.md](../architecture/foundation-guide.md) và [api-conventions.md](../api/api-conventions.md).
 > Nguồn: màn hình [screen-specifications.md](../ui-design/screen-specifications.md) + Canvas v4.0 · API [backend-api.md](../api/backend-api.md) · Quy tắc [business-rules-and-processes.md](../business-analysis/business-rules-and-processes.md) · Quyền [roles-and-permissions.md](../business-analysis/roles-and-permissions.md) · Luồng [user-flows.md](../ui-design/user-flows.md) · Test [test-cases.md](../testing/test-cases.md).
-> **Phân công:** Dev A – M1, M3, M4, M7a; Dev B – M2, M5, M6, M7b; M8 cả hai (đợt 1 → 5, mục 1). Module cần đăng nhập / dữ liệu của module người kia chưa xong: integration dùng `TestData` + `SignInAsAsync`, FE / e2e mock dùng `signInAs` (mock `/auth/me`), e2e full chạy sau khi module kia merge. Không có deploy / CI/CD ở giai đoạn này.
+> **Phân công (từ 2026-11-11):** Quỳnh – M1, M3, M5, M7a; Cường – M2, M4, M6, M7b; M8 cả hai (đợt 1 → 5, mục 1). ~~Dev A – M1, M3, M4, M7a; Dev B – M2, M5, M6, M7b~~ (bản 1.0: M4 và M5 đổi người). Hai module cùng đợt mà module sau cần dữ liệu của module trước (M4 cần M3, M6 cần M5) làm theo 4 bước: chốt hợp đồng → PR nhỏ (seed `TestData`, mock e2e) → làm module → e2e full sau khi module kia merge. Module cần đăng nhập / dữ liệu của module người kia chưa xong: integration dùng `TestData` + `SignInAsAsync`, FE / e2e mock dùng `signInAs` (mock `/auth/me`), e2e full chạy sau khi module kia merge. Không có deploy / CI/CD ở giai đoạn này.
 
 ## 1. Tổng quan và thứ tự
 
@@ -19,8 +19,8 @@ M0 Foundation (xong)
 |---|---|---|---|
 | 0 | **M0 Foundation** | – | Đã xong ở PR này |
 | 1 | **M1** Auth & Tài khoản · **M2** Quỹ | M0 merge | M2 dùng `SignInAsAsync` ở integration; e2e full của M2 chạy sau khi M1 merge |
-| 2 | **M3** Học sinh & Phụ huynh · **M5** Danh mục & Thành viên | M2 merge | M3 cần M1 (đổi mật khẩu tạm) cho e2e full |
-| 3 | **M4** Phân công thủ quỹ · **M6** Thu chi | M3 (cho M4), M5 (cho M6) merge | M6 seed thủ quỹ bằng `TestData` để không chờ M4; e2e full của M6 chạy sau M4 |
+| 2 | **M3** Học sinh & Phụ huynh (Quỳnh) · **M4** Phân công thủ quỹ (Cường) | M2 merge | M4 dùng `TestData.CreateStudentAccountAsync(activated: true)` và mock học sinh 4 trạng thái (PR nhỏ của M3) nên không chờ M3; e2e full của M4 chạy sau M3 merge. ~~M3 ‖ M5~~ |
+| 3 | **M5** Danh mục & Thành viên (Quỳnh) · **M6** Thu chi (Cường) | M2 merge (M4 nên xong trước để e2e full của M6 có thủ quỹ thật) | M6 seed thủ quỹ bằng `TestData`, danh mục mặc định có sẵn khi tạo quỹ; e2e full của M6 chạy sau M5 và M4. ~~M4 ‖ M6~~ |
 | 4 | **M7a** Tổng quan (S-01) · **M7b** Báo cáo (S-03) | M6 merge | M7 tách hai nửa để 2 dev song song; S-01 dùng `reports/yearly` của M7b → chốt hợp đồng ngày đầu |
 | 5 | **M8** E2E toàn luồng (mỗi dev một nhóm vai trò) | M7a + M7b merge | Kịch bản UF-01 → UF-13 qua cả 4 vai trò |
 
