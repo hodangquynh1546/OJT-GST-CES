@@ -1,4 +1,4 @@
-import { APIRequestContext, expect } from '@playwright/test';
+import { APIRequestContext, expect, request as playwrightRequest } from '@playwright/test';
 
 /**
  * Chế độ **full** (`E2E_FULL=1`): gọi API thật (qua proxy Angular → ClassFund.Api → PostgreSQL) để seed dữ liệu
@@ -69,6 +69,46 @@ export async function registerTeacher(api: RealApi, fullName = 'Cô Hạnh', pas
 /** M1: đăng nhập bằng `POST /auth/login` (không có vai trò); `api` chuyển sang phiên của tài khoản này. */
 export async function login(api: RealApi, account: Pick<RealAccount, 'login' | 'password'>): Promise<void> {
   await api.post('/auth/login', { login: account.login, password: account.password });
+}
+
+/** Học sinh / phụ huynh seed bằng API; `fundId` là quỹ GVCN (`api`) vừa tạo. */
+export interface RealStudent extends RealAccount {
+  studentId: string;
+}
+
+/** M3: GVCN (`api`) thêm học sinh vào quỹ (chưa có tài khoản); có `parentEmail` thì liên kết phụ huynh luôn. */
+export async function createStudent(
+  api: RealApi,
+  fundId: string,
+  fullName = `Học sinh ${unique('')}`,
+  parentEmail?: string,
+): Promise<{ studentId: string; fullName: string }> {
+  const created = await api.post<{ id: string }>(`/funds/${fundId}/students`, { fullName, parentEmail });
+  return { studentId: created.id, fullName };
+}
+
+/** M3: GVCN cấp tài khoản – học sinh ở trạng thái "Chờ kích hoạt", đăng nhập bằng `login` + mật khẩu tạm `password`. */
+export async function grantAccount(api: RealApi, fundId: string, studentId: string, fullName = 'Học sinh', username?: string): Promise<RealStudent> {
+  const credential = await api.post<{ login: string; temporaryPassword: string }>(`/funds/${fundId}/students/${studentId}/account`, { username });
+  return { studentId, fullName, login: credential.login, password: credential.temporaryPassword };
+}
+
+/**
+ * M3: học sinh đã **kích hoạt** (đã đổi mật khẩu tạm sang `E2E_PASSWORD`) – điều kiện để M4 phân công thủ quỹ.
+ * Đăng nhập bằng một phiên riêng nên phiên của GVCN (`api`) không bị đổi.
+ */
+export async function createActiveStudent(api: RealApi, fundId: string, fullName = `Học sinh ${unique('')}`): Promise<RealStudent> {
+  const { studentId } = await createStudent(api, fundId, fullName);
+  const pending = await grantAccount(api, fundId, studentId, fullName);
+  const context = await playwrightRequest.newContext({ baseURL: 'http://localhost:4200' });
+  try {
+    const studentApi = new RealApi(context);
+    await login(studentApi, pending);
+    await studentApi.post('/auth/change-password', { currentPassword: pending.password, newPassword: E2E_PASSWORD });
+  } finally {
+    await context.dispose();
+  }
+  return { ...pending, password: E2E_PASSWORD };
 }
 
 /** Email / tên không trùng giữa các lần chạy (DB e2e dùng chung). */
