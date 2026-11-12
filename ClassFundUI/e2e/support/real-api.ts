@@ -111,6 +111,49 @@ export async function createActiveStudent(api: RealApi, fundId: string, fullName
   return { ...pending, password: E2E_PASSWORD };
 }
 
+/** M4: GVCN (`api`) phân công học sinh đã kích hoạt làm thủ quỹ; trả về id phân công. */
+export async function assignTreasurer(api: RealApi, fundId: string, studentId: string): Promise<string> {
+  return (await api.post<{ id: string }>(`/funds/${fundId}/treasurers`, { studentId })).id;
+}
+
+export interface NewTransaction {
+  type: 'Income' | 'Expense';
+  amount: number;
+  description: string;
+  /** Tên danh mục (mặc định "Đóng quỹ" / "Chi khác" – danh mục mặc định khi tạo quỹ) hoặc `categoryId`. */
+  category?: string;
+  categoryId?: string;
+  /** `yyyy-MM-dd`, mặc định hôm nay theo giờ Việt Nam. */
+  occurredOn?: string;
+  isPublic?: boolean;
+  note?: string;
+}
+
+/**
+ * M6: thủ quỹ (`api` đang đăng nhập bằng thủ quỹ) ghi một khoản thu / chi bằng `POST /transactions`.
+ * Danh mục tìm theo tên qua `GET /categories` (M5). Trả về khoản đã lưu (bản đầy đủ, có `isNegativeBalance`).
+ */
+export async function createTransaction(api: RealApi, fundId: string, input: NewTransaction): Promise<{ id: string; isNegativeBalance: boolean }> {
+  let categoryId = input.categoryId;
+  if (!categoryId) {
+    const name = input.category ?? (input.type === 'Income' ? 'Đóng quỹ' : 'Chi khác');
+    const categories = await api.get<{ id: string; type: string; name: string }[]>(`/funds/${fundId}/categories`);
+    categoryId = categories.find((category) => category.type === input.type && category.name === name)?.id;
+    expect(categoryId, `Không có danh mục "${name}" (${input.type})`).toBeTruthy();
+  }
+  const occurredOn = input.occurredOn ?? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date());
+  return api.post(`/funds/${fundId}/transactions`, {
+    type: input.type,
+    amount: input.amount,
+    occurredOn,
+    categoryId,
+    description: input.description,
+    note: input.note ?? null,
+    isPublic: input.isPublic ?? true,
+    idempotencyKey: crypto.randomUUID(),
+  });
+}
+
 /** Email / tên không trùng giữa các lần chạy (DB e2e dùng chung). */
 export function unique(prefix: string): string {
   return `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
