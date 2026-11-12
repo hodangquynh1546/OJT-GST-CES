@@ -1,0 +1,131 @@
+{
+  "paths": {
+    "/api/v1/funds/{fundId}/members": {
+      "get": {
+        "tags": [
+          "Members"
+        ],
+        "parameters": [
+          {
+            "name": "fundId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MemberResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "schemas": {
+    "FundRole": {
+      "enum": [
+        "Teacher",
+        "Treasurer",
+        "Student",
+        "Parent"
+      ],
+      "type": "string"
+    },
+    "MemberResponse": {
+      "required": [
+        "fullName",
+        "role"
+      ],
+      "type": "object",
+      "properties": {
+        "fullName": {
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/components/schemas/FundRole"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ProblemDetails": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "nullable": true
+        },
+        "title": {
+          "type": "string",
+          "nullable": true
+        },
+        "status": {
+          "type": "integer",
+          "format": "int32",
+          "nullable": true
+        },
+        "detail": {
+          "type": "string",
+          "nullable": true
+        },
+        "instance": {
+          "type": "string",
+          "nullable": true
+        }
+      },
+      "additionalProperties": {}
+    }
+  }
+}
