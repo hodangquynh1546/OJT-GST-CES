@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using ClassFund.Application.Common.Security;
 using ClassFund.Domain.Entities;
 using ClassFund.Domain.Enums;
+using ClassFund.Domain.Rules;
 using ClassFund.Infrastructure.Persistence;
 
 namespace ClassFund.IntegrationTests.Infrastructure;
@@ -37,6 +38,82 @@ public sealed class TestData(ApiFactory factory)
         db.Add(fund);
         await db.SaveChangesAsync();
         return new SeededFund(fund.Id, fund.Name, ownerId.Value);
+    }
+
+    /// <summary>
+    /// Tạo sẵn 6 danh mục mặc định cho quỹ (quỹ tạo qua <see cref="CreateFundAsync"/> không có danh mục, khác quỹ tạo bằng <c>POST /funds</c>).
+    /// Trả về theo tên, ví dụ <c>categories["Đóng quỹ"]</c>.
+    /// </summary>
+    public async Task<IReadOnlyDictionary<string, SeededCategory>> SeedDefaultCategoriesAsync(SeededFund fund)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var now = DateTimeOffset.UtcNow;
+        var created = DefaultCategories.All.Select(item => new Category(fund.Id, item.Type, item.Name, now)).ToList();
+        db.AddRange(created);
+        await db.SaveChangesAsync();
+        return created.ToDictionary(category => category.Name, category => new SeededCategory(category.Id, category.Type, category.Name, false));
+    }
+
+    /// <summary>Một danh mục của quỹ; <paramref name="isHidden"/> = true là danh mục đã ẩn (khoản cũ vẫn giữ).</summary>
+    public async Task<SeededCategory> CreateCategoryAsync(
+        SeededFund fund,
+        TransactionType type = TransactionType.Expense,
+        string? name = null,
+        bool isHidden = false)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var now = DateTimeOffset.UtcNow;
+        var category = new Category(fund.Id, type, name ?? Unique("Danh mục "), now);
+        if (isHidden)
+        {
+            category.Update(category.Name, true, now);
+        }
+
+        db.Add(category);
+        await db.SaveChangesAsync();
+        return new SeededCategory(category.Id, category.Type, category.Name, isHidden);
+    }
+
+    /// <summary>
+    /// Một khoản thu / chi của quỹ (loại lấy từ <paramref name="category"/>). Mặc định công khai, chưa hủy, do GVCN ghi.
+    /// <paramref name="cancelled"/> = true: đã hủy (vẫn tính vào <c>transactionCount</c> và X-01). Số dư chỉ tính khoản chưa hủy.
+    /// </summary>
+    public async Task<SeededTransaction> CreateTransactionAsync(
+        SeededFund fund,
+        SeededCategory category,
+        long amount = 100_000,
+        bool isPublic = true,
+        bool cancelled = false,
+        Guid? createdBy = null,
+        string? description = null,
+        DateOnly? occurredOn = null)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var now = DateTimeOffset.UtcNow;
+        var author = createdBy ?? fund.OwnerUserId;
+        var transaction = new FundTransaction(
+            fund.Id,
+            category.Type,
+            amount,
+            occurredOn ?? DateOnly.FromDateTime(DateTime.UtcNow),
+            category.Id,
+            description ?? Unique("Khoản "),
+            note: null,
+            isPublic,
+            author,
+            Guid.NewGuid(),
+            now);
+        if (cancelled)
+        {
+            transaction.Cancel("Ghi nhầm", author, now);
+        }
+
+        db.Add(transaction);
+        await db.SaveChangesAsync();
+        return new SeededTransaction(transaction.Id, category.Id, category.Type, amount, isPublic, cancelled);
     }
 
     public const string TeacherPassword = "Matkhau123";
@@ -167,3 +244,7 @@ public sealed record SeededAccount(Guid UserId, string Login, string Password, G
 
 /// <summary>Học sinh chưa có tài khoản.</summary>
 public sealed record SeededStudent(Guid StudentId, string FullName);
+
+public sealed record SeededCategory(Guid Id, TransactionType Type, string Name, bool IsHidden);
+
+public sealed record SeededTransaction(Guid Id, Guid CategoryId, TransactionType Type, long Amount, bool IsPublic, bool IsCancelled);

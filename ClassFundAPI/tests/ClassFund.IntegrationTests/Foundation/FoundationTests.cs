@@ -1,8 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using ClassFund.Domain.Enums;
 using ClassFund.Domain.Rules;
+using ClassFund.Infrastructure.Persistence;
 using ClassFund.IntegrationTests.Infrastructure;
 
 namespace ClassFund.IntegrationTests.Foundation;
@@ -124,6 +127,35 @@ public sealed class FoundationTests(PostgresFixture fixture)
         using var activeClient = NewClient();
         await activeClient.SignInAsAsync(treasurer.UserId);
         Assert.Equal(HttpStatusCode.OK, (await activeClient.GetAsync("/test-probe")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Seeded_categories_and_transactions_have_the_requested_state()
+    {
+        var fund = await _data.CreateFundAsync();
+        var defaults = await _data.SeedDefaultCategoriesAsync(fund);
+        var hidden = await _data.CreateCategoryAsync(fund, TransactionType.Expense, "Photo tài liệu", isHidden: true);
+        var income = defaults["Đóng quỹ"];
+        var open = await _data.CreateTransactionAsync(fund, income, 200_000);
+        var cancelled = await _data.CreateTransactionAsync(fund, hidden, 50_000, isPublic: false, cancelled: true);
+
+        Assert.Equal(6, defaults.Count);
+        Assert.Equal(TransactionType.Income, income.Type);
+        Assert.True(hidden.IsHidden);
+        Assert.Equal(TransactionType.Income, open.Type);
+        Assert.True(open.IsPublic);
+
+        await using var scope = fixture.Factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        Assert.Equal(7, await db.Categories.CountAsync(category => category.FundId == fund.Id));
+        Assert.True((await db.Categories.SingleAsync(category => category.Id == hidden.Id)).IsHidden);
+        var stored = await db.FundTransactions.AsNoTracking().Where(transaction => transaction.FundId == fund.Id).ToListAsync();
+        Assert.Equal(2, stored.Count);
+        Assert.False(stored.Single(transaction => transaction.Id == open.Id).IsCancelled);
+        var cancelledRow = stored.Single(transaction => transaction.Id == cancelled.Id);
+        Assert.True(cancelledRow.IsCancelled);
+        Assert.False(cancelledRow.IsPublic);
+        Assert.Equal(fund.OwnerUserId, cancelledRow.CancelledBy);
     }
 
     [Fact]
