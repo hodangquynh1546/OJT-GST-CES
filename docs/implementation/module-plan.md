@@ -190,6 +190,11 @@ Module không được thêm yêu cầu ngoài các tài liệu nguồn. Thấy 
   - E2E full: thủ quỹ thêm / ẩn danh mục. GVCN không thấy menu Danh mục.
 - **Phụ thuộc:** M2. Seed thủ quỹ bằng `TestData` (không chờ M4).
 - **Dùng chung với M6 (PR hợp đồng, làm trước):** `TestData.SeedDefaultCategoriesAsync` / `CreateCategoryAsync` / `CreateTransactionAsync` (quỹ tạo bằng `TestData.CreateFundAsync` không có danh mục), `features/categories/categories.api.ts` + `categories.models.ts` (M6 dùng cho dialog giao dịch và bộ lọc, không tự viết lại), `e2e/support/mock-categories.ts` (`CATEGORIES_FULL`, `CATEGORIES_TREASURER`, `CATEGORIES_PUBLIC`, `mockCategories`).
+- **Quyết định khi triển khai (2026-11-12):**
+  - Members là feature riêng (`Features/Members`), route `GET /funds/{id}/members`; thứ tự GVCN → thủ quỹ → học sinh, trong nhóm theo họ tên; học sinh đang là thủ quỹ chỉ xuất hiện một lần (vai trò Thủ quỹ); phân công đã thu hồi → Học sinh. T-03 **không** có dấu "(Bạn)" của Canvas vì API chỉ trả `fullName` + `role`.
+  - `PUT` cần đủ `name` + `isHidden`; không đổi gì → 204, không ghi, không audit. Đổi tên / thêm trùng tên trong cùng loại (kể cả danh mục ẩn) → 422 `category.name_taken`; hai request đồng thời → unique index `UQ_Category_Fund_Type_Name` chốt chặn.
+  - Danh mục thuộc quỹ khác → 404; GVCN, học sinh, phụ huynh ghi → 403; người ngoài quỹ → 404.
+  - **M6:** khoản mới phải từ chối danh mục đã ẩn, khác quỹ, khác loại (`transaction.category_invalid`); `GET /categories` sắp theo loại (chuỗi `Expense` trước `Income`) rồi theo tên – frontend tự nhóm theo `type`.
 
 ### M6 – Thu chi (sổ quỹ)
 

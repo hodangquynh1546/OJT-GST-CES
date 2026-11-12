@@ -59,7 +59,7 @@ Cột vai trò: **G** = GVCN · **T** = Thủ quỹ · **H** = Học sinh chưa 
 | FR-25 | **Cấp tài khoản học sinh**: tên đăng nhập (bỏ trống → hệ thống gợi ý) + mật khẩu tạm ngẫu nhiên, hiển thị một lần; **cấp lại mật khẩu tạm** (phiên cũ hết hiệu lực) | ✔ | – | – | – | M3 | Implemented |
 | FR-26 | **Liên kết phụ huynh** theo email: có tài khoản phụ huynh → chỉ liên kết; chưa có → tạo tài khoản + mật khẩu tạm hiển thị một lần; ghi rõ hệ thống không gửi email; **gỡ liên kết** (giữ lịch sử) | ✔ | – | – | – | M3 | Implemented |
 | FR-27 | **Phân công thủ quỹ**: chọn học sinh đã kích hoạt tài khoản; nhiều thủ quỹ; **thu hồi** (không thu hồi được thủ quỹ cuối cùng); lịch sử người / thời điểm phân công, thu hồi | ✔ | – | – | – | M4 | Implemented |
-| FR-12 | **Thành viên**: chỉ họ tên + vai trò (GVCN, thủ quỹ, học sinh) – không email / tên đăng nhập / liên hệ. *(v1.2: thủ quỹ tạo / khóa / đổi vai trò thành viên – thay bằng FR-24 → FR-27)* | ✔ | ✔ (chỉ xem) | – | – | M5 | Not Implemented |
+| FR-12 | **Thành viên**: chỉ họ tên + vai trò (GVCN, thủ quỹ, học sinh) – không email / tên đăng nhập / liên hệ. *(v1.2: thủ quỹ tạo / khóa / đổi vai trò thành viên – thay bằng FR-24 → FR-27)* | ✔ | ✔ (chỉ xem) | – | – | M5 | Implemented (M5) – `Members/MembersTests`, T-03 |
 | FR-28 | ~~GVCN khóa / mở khóa tài khoản học sinh; học sinh rời lớp; chuyển quỹ cho giáo viên khác~~ *(Bỏ 2026-11-09, D-41: hệ thống không có chức năng này)* | – | – | – | – | – | Loại bỏ (D-41) |
 
 ### 4.3 Thu chi & báo cáo
@@ -74,7 +74,7 @@ Cột vai trò: **G** = GVCN · **T** = Thủ quỹ · **H** = Học sinh chưa 
 | FR-07 | **Chi tiết** + lịch sử thay đổi (người, thời điểm, trước / sau). H, P: chỉ nội dung, ngày, danh mục, số tiền của khoản công khai; khoản không công khai → 404 | ✔ | ✔ | công khai | công khai | M6 | Implemented (M6, chờ merge) |
 | FR-08 | **Báo cáo tháng** (mọi tháng): đầu / cuối tháng, tổng thu / chi, theo danh mục, danh sách. H, P: phần không công khai gộp "Khoản khác", không số lượng (P1) | ✔ | ✔ | ✔ | ✔ | M7 | Not Implemented |
 | FR-09 | **Thống kê 12 tháng** | ✔ | ✔ | ✔ | ✔ | M7 | Not Implemented |
-| FR-10 | **Danh mục**: thêm, đổi tên, ẩn / hiện. H, P chỉ thấy danh mục đang hiện có khoản công khai (X-01) | xem | ✔ | xem | xem | M5 | Not Implemented |
+| FR-10 | **Danh mục**: thêm, đổi tên, ẩn / hiện. H, P chỉ thấy danh mục đang hiện có khoản công khai (X-01) | xem | ✔ | xem | xem | M5 | Implemented (M5) – `Categories/CategoriesTests`, T-02 |
 ## 5. Yêu cầu phi chức năng
 
 | Mã | Yêu cầu |
