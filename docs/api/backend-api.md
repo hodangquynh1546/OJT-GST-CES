@@ -59,7 +59,7 @@
 
 | Method | Path | Permission | Mô tả |
 |---|---|---|---|
-| `GET` | `/funds/{fundId}/categories?type&includeHidden` | `Fund.View` | GVCN / thủ quỹ: danh mục đang hiện, thêm danh mục ẩn khi `includeHidden=true`; kèm `isHidden`, `transactionCount` (tính cả khoản đã hủy). Công khai: chỉ danh mục đang hiện có ≥ 1 khoản công khai (X-01), không `transactionCount` |
+| `GET` | `/funds/{fundId}/categories?type&includeHidden` | `Fund.View` | GVCN / thủ quỹ: danh mục đang hiện, thêm danh mục ẩn khi `includeHidden=true`; kèm `isHidden`, `transactionCount` (tính cả khoản đã hủy). Công khai (học sinh, phụ huynh): chỉ danh mục đang hiện có ≥ 1 khoản công khai (X-01; khoản công khai đã hủy vẫn tính), response chỉ có `id`, `type`, `name` – **không `isHidden`, không `transactionCount`** |
 | `POST` | `/funds/{fundId}/categories` | `Category.Manage` (thủ quỹ) | `{ type, name }` → 201 `{ id }`. 422 `category.name_taken` |
 | `PUT` | `/funds/{fundId}/categories/{id}` | `Category.Manage` | `{ name, isHidden }` đủ cả hai trường → 204. 422 `category.name_taken` |
 

@@ -189,6 +189,7 @@ Module không được thêm yêu cầu ngoài các tài liệu nguồn. Thấy 
   - Integration: T-04 (danh mục), TR-02 (thành viên), P-07 (danh mục công khai).
   - E2E full: thủ quỹ thêm / ẩn danh mục. GVCN không thấy menu Danh mục.
 - **Phụ thuộc:** M2. Seed thủ quỹ bằng `TestData` (không chờ M4).
+- **Dùng chung với M6 (PR hợp đồng, làm trước):** `TestData.SeedDefaultCategoriesAsync` / `CreateCategoryAsync` / `CreateTransactionAsync` (quỹ tạo bằng `TestData.CreateFundAsync` không có danh mục), `features/categories/categories.api.ts` + `categories.models.ts` (M6 dùng cho dialog giao dịch và bộ lọc, không tự viết lại), `e2e/support/mock-categories.ts` (`CATEGORIES_FULL`, `CATEGORIES_TREASURER`, `CATEGORIES_PUBLIC`, `mockCategories`).
 
 ### M6 – Thu chi (sổ quỹ)
 
