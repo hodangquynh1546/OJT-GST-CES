@@ -66,7 +66,7 @@ Cột vai trò: **G** = GVCN · **T** = Thủ quỹ · **H** = Học sinh chưa 
 
 | Mã | Yêu cầu | G | T | H | P | Module | Trạng thái |
 |---|---|---|---|---|---|---|---|
-| FR-01 | **Tổng quan**: cộng dồn (số dư, tổng thu, tổng chi) + tháng hiện tại; 5 giao dịch gần nhất (bản công khai với H, P); người quản lý (GVCN + thủ quỹ: họ tên, vai trò); trạng thái thủ quỹ; cảnh báo số dư âm | ✔ | ✔ | ✔ | ✔ | M7 | Not Implemented |
+| FR-01 | **Tổng quan**: cộng dồn (số dư, tổng thu, tổng chi) + tháng hiện tại; 5 giao dịch gần nhất (bản công khai với H, P); người quản lý (GVCN + thủ quỹ: họ tên, vai trò); trạng thái thủ quỹ; cảnh báo số dư âm | ✔ | ✔ | ✔ | ✔ | M7 | Implemented (M7a, chờ merge) – `Funds/FundOverviewTests`, S-01 |
 | FR-02 / FR-03 | **Thêm khoản thu / chi**: nội dung, số tiền, ngày, danh mục, ghi chú (tùy chọn), cờ công khai (mặc định bật) | – | ✔ | – | – | M6 | Implemented (M6) – `Transactions/TransactionsTests`, S-02, T-01 |
 | FR-04 | **Sửa** (số tiền, ngày, danh mục, nội dung, ghi chú, cờ công khai); lưu người sửa | – | ✔ | – | – | M6 | Implemented (M6) – `Transactions/TransactionsTests`, S-02, T-01 |
 | FR-05 | **Hủy** bắt buộc lý do; lưu người hủy; không tính vào số dư / báo cáo | – | ✔ | – | – | M6 | Implemented (M6) – `Transactions/TransactionsTests`, S-02, T-01 |

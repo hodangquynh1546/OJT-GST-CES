@@ -2,6 +2,8 @@ using ClassFund.Application.Common.Auditing;
 using ClassFund.Application.Common.Exceptions;
 using ClassFund.Application.Common.Persistence;
 using ClassFund.Application.Common.Security;
+using ClassFund.Application.Features.Members;
+using ClassFund.Application.Features.Transactions;
 using ClassFund.Domain.Authorization;
 using ClassFund.Domain.Entities;
 using ClassFund.Domain.Enums;
@@ -19,9 +21,11 @@ public sealed class FundsService(
     IAccessService accessService,
     ICurrentUser currentUser,
     AuditTrail auditTrail,
+    ITransactionsService transactions,
     TimeProvider timeProvider) : IFundsService
 {
     private const string EntityType = nameof(Fund);
+    private const int RecentTransactionCount = 5;
 
     private Guid UserId => currentUser.UserId
         ?? throw new InvalidOperationException("Thao tác cần người dùng đã đăng nhập.");
@@ -98,6 +102,74 @@ public sealed class FundsService(
                     membership.Role == FundRole.Parent ? membership.LinkedStudents : null);
             })
             .ToArray();
+    }
+
+    public async Task<FundOverviewResponse> GetAsync(Guid fundId, CancellationToken cancellationToken)
+    {
+        var access = await accessService.GetFundAccessAsync(UserId, fundId, cancellationToken);
+        if (!access.Permissions.Contains(Permissions.FundView))
+        {
+            throw new ForbiddenAccessException();
+        }
+
+        // Tháng hiện tại theo giờ Việt Nam; ngày ghi nhận (OccurredOn) cũng là ngày Việt Nam.
+        var today = VietnamTime.DateOf(timeProvider.GetUtcNow());
+        var monthStart = new DateOnly(today.Year, today.Month, 1);
+        var monthEnd = monthStart.AddMonths(1).AddDays(-1);
+
+        // BR-02: số dư = tổng thu − tổng chi của các khoản chưa hủy; giống nhau ở mọi vai trò (BR-15).
+        var totals = await db.ToListAsync(
+            db.Query<FundTransaction>()
+                .Where(transaction => transaction.FundId == fundId && !transaction.IsCancelled)
+                .GroupBy(transaction => new
+                {
+                    transaction.Type,
+                    InMonth = transaction.OccurredOn >= monthStart && transaction.OccurredOn <= monthEnd,
+                })
+                .Select(group => new { group.Key.Type, group.Key.InMonth, Total = group.Sum(transaction => transaction.Amount) }),
+            cancellationToken);
+
+        long Sum(TransactionType type, bool monthOnly) => totals
+            .Where(row => row.Type == type && (!monthOnly || row.InMonth))
+            .Sum(row => row.Total);
+
+        var income = Sum(TransactionType.Income, monthOnly: false);
+        var expense = Sum(TransactionType.Expense, monthOnly: false);
+        var monthIncome = Sum(TransactionType.Income, monthOnly: true);
+        var monthExpense = Sum(TransactionType.Expense, monthOnly: true);
+
+        // BR-23: chỉ họ tên và vai trò của GVCN và thủ quỹ đang hiệu lực.
+        var teacherName = await db.FirstOrDefaultAsync(
+            db.Query<Fund>()
+                .Where(fund => fund.Id == fundId)
+                .Join(db.Query<User>(), fund => fund.OwnerUserId, user => user.Id, (fund, user) => user.FullName),
+            cancellationToken) ?? throw new NotFoundException();
+        var treasurerNames = (await db.ToListAsync(
+                from assignment in db.Query<TreasurerAssignment>()
+                where assignment.FundId == fundId && assignment.RevokedAt == null
+                join student in db.Query<Student>() on assignment.StudentId equals student.Id
+                select student.FullName,
+                cancellationToken))
+            .Order(StringComparer.CurrentCulture)
+            .ToArray();
+        var managers = new List<MemberResponse> { new(teacherName, FundRole.Teacher) };
+        managers.AddRange(treasurerNames.Select(name => new MemberResponse(name, FundRole.Treasurer)));
+
+        var recent = await transactions.ListAsync(
+            fundId,
+            new TransactionFilter(null, null, null, null, null, TransactionStatusFilter.Active, 1, RecentTransactionCount),
+            cancellationToken);
+
+        return new FundOverviewResponse(
+            access.Role,
+            access.Permissions.Order(StringComparer.Ordinal).ToArray(),
+            income - expense,
+            income,
+            expense,
+            new MonthTotals(monthIncome, monthExpense, monthIncome - monthExpense),
+            treasurerNames.Length == 0 ? TreasurerStatus.Unassigned : TreasurerStatus.Assigned,
+            managers,
+            recent.Items);
     }
 
     public async Task<FundCreatedResponse> CreateAsync(string name, CancellationToken cancellationToken)

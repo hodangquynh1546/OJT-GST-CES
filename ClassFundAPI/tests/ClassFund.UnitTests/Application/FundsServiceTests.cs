@@ -3,6 +3,7 @@ using ClassFund.Application.Common.Auditing;
 using ClassFund.Application.Common.Exceptions;
 using ClassFund.Application.Common.Security;
 using ClassFund.Application.Features.Funds;
+using ClassFund.Application.Features.Transactions;
 using ClassFund.Domain.Authorization;
 using ClassFund.Domain.Entities;
 using ClassFund.Domain.Enums;
@@ -22,7 +23,10 @@ public class FundsServiceTests
     {
         var request = new Mock<IRequestInfo>();
         var clock = new FixedClock(Now);
-        return new FundsService(_db, new AccessService(_db), _currentUser.Object, new AuditTrail(_db, request.Object, clock), clock);
+        var access = new AccessService(_db);
+        var audit = new AuditTrail(_db, request.Object, clock);
+        var transactions = new TransactionsService(_db, access, _currentUser.Object, audit, clock);
+        return new FundsService(_db, access, _currentUser.Object, audit, transactions, clock);
     }
 
     private User SignedIn(UserKind kind)
@@ -180,6 +184,163 @@ public class FundsServiceTests
         }
 
         _db.Add(transaction);
+    }
+
+    // ---------- GetAsync (S-01) ----------
+
+    private User AddStudentMember(Fund fund, string fullName, bool treasurer = false, bool revoked = false)
+    {
+        var user = new User(UserKind.Student, fullName, "hash", null, $"hs.{Guid.NewGuid():N}"[..12], false, Now);
+        _db.Add(user);
+        var student = new Student(fund.Id, fullName, fund.OwnerUserId, Now);
+        student.LinkAccount(user.Id, Now);
+        _db.Add(student);
+        if (treasurer)
+        {
+            var assignment = new TreasurerAssignment(fund.Id, student.Id, fund.OwnerUserId, Now);
+            if (revoked)
+            {
+                assignment.Revoke(fund.OwnerUserId, Now);
+            }
+
+            _db.Add(assignment);
+        }
+
+        return user;
+    }
+
+    private FundTransaction AddTx(
+        Fund fund, TransactionType type, long amount, DateOnly on, bool isPublic = true, bool cancelled = false, string description = "Khoản")
+    {
+        var transaction = new FundTransaction(
+            fund.Id, type, amount, on, Guid.NewGuid(), description, null, isPublic, fund.OwnerUserId, Guid.NewGuid(), Now);
+        if (cancelled)
+        {
+            transaction.Cancel("Nhập nhầm", fund.OwnerUserId, Now);
+        }
+
+        _db.Add(transaction);
+        return transaction;
+    }
+
+    [Fact]
+    public async Task Get_empty_fund_has_zero_totals_unassigned_status_and_only_the_teacher_as_manager()
+    {
+        var teacher = SignedIn(UserKind.Teacher);
+        var fund = AddFund(teacher.Id);
+
+        var overview = await Service().GetAsync(fund.Id, CancellationToken.None);
+
+        Assert.Equal(FundRole.Teacher, overview.Role);
+        Assert.Equal((0L, 0L, 0L), (overview.CurrentBalance, overview.TotalIncome, overview.TotalExpense));
+        Assert.Equal(new MonthTotals(0, 0, 0), overview.CurrentMonth);
+        Assert.Equal(TreasurerStatus.Unassigned, overview.TreasurerStatus);
+        Assert.Equal([("Người dùng", FundRole.Teacher)], overview.Managers.Select(manager => (manager.FullName, manager.Role)));
+        Assert.Empty(overview.RecentTransactions);
+    }
+
+    [Fact]
+    public async Task Get_totals_skip_cancelled_and_current_month_uses_vietnam_time()
+    {
+        var teacher = SignedIn(UserKind.Teacher);
+        var fund = AddFund(teacher.Id);
+        AddTx(fund, TransactionType.Income, 1_000_000, new DateOnly(2026, 10, 31));
+        AddTx(fund, TransactionType.Income, 500_000, new DateOnly(2026, 11, 1));
+        AddTx(fund, TransactionType.Expense, 200_000, new DateOnly(2026, 11, 10));
+        AddTx(fund, TransactionType.Expense, 300_000, new DateOnly(2026, 10, 15));
+        AddTx(fund, TransactionType.Income, 9_000_000, new DateOnly(2026, 11, 5), cancelled: true);
+        AddTx(fund, TransactionType.Expense, 9_000_000, new DateOnly(2026, 11, 6), cancelled: true);
+
+        var overview = await Service().GetAsync(fund.Id, CancellationToken.None);
+
+        Assert.Equal(1_500_000, overview.TotalIncome);
+        Assert.Equal(500_000, overview.TotalExpense);
+        Assert.Equal(1_000_000, overview.CurrentBalance);
+        Assert.Equal(new MonthTotals(500_000, 200_000, 300_000), overview.CurrentMonth);
+    }
+
+    [Fact]
+    public async Task Get_negative_balance_is_reported_as_is()
+    {
+        var teacher = SignedIn(UserKind.Teacher);
+        var fund = AddFund(teacher.Id);
+        AddTx(fund, TransactionType.Income, 100_000, new DateOnly(2026, 11, 2));
+        AddTx(fund, TransactionType.Expense, 250_000, new DateOnly(2026, 11, 3));
+
+        var overview = await Service().GetAsync(fund.Id, CancellationToken.None);
+
+        Assert.Equal(-150_000, overview.CurrentBalance);
+        Assert.Equal(-150_000, overview.CurrentMonth.Net);
+    }
+
+    [Fact]
+    public async Task Get_managers_are_teacher_then_active_treasurers_by_name_without_revoked_or_students()
+    {
+        var teacher = SignedIn(UserKind.Teacher);
+        var fund = AddFund(teacher.Id);
+        AddStudentMember(fund, "Võ Gia Huy");
+        AddStudentMember(fund, "Phạm Thu Trang", treasurer: true);
+        AddStudentMember(fund, "Lê Gia Bảo", treasurer: true, revoked: true);
+
+        var overview = await Service().GetAsync(fund.Id, CancellationToken.None);
+
+        Assert.Equal(TreasurerStatus.Assigned, overview.TreasurerStatus);
+        Assert.Equal(
+            [("Người dùng", FundRole.Teacher), ("Phạm Thu Trang", FundRole.Treasurer)],
+            overview.Managers.Select(manager => (manager.FullName, manager.Role)));
+    }
+
+    [Fact]
+    public async Task Get_recent_transactions_are_the_five_latest_active_ones_newest_first()
+    {
+        var teacher = SignedIn(UserKind.Teacher);
+        var fund = AddFund(teacher.Id);
+        for (var day = 1; day <= 7; day++)
+        {
+            AddTx(fund, TransactionType.Income, 1_000, new DateOnly(2026, 11, day), description: $"Ngày {day}");
+        }
+
+        AddTx(fund, TransactionType.Income, 1_000, new DateOnly(2026, 11, 9), cancelled: true, description: "Đã hủy");
+
+        var overview = await Service().GetAsync(fund.Id, CancellationToken.None);
+
+        Assert.Equal(
+            ["Ngày 7", "Ngày 6", "Ngày 5", "Ngày 4", "Ngày 3"],
+            overview.RecentTransactions.Select(item => item.Description));
+    }
+
+    [Fact]
+    public async Task Get_public_viewer_has_same_totals_but_recent_list_only_has_public_transactions()
+    {
+        var teacher = new User(UserKind.Teacher, "Cô Hạnh", "hash", "hanh@example.vn", null, false, Now);
+        _db.Add(teacher);
+        var fund = AddFund(teacher.Id);
+        var student = AddStudentMember(fund, "Võ Gia Huy");
+        AddTx(fund, TransactionType.Income, 700_000, new DateOnly(2026, 11, 2), isPublic: true, description: "Công khai");
+        AddTx(fund, TransactionType.Expense, 200_000, new DateOnly(2026, 11, 3), isPublic: false, description: "Nội bộ");
+        _currentUser.SetupGet(current => current.UserId).Returns(student.Id);
+
+        var overview = await Service().GetAsync(fund.Id, CancellationToken.None);
+
+        Assert.Equal(FundRole.Student, overview.Role);
+        Assert.Equal(500_000, overview.CurrentBalance);
+        Assert.Equal(new MonthTotals(700_000, 200_000, 500_000), overview.CurrentMonth);
+        var item = Assert.Single(overview.RecentTransactions);
+        Assert.Equal("Công khai", item.Description);
+        Assert.Null(item.IsPublic);
+        Assert.Null(item.Note);
+    }
+
+    [Fact]
+    public async Task Get_hides_a_fund_the_user_does_not_belong_to()
+    {
+        var owner = new User(UserKind.Teacher, "Cô Hạnh", "hash", "hanh@example.vn", null, false, Now);
+        _db.Add(owner);
+        var fund = AddFund(owner.Id);
+        SignedIn(UserKind.Teacher);
+
+        await Assert.ThrowsAsync<NotFoundException>(() => Service().GetAsync(fund.Id, CancellationToken.None));
+        await Assert.ThrowsAsync<NotFoundException>(() => Service().GetAsync(Guid.NewGuid(), CancellationToken.None));
     }
 
     private sealed class FixedClock(DateTimeOffset now) : TimeProvider

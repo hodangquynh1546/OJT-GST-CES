@@ -1,5 +1,6 @@
 import { Page, expect, test } from '@playwright/test';
 
+import { mockOverviewPage } from '../support/mock-overview';
 import {
   FUND,
   PARENT,
@@ -14,6 +15,10 @@ import {
 } from '../support/mock-session';
 
 /** M2 – G-01 Quỹ của tôi / Quỹ của con, tạo quỹ, G-04 Thông tin quỹ (API giả lập; Canvas board FundList, FundSettings). */
+
+test.beforeEach(async ({ page }) => {
+  await mockOverviewPage(page); // mở quỹ từ G-01 vào S-01 (M7a)
+});
 
 interface MockFund {
   id: string;

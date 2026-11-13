@@ -1,4 +1,6 @@
 using System.Text.Json.Serialization;
+using ClassFund.Application.Features.Members;
+using ClassFund.Application.Features.Transactions;
 using ClassFund.Domain.Authorization;
 
 namespace ClassFund.Application.Features.Funds;
@@ -28,3 +30,21 @@ public sealed record FundSummaryResponse(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<string>? LinkedStudents);
 
 public sealed record FundCreatedResponse(Guid Id);
+
+/// <summary>Số liệu thu chi của tháng hiện tại theo giờ Việt Nam; <c>Net = Income − Expense</c>.</summary>
+public sealed record MonthTotals(long Income, long Expense, long Net);
+
+/// <summary>
+/// Tổng quan quỹ (S-01, backend-api.md – <c>GET /funds/{fundId}</c>). Số tổng giống nhau ở mọi vai trò (BR-15) và chỉ tính
+/// khoản chưa hủy (BR-02); <see cref="RecentTransactions"/> theo phạm vi của người xem (bản công khai chỉ khoản công khai).
+/// </summary>
+public sealed record FundOverviewResponse(
+    FundRole Role,
+    IReadOnlyList<string> Permissions,
+    long CurrentBalance,
+    long TotalIncome,
+    long TotalExpense,
+    MonthTotals CurrentMonth,
+    TreasurerStatus TreasurerStatus,
+    IReadOnlyList<MemberResponse> Managers,
+    IReadOnlyList<TransactionResponse> RecentTransactions);

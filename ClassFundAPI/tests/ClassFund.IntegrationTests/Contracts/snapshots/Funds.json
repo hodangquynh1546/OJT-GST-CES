@@ -139,6 +139,74 @@
       }
     },
     "/api/v1/funds/{fundId}": {
+      "get": {
+        "tags": [
+          "Funds"
+        ],
+        "parameters": [
+          {
+            "name": "fundId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FundOverviewResponse"
+                }
+              }
+            }
+          }
+        }
+      },
       "put": {
         "tags": [
           "Funds"
@@ -245,6 +313,62 @@
       },
       "additionalProperties": false
     },
+    "FundOverviewResponse": {
+      "required": [
+        "currentBalance",
+        "currentMonth",
+        "managers",
+        "permissions",
+        "recentTransactions",
+        "role",
+        "totalExpense",
+        "totalIncome",
+        "treasurerStatus"
+      ],
+      "type": "object",
+      "properties": {
+        "role": {
+          "$ref": "#/components/schemas/FundRole"
+        },
+        "permissions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "currentBalance": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalIncome": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalExpense": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "currentMonth": {
+          "$ref": "#/components/schemas/MonthTotals"
+        },
+        "treasurerStatus": {
+          "$ref": "#/components/schemas/TreasurerStatus"
+        },
+        "managers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/MemberResponse"
+          }
+        },
+        "recentTransactions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/TransactionResponse"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
     "FundRole": {
       "enum": [
         "Teacher",
@@ -315,6 +439,45 @@
       },
       "additionalProperties": false
     },
+    "MemberResponse": {
+      "required": [
+        "fullName",
+        "role"
+      ],
+      "type": "object",
+      "properties": {
+        "fullName": {
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/components/schemas/FundRole"
+        }
+      },
+      "additionalProperties": false
+    },
+    "MonthTotals": {
+      "required": [
+        "expense",
+        "income",
+        "net"
+      ],
+      "type": "object",
+      "properties": {
+        "income": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "expense": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "net": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "additionalProperties": false
+    },
     "ProblemDetails": {
       "type": "object",
       "properties": {
@@ -341,6 +504,109 @@
         }
       },
       "additionalProperties": {}
+    },
+    "TransactionResponse": {
+      "required": [
+        "amount",
+        "categoryId",
+        "description",
+        "id",
+        "isCancelled",
+        "occurredOn",
+        "type"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "$ref": "#/components/schemas/TransactionType"
+        },
+        "amount": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "occurredOn": {
+          "type": "string",
+          "format": "date"
+        },
+        "categoryId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "categoryName": {
+          "type": "string",
+          "nullable": true
+        },
+        "description": {
+          "type": "string"
+        },
+        "isCancelled": {
+          "type": "boolean"
+        },
+        "cancelledOn": {
+          "type": "string",
+          "format": "date",
+          "nullable": true
+        },
+        "note": {
+          "type": "string",
+          "nullable": true
+        },
+        "isPublic": {
+          "type": "boolean",
+          "nullable": true
+        },
+        "cancelReason": {
+          "type": "string",
+          "nullable": true
+        },
+        "cancelledAt": {
+          "type": "string",
+          "format": "date-time",
+          "nullable": true
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "nullable": true
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "nullable": true
+        },
+        "createdByName": {
+          "type": "string",
+          "nullable": true
+        },
+        "updatedByName": {
+          "type": "string",
+          "nullable": true
+        },
+        "cancelledByName": {
+          "type": "string",
+          "nullable": true
+        },
+        "replayed": {
+          "type": "boolean",
+          "nullable": true
+        },
+        "isNegativeBalance": {
+          "type": "boolean",
+          "nullable": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "TransactionType": {
+      "enum": [
+        "Income",
+        "Expense"
+      ],
+      "type": "string"
     },
     "TreasurerStatus": {
       "enum": [

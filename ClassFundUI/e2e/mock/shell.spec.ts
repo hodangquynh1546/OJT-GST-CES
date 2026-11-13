@@ -1,8 +1,15 @@
 import { expect, test } from '@playwright/test';
 
+import { mockOverviewPage } from '../support/mock-overview';
 import { FUND, PARENT, TEACHER, TEACHER_NO_FUND, TREASURER, signInAs, user } from '../support/mock-session';
 
 /** Khung ứng dụng (header, menu, guard) – API giả lập. */
+
+// Trang chính của quỹ là S-01 (M7a): mock overview + yearly để không gọi backend thật ở chế độ full.
+test.beforeEach(async ({ page }) => {
+  await mockOverviewPage(page);
+});
+
 test('chưa đăng nhập bị chuyển về trang đăng nhập', async ({ page }) => {
   await signInAs(page, null);
   await page.goto(`/funds/${FUND}`);
@@ -22,7 +29,7 @@ test('GVCN thấy menu quản lý và nhãn vai trò', async ({ page }) => {
   const nav = page.getByRole('navigation', { name: 'Điều hướng chính' });
   await expect(nav.getByRole('link', { name: 'Học sinh & phụ huynh' })).toBeVisible();
   await expect(nav.getByRole('link', { name: 'Danh mục' })).toHaveCount(0);
-  await expect(page.getByText('GVCN', { exact: true })).toBeVisible();
+  await expect(page.locator('app-header').getByText('GVCN', { exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: '· Đổi quỹ ▾' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Tổng quan' })).toBeVisible();
 });
@@ -31,12 +38,13 @@ test('học sinh được chuyển thẳng vào quỹ, thủ quỹ không có Đ
   await signInAs(page, TREASURER);
   await page.goto('/');
   await expect(page).toHaveURL(new RegExp(`/funds/${FUND}$`));
-  await expect(page.getByRole('link', { name: 'Danh mục' })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Điều hướng chính' }).getByRole('link', { name: 'Danh mục' })).toBeVisible();
   await expect(page.getByRole('link', { name: '· Đổi quỹ ▾' })).toHaveCount(0);
 });
 
 test('điều hướng giữa các mục và đánh dấu mục đang mở', async ({ page }) => {
   await signInAs(page, TREASURER);
+  await page.route('**/api/v1/funds', (route) => route.fulfill({ json: [] })); // S-03 đọc ngày tạo quỹ từ GET /funds
   await page.goto(`/funds/${FUND}`);
   await page.getByRole('link', { name: 'Báo cáo' }).click();
   await expect(page).toHaveURL(/\/reports$/);
@@ -112,6 +120,7 @@ test('trang ngoài quỹ (Tài khoản) vẫn hiện quỹ đang dùng ở heade
 
 test('Quỹ của tôi (/funds) không gắn quỹ nào', async ({ page }) => {
   await signInAs(page, TEACHER);
+  await page.route('**/api/v1/funds', (route) => route.fulfill({ json: [] })); // không để request tới backend thật ở chế độ full
   await page.goto('/funds');
   await expect(page.locator('app-header')).not.toContainText('Quỹ lớp 5A');
   await expect(page.getByRole('navigation', { name: 'Điều hướng chính' }).getByRole('link', { name: 'Tổng quan' })).toHaveCount(0);
