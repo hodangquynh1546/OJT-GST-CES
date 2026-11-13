@@ -1,0 +1,505 @@
+{
+  "paths": {
+    "/api/v1/funds/{fundId}/reports/monthly": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "parameters": [
+          {
+            "name": "fundId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Year",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "Month",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonthlyReport"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/funds/{fundId}/reports/yearly": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "parameters": [
+          {
+            "name": "fundId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Year",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/YearlyReport"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "schemas": {
+    "CategoryReportLine": {
+      "required": [
+        "amount",
+        "categoryName",
+        "type"
+      ],
+      "type": "object",
+      "properties": {
+        "type": {
+          "$ref": "#/components/schemas/TransactionType"
+        },
+        "categoryId": {
+          "type": "string",
+          "format": "uuid",
+          "nullable": true
+        },
+        "categoryName": {
+          "type": "string"
+        },
+        "count": {
+          "type": "integer",
+          "format": "int32",
+          "nullable": true
+        },
+        "amount": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "additionalProperties": false
+    },
+    "MonthFigures": {
+      "required": [
+        "closingBalance",
+        "month",
+        "netChange",
+        "openingBalance",
+        "totalExpense",
+        "totalIncome"
+      ],
+      "type": "object",
+      "properties": {
+        "month": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "openingBalance": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalIncome": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalExpense": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "netChange": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "closingBalance": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "additionalProperties": false
+    },
+    "MonthlyReport": {
+      "required": [
+        "byCategory",
+        "closingBalance",
+        "month",
+        "netChange",
+        "openingBalance",
+        "totalExpense",
+        "totalIncome",
+        "transactions",
+        "year"
+      ],
+      "type": "object",
+      "properties": {
+        "year": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "month": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "openingBalance": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalIncome": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalExpense": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "netChange": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "closingBalance": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "byCategory": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/CategoryReportLine"
+          }
+        },
+        "transactions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/TransactionResponse"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "ProblemDetails": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "nullable": true
+        },
+        "title": {
+          "type": "string",
+          "nullable": true
+        },
+        "status": {
+          "type": "integer",
+          "format": "int32",
+          "nullable": true
+        },
+        "detail": {
+          "type": "string",
+          "nullable": true
+        },
+        "instance": {
+          "type": "string",
+          "nullable": true
+        }
+      },
+      "additionalProperties": {}
+    },
+    "TransactionResponse": {
+      "required": [
+        "amount",
+        "categoryId",
+        "description",
+        "id",
+        "isCancelled",
+        "occurredOn",
+        "type"
+      ],
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "type": {
+          "$ref": "#/components/schemas/TransactionType"
+        },
+        "amount": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "occurredOn": {
+          "type": "string",
+          "format": "date"
+        },
+        "categoryId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "categoryName": {
+          "type": "string",
+          "nullable": true
+        },
+        "description": {
+          "type": "string"
+        },
+        "isCancelled": {
+          "type": "boolean"
+        },
+        "cancelledOn": {
+          "type": "string",
+          "format": "date",
+          "nullable": true
+        },
+        "note": {
+          "type": "string",
+          "nullable": true
+        },
+        "isPublic": {
+          "type": "boolean",
+          "nullable": true
+        },
+        "cancelReason": {
+          "type": "string",
+          "nullable": true
+        },
+        "cancelledAt": {
+          "type": "string",
+          "format": "date-time",
+          "nullable": true
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "nullable": true
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "nullable": true
+        },
+        "createdByName": {
+          "type": "string",
+          "nullable": true
+        },
+        "updatedByName": {
+          "type": "string",
+          "nullable": true
+        },
+        "cancelledByName": {
+          "type": "string",
+          "nullable": true
+        },
+        "replayed": {
+          "type": "boolean",
+          "nullable": true
+        },
+        "isNegativeBalance": {
+          "type": "boolean",
+          "nullable": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "TransactionType": {
+      "enum": [
+        "Income",
+        "Expense"
+      ],
+      "type": "string"
+    },
+    "ValidationProblemDetails": {
+      "required": [
+        "errors"
+      ],
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "nullable": true
+        },
+        "title": {
+          "type": "string",
+          "nullable": true
+        },
+        "status": {
+          "type": "integer",
+          "format": "int32",
+          "nullable": true
+        },
+        "detail": {
+          "type": "string",
+          "nullable": true
+        },
+        "instance": {
+          "type": "string",
+          "nullable": true
+        },
+        "errors": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": {}
+    },
+    "YearlyReport": {
+      "required": [
+        "months",
+        "year"
+      ],
+      "type": "object",
+      "properties": {
+        "year": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "months": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/MonthFigures"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
