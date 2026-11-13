@@ -27,7 +27,7 @@ Giai đoạn hiện tại: Foundation xong → triển khai **từng module tr�
 | M4 Phân công thủ quỹ (Cường, đợt 2) | G-03 | FR-27 | **Implemented** – đã merge (PR #21; e2e full PR #23) | `main` |
 | M5 Danh mục & Thành viên (Quỳnh, đợt 3) | T-02, T-03 | FR-10, FR-12 | **Implemented** – chờ review / merge (hợp đồng + seed + mock: PR #24 đã merge) | `feature/m5-categories` |
 | M6 Thu chi (Cường, đợt 3) | S-02, T-01 | FR-02 → FR-07 | **Implemented** – đã merge (PR #25); e2e full `e2e/full/transactions.spec.ts` đạt sau khi M5 merge (PR #26) | `main` |
-| M7a Tổng quan (Dev A, đợt 4) | S-01 | FR-01 | Not Implemented | – |
+| M7a Tổng quan (Quỳnh, đợt 4) | S-01 | FR-01 | **Implemented** – chờ review / merge (biểu đồ 3 tháng dùng `reports/yearly` của M7b đã merge) | `feature/m7a-overview` |
 | M7b Báo cáo (Cường, đợt 4) | S-03 | FR-08, FR-09 | **Implemented** – chờ review / merge | `feature/m7b-reports` |
 | M8 E2E toàn luồng (cả hai, đợt 5) | Toàn bộ | UF-01 → UF-13 | Not Implemented | – |
 | CLI vận hành | – | TD-88, KI-03 | Not Implemented | – |

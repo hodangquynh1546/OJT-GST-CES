@@ -1,5 +1,6 @@
 import { Page, expect, test } from '@playwright/test';
 
+import { mockOverviewPage } from '../support/mock-overview';
 import { FUND, PARENT, TEACHER, TEACHER_NO_FUND, mockProblem, signInAs, user } from '../support/mock-session';
 
 /** M1 – Auth & Tài khoản (A-01 → A-04) với API giả lập. */
@@ -11,6 +12,7 @@ async function mockAntiforgery(page: Page): Promise<void> {
 
 test.beforeEach(async ({ page }) => {
   await mockAntiforgery(page);
+  await mockOverviewPage(page); // đăng nhập xong vào S-01 (M7a)
 });
 
 test.describe('A-02 Đăng nhập', () => {
