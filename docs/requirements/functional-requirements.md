@@ -72,8 +72,8 @@ Cột vai trò: **G** = GVCN · **T** = Thủ quỹ · **H** = Học sinh chưa 
 | FR-05 | **Hủy** bắt buộc lý do; lưu người hủy; không tính vào số dư / báo cáo | – | ✔ | – | – | M6 | Implemented (M6) – `Transactions/TransactionsTests`, S-02, T-01 |
 | FR-06 | **Lịch sử thu chi**: lọc ngày, loại, danh mục, từ khóa, trạng thái | ✔ | ✔ | ✔ công khai | ✔ công khai | M6 | Implemented (M6) – `Transactions/TransactionsTests`, S-02, T-01 |
 | FR-07 | **Chi tiết** + lịch sử thay đổi (người, thời điểm, trước / sau). H, P: chỉ nội dung, ngày, danh mục, số tiền của khoản công khai; khoản không công khai → 404 | ✔ | ✔ | công khai | công khai | M6 | Implemented (M6) – `Transactions/TransactionsTests`, S-02, T-01 |
-| FR-08 | **Báo cáo tháng** (mọi tháng): đầu / cuối tháng, tổng thu / chi, theo danh mục, danh sách. H, P: phần không công khai gộp "Khoản khác", không số lượng (P1) | ✔ | ✔ | ✔ | ✔ | M7 | Not Implemented |
-| FR-09 | **Thống kê 12 tháng** | ✔ | ✔ | ✔ | ✔ | M7 | Not Implemented |
+| FR-08 | **Báo cáo tháng** (mọi tháng): đầu / cuối tháng, tổng thu / chi, theo danh mục, danh sách. H, P: phần không công khai gộp "Khoản khác", không số lượng (P1) | ✔ | ✔ | ✔ | ✔ | M7 | Implemented (M7b) – `Reports/ReportsTests`, S-03 |
+| FR-09 | **Thống kê 12 tháng** | ✔ | ✔ | ✔ | ✔ | M7 | Implemented (M7b) – `Reports/ReportsTests`, S-03 (S-01 của M7a dùng lại `reports/yearly`) |
 | FR-10 | **Danh mục**: thêm, đổi tên, ẩn / hiện. H, P chỉ thấy danh mục đang hiện có khoản công khai (X-01) | xem | ✔ | xem | xem | M5 | Implemented (M5) – `Categories/CategoriesTests`, T-02 |
 ## 5. Yêu cầu phi chức năng
 
