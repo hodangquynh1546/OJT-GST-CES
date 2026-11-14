@@ -32,6 +32,9 @@ import { AppNav } from './app-nav';
     }
     .content {
       flex: 1;
+      /* Mốc định vị cho phần tử absolute bên trong (ví dụ .sr-only): nếu không, chúng thoát khỏi vùng cuộn này,
+         làm cả trang cuộn thêm và kéo header + menu lên. */
+      position: relative;
       overflow: auto;
       box-sizing: border-box;
       min-width: 0;

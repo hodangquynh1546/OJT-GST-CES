@@ -56,6 +56,28 @@ test('GVCN thấy bốn thẻ số liệu, giao dịch gần đây, thông tin q
   await expect(page.getByTestId('no-treasurer')).toBeHidden();
 });
 
+test('chỉ vùng nội dung cuộn: trang không cuộn, header và menu đứng yên (không có thanh cuộn thứ hai)', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 600 });
+  await open(page, TEACHER, OVERVIEW_TEACHER);
+  await expect(page.getByTestId('kpi-balance')).toBeVisible();
+
+  const scroll = await page.evaluate(() => {
+    const content = document.querySelector('main.content') as HTMLElement;
+    return {
+      pageOverflowY: document.documentElement.scrollHeight - document.documentElement.clientHeight,
+      contentOverflowY: content.scrollHeight - content.clientHeight,
+    };
+  });
+  expect(scroll.pageOverflowY).toBe(0);
+  expect(scroll.contentOverflowY).toBeGreaterThan(0);
+
+  const nav = page.getByRole('navigation', { name: 'Điều hướng chính' });
+  const before = await nav.boundingBox();
+  await page.locator('main.content').evaluate((element) => element.scrollTo(0, element.scrollHeight));
+  await page.mouse.wheel(0, 2000);
+  expect((await nav.boundingBox())?.y).toBe(before?.y);
+});
+
 test('biểu đồ lấy đúng 3 tháng gần nhất từ reports/yearly, đầu năm gọi thêm năm trước', async ({ page }) => {
   await page.clock.setFixedTime(new Date('2026-01-15T05:00:00Z'));
   // Năm 2025 đã hết (currentMonth = 12); năm 2026 mới tới tháng 1.
