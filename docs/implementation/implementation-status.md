@@ -12,7 +12,7 @@ Nhánh `feature/rebuild-foundation`: xây lại từ đầu theo bản yêu cầ
 | M0-01 Duyệt tài liệu / chốt OQ | ✅ 2026-11-17 | Cả nhóm | |
 | M0-02 Migration InitialSchema | ✅ 2026-11-17 – 9 test migration xanh trên PostgreSQL 16 (Testcontainers) | Claude Code | |
 | M5-T0 Adapter Neon Object Storage | ✅ Code + 7 unit test (S3 client giả); chưa thử tay trên bucket thật | Claude Code | |
-| M0-03 Neon roles + áp migration + seed | ⬜ | | |
+| M0-03 Neon roles + áp migration + seed | ✅ 2026-11-17 – đã áp `InitialSchema` lên Neon và chạy `--seed` thành công | hodangquynh1546 | |
 | M1 Auth | ⬜ | Dev A | |
 | M2 Quỹ | ⬜ | Dev B | |
 | M3 Học sinh | ⬜ | Dev A | |
@@ -38,6 +38,7 @@ Nhánh `feature/rebuild-foundation`: xây lại từ đầu theo bản yêu cầ
 | 2026-11-17 | OQ-13: quyết toán cuối năm quỹ chung như sự kiện, một lần, chia cả lớp, quỹ → Archived | `EventSettlement` → `Settlement` (thêm FundId, EventId nullable, 2 unique partial), `YearEndRule`, FR-53/54, BR-34…37, module M14 |
 | 2026-11-17 | OQ-16: lưu file thực tế trên Neon Object Storage (hóa đơn, bill, ảnh đại diện, tài liệu) | `IEvidenceStorage` → `IFileStorage` + `StorageKeys` + `StorageOptions`; `FileRule` giới hạn theo loại; `AttachmentKind` thêm Avatar/Document; `Attachment.FundId` nullable; `User.AvatarAttachmentId`; task M5-T0 |
 | 2026-11-17 | OQ-17: thêm package `AWSSDK.S3` (ngoài training-doc) để gọi Neon Object Storage | Cài trong M5-T0, chỉ ở `ClassFund.Infrastructure` |
+| 2026-11-17 | M0-03 xong: áp `InitialSchema` + chạy `--seed` trên Neon; adapter Neon Object Storage chưa ghi nhận thử trên bucket thật | Bảng module, mục 3 |
 
 ## 2. Foundation đã có
 
@@ -66,7 +67,7 @@ Nhánh `feature/rebuild-foundation`: xây lại từ đầu theo bản yêu cầ
 
 | Migration | Người áp | Ngày |
 |---|---|---|
-| – | – | – |
+| InitialSchema | hodangquynh1546 | 2026-11-17 |
 
 ## 4. Việc tồn đọng
 
