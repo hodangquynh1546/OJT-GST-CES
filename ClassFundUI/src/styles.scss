@@ -1,0 +1,243 @@
+// Token Design System (docs/ui-design/design-system.md). Component dùng màu qua token, không viết mã màu.
+:root {
+  --cf-primary: #1d5fa8;
+  --cf-primary-dark: #164a83;
+  --cf-primary-tint: #e3eefa;
+  --cf-income: #1e7a3c;
+  --cf-expense: #b3261e;
+  --cf-text: #1f2328;
+  --cf-text-muted: #59636e;
+  --cf-border: #d8dee4;
+  --cf-border-strong: #c4ccd4;
+  --cf-surface: #ffffff;
+  --cf-background: #f6f8fa;
+  --cf-subtle: #eef1f4;
+  --cf-success-fg: #1e5c33;
+  --cf-success-bg: #e6f4ea;
+  --cf-warning-fg: #6b4500;
+  --cf-warning-bg: #fff4d6;
+  --cf-danger-fg: #8f1d17;
+  --cf-danger-bg: #fde8e7;
+
+  --cf-role-owner: #5b2a86;
+  --cf-role-owner-tint: #f1e8fb;
+  --cf-role-treasurer: #1d5fa8;
+  --cf-role-treasurer-tint: #e3eefa;
+  --cf-role-student: #7a4b00;
+  --cf-role-student-tint: #fff1d6;
+
+  --cf-header-height: 56px;
+  --cf-nav-width: 232px;
+  --cf-content-max: 1200px;
+  --cf-min-width: 1280px;
+
+  --cf-radius-sm: 4px;
+  --cf-radius-md: 6px;
+  --cf-radius-lg: 8px;
+  --cf-radius-pill: 12px;
+  --cf-shadow-toast: 0 8px 24px rgba(15, 23, 42, 0.25);
+  --cf-shadow-dialog: 0 16px 40px rgba(15, 23, 42, 0.3);
+
+  // Ánh xạ token ClassFund → Kendo Theme Default (design-system.md mục 6). Component dùng màu qua token, không viết mã màu.
+  --kendo-color-primary: var(--cf-primary);
+  --kendo-color-primary-hover: var(--cf-primary-dark);
+  --kendo-color-primary-active: var(--cf-primary-dark);
+  --kendo-color-primary-emphasis: var(--cf-primary);
+  --kendo-color-on-app-surface: var(--cf-text);
+  --kendo-color-subtle: var(--cf-text-muted);
+  --kendo-color-border: var(--cf-border);
+  --kendo-color-app-surface: var(--cf-background);
+  --kendo-color-surface-alt: var(--cf-surface);
+  --kendo-color-success: var(--cf-income);
+  --kendo-color-error: var(--cf-expense);
+  --kendo-color-warning: var(--cf-warning-fg);
+  --kendo-border-radius-md: var(--cf-radius-md);
+  --kendo-border-radius-lg: var(--cf-radius-lg);
+  --kendo-font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  --kendo-font-size: 14px;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  min-width: var(--cf-min-width);
+  margin: 0;
+  background: var(--cf-background);
+  color: var(--cf-text);
+  font-family: var(--kendo-font-family);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 24px;
+  line-height: 32px;
+}
+
+a {
+  color: var(--cf-primary);
+}
+
+a:hover {
+  color: var(--cf-primary-dark);
+}
+
+.cf-card {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-lg);
+  background: var(--cf-surface);
+}
+
+.cf-muted {
+  color: var(--cf-text-muted);
+}
+
+.cf-money {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.cf-income {
+  color: var(--cf-income);
+}
+
+.cf-expense {
+  color: var(--cf-expense);
+}
+
+// Tag chỉ hiển thị (design-system.md – Tag / badge): .cf-tag + biến thể ngữ nghĩa.
+.cf-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  border-radius: var(--cf-radius-pill);
+  background: var(--cf-subtle);
+  color: var(--cf-text);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.cf-tag--success {
+  background: var(--cf-success-bg);
+  color: var(--cf-success-fg);
+}
+
+.cf-tag--warning {
+  background: var(--cf-warning-bg);
+  color: var(--cf-warning-fg);
+}
+
+.cf-tag--danger {
+  background: var(--cf-danger-bg);
+  color: var(--cf-danger-fg);
+}
+
+// Thông báo trong trang (banner): role="status" cho cảnh báo, role="alert" cho lỗi.
+.cf-alert {
+  padding: 10px 12px;
+  border-radius: var(--cf-radius-md);
+  background: var(--cf-primary-tint);
+  color: var(--cf-primary-dark);
+}
+
+.cf-alert--warning {
+  background: var(--cf-warning-bg);
+  color: var(--cf-warning-fg);
+}
+
+.cf-alert--danger {
+  background: var(--cf-danger-bg);
+  color: var(--cf-danger-fg);
+}
+
+// Trang dữ liệu tối đa 1200 px, trang form / tài khoản 960 px.
+.cf-page {
+  max-width: var(--cf-content-max);
+}
+
+.cf-page--narrow {
+  max-width: 960px;
+}
+
+.cf-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--cf-primary);
+  outline-offset: 2px;
+}
+
+// Kích thước Kendo theo design-system.md mục 6 và Canvas DS-02: control medium 40 px, small 32 px.
+// Kendo 23 không gắn class khi dùng giá trị mặc định (size medium → không có .k-input-md / .k-button-md,
+// fillMode solid + themeColor base → không có .k-button-solid / .k-button-base), nên chọn theo class luôn có
+// (.k-input, .k-picker, .k-button) và loại các biến thể có class riêng (sm / lg, flat, outline, icon…).
+.k-input:not(.k-input-sm, .k-input-lg),
+.k-picker:not(.k-picker-sm, .k-picker-lg) {
+  min-height: 40px;
+}
+
+.k-input-sm,
+.k-picker-sm {
+  min-height: 32px;
+}
+
+.k-input,
+.k-picker {
+  border-color: var(--cf-border-strong);
+}
+
+.k-button:not(.k-icon-button, .k-button-sm, .k-button-lg, .k-button-flat, .k-button-link, .k-button-clear) {
+  min-height: 40px;
+  padding-inline: 16px;
+}
+
+.k-button-sm:not(.k-icon-button) {
+  min-height: 32px;
+}
+
+.k-button-primary {
+  font-weight: 600;
+}
+
+// Nút phụ (themeColor base, fillMode solid): nền trắng, viền (board DSComponents, Account).
+.k-button:not(.k-icon-button, .k-button-primary, .k-button-error, .k-button-secondary, .k-button-tertiary, .k-button-info,
+    .k-button-success, .k-button-warning, .k-button-dark, .k-button-light, .k-button-inverse, .k-button-flat,
+    .k-button-outline, .k-button-link, .k-button-clear) {
+  border-color: var(--cf-border-strong);
+  background-color: var(--cf-surface);
+  font-weight: 500;
+
+  &:hover {
+    background-color: var(--cf-background);
+  }
+}
+
+// Nhãn 13 px đậm; gợi ý / lỗi chữ thẳng 12 px.
+.k-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.k-form-hint,
+.k-form-error {
+  font-size: 12px;
+  font-style: normal;
+}
+
+.k-form-hint {
+  color: var(--cf-text-muted);
+}
