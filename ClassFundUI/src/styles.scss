@@ -26,6 +26,11 @@
   --cf-role-student: #7a4b00;
   --cf-role-student-tint: #fff1d6;
 
+  // Màn hình xác thực & tài khoản (canvas "ClassFund UI Design", M1): nút chính màu mực, nền tối của A-01.
+  --cf-ink: #18181b;
+  --cf-ink-hover: #27272a;
+  --cf-ink-soft: #a1a1aa;
+
   --cf-header-height: 56px;
   --cf-nav-width: 232px;
   --cf-content-max: 1200px;
@@ -93,6 +98,27 @@ a:hover {
   border: 1px solid var(--cf-border);
   border-radius: var(--cf-radius-lg);
   background: var(--cf-surface);
+}
+
+// Liên kết trông như nút viền (Kendo `kendoButton` chỉ áp dụng cho <button>).
+.cf-link-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--cf-border-strong);
+  border-radius: var(--cf-radius-lg);
+  background: var(--cf-surface);
+  color: var(--cf-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.cf-link-button:hover {
+  background: var(--cf-subtle);
+  color: var(--cf-text);
 }
 
 .cf-muted {

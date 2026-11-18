@@ -19,14 +19,16 @@
 
 | Method | Path | Permission | FR | Trạng thái |
 |---|---|---|---|---|
-| POST | `/auth/register` | Anonymous (rate limit) | FR-01 | ⬜ |
-| POST | `/auth/login` | Anonymous (rate limit) | FR-02 | ⬜ |
-| POST | `/auth/logout` | Đăng nhập, AllowTemporaryPassword | FR-02 | ⬜ |
-| GET | `/auth/me` | Đăng nhập, AllowTemporaryPassword | FR-03 | ⬜ |
-| PUT | `/auth/me` | Đăng nhập | FR-04 | ⬜ |
-| POST | `/auth/change-password` | Đăng nhập, AllowTemporaryPassword | FR-03, FR-04 | ⬜ |
+| POST | `/auth/register` `{ fullName, email, password }` → 201 `{ antiforgeryToken, user }` | Anonymous (rate limit) | FR-01 | ✅ |
+| POST | `/auth/login` `{ email, password }` → `{ antiforgeryToken, user }` | Anonymous (rate limit) | FR-02 | ✅ |
+| POST | `/auth/logout` → 204 | Đăng nhập, AllowTemporaryPassword | FR-02 | ✅ |
+| GET | `/auth/me` | Đăng nhập, AllowTemporaryPassword | FR-03 | ✅ |
+| PUT | `/auth/me` `{ fullName }` → user (còn mật khẩu tạm → 403 `password.change_required`) | Đăng nhập | FR-04 | ✅ |
+| POST | `/auth/change-password` `{ currentPassword, newPassword }` → `{ antiforgeryToken, user }` | Đăng nhập, AllowTemporaryPassword | FR-03, FR-04 | ✅ |
 | PUT | `/auth/me/avatar` (multipart, Kind `Avatar`) | Đăng nhập | FR-04 | ⬜ (sau M5-T0) |
 | GET | `/users/{userId}/avatar` (người cùng quỹ) | Đăng nhập | FR-04 | ⬜ (sau M5-T0) |
+
+Mã lỗi M1: `auth.invalid_credentials` (401, dùng chung cho email lạ và mật khẩu sai), `auth.account_disabled` (401, chỉ báo sau khi mật khẩu đúng), `auth.email_exists` (409), `auth.password_policy` / `auth.invalid_email` / `auth.invalid_name` (422; form gửi sai thì 400 `validation_failed` kèm `errors`), `auth.current_password_incorrect` (**422**, không phải 401 để client không coi là hết phiên), `auth.password_unchanged` (422), `auth.rate_limited` (429).
 
 `GET /auth/me` → `{ id, email, fullName, mustChangePassword, accountPermissions[], memberships[{ fundId, fundName, role, permissions[] }] }` (khớp `core/auth/auth.models.ts`).
 

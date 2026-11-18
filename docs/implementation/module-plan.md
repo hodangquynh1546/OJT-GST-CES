@@ -57,6 +57,8 @@ Ký hiệu: **BE** backend, **FE** frontend, **T** test. Mỗi task kết thúc 
 
 ### M1 – Auth & tài khoản (FR-01 → FR-04, BR-27 → BR-29)
 
+> ✅ **Đã làm 2026-11-18** (nhánh `feature/m1-auth`, chưa merge). Ngoài phạm vi: ảnh đại diện (TD-04, chờ M5). Quyết định kỹ thuật: `implementation-status.md` nhật ký 2026-11-18.
+
 | Task | Nội dung |
 |---|---|
 | M1-T1 BE | `AuthService`: register (tạo User `SelfRegistered`, đăng nhập luôn), login (email + mật khẩu, rehash khi cần, tài khoản khóa → 401 `auth.account_disabled`), logout, me (memberships qua `IAccessService.GetMembershipsAsync` + accountPermissions), update profile, change password (kiểm mật khẩu cũ, `PasswordPolicy`, tắt `MustChangePassword`, đổi SecurityStamp, cấp lại cookie + antiforgery token). `AuthController` dùng `SessionCookie`, rate limit, `[AllowTemporaryPassword]`. Audit: `auth.register`, `auth.change_password` (Scope System). |
