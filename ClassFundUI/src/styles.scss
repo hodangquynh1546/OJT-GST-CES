@@ -316,3 +316,71 @@ a:hover {
 .k-form-hint {
   color: var(--cf-text-muted);
 }
+
+// Bảng Kendo Grid theo canvas (.tbl): không viền ngoài (nằm trong .cf-card), tiêu đề chữ xám 500, không kẻ dọc,
+// ô đệm 12 × 16 px, dòng phân cách nhạt, không tô dòng xen kẽ.
+.k-grid {
+  border: 0;
+  font-size: 14px;
+}
+
+.k-grid .k-grid-header {
+  border-bottom: 1px solid var(--cf-border);
+  background: var(--cf-surface);
+}
+
+.k-grid .k-table-th {
+  height: 40px;
+  padding-block: 0;
+  padding-inline: 16px;
+  border-inline-width: 0;
+  background: var(--cf-surface);
+  color: var(--cf-text-muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.k-grid .k-table-td {
+  padding: 12px 16px;
+  border-inline-width: 0;
+  border-bottom: 1px solid var(--cf-subtle);
+  vertical-align: middle;
+}
+
+.k-grid .k-table-row.k-table-alt-row {
+  background: var(--cf-surface);
+}
+
+.k-grid .k-table-row:hover {
+  background: var(--cf-background);
+}
+
+// Hộp thoại Kendo theo canvas (.dlg): bo 12 px, đệm 24 px, tiêu đề 16 px đậm không kẻ, nút căn phải.
+.k-dialog {
+  border-radius: var(--cf-radius-card);
+  box-shadow: var(--cf-shadow-dialog);
+}
+
+.k-dialog .k-dialog-titlebar {
+  padding: 24px 24px 0;
+  border-bottom: 0;
+  background: var(--cf-surface);
+  color: var(--cf-text);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.k-dialog .k-dialog-content {
+  padding: 16px 24px;
+}
+
+.k-dialog .k-dialog-actions {
+  justify-content: flex-end;
+  padding: 0 24px 24px;
+  border-top: 0;
+}
+
+.k-dialog .k-dialog-actions .k-button {
+  flex: 0 0 auto;
+}

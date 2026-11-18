@@ -1,8 +1,10 @@
 import { Routes } from '@angular/router';
 
-import { comingSoon } from '../../shared/components/coming-soon/coming-soon';
-
-/** Màn hình giữ chỗ – module thay bằng màn hình thật (docs/ui-design/screen-specifications.md). */
+/** U-01 Nhật ký hoạt động (guard Audit.View ở app.routes.ts). */
 export const AUDIT_ROUTES: Routes = [
-  { path: '', ...comingSoon('U-01', 'Nhật ký hoạt động') },
+  {
+    path: '',
+    title: 'Nhật ký hoạt động · ClassFund',
+    loadComponent: () => import('./audit-log-page/audit-log-page').then((m) => m.AuditLogPage),
+  },
 ];

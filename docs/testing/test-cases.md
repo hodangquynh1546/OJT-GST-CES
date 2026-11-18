@@ -50,7 +50,11 @@
 | TC-M10-04 | Thủ quỹ xác nhận đã hoàn tiền | BR-26 | Số dư về 0, BalanceTransaction `Withdrawal`, thông báo người dùng | |
 | TC-M10-02 | Dùng số dư đóng khoản thu chung | FR-25, OQ-10 | Thành công; LedgerEntry thu vào quỹ chung; BalanceTransaction `ChargePayment` | |
 | TC-M10-05 | Dùng số dư khi đang chờ rút | BR-15 | 422 `balance.locked_by_withdrawal` | |
-| TC-M12-01 | Học sinh xem audit | FR-47 | 403 | |
+| TC-M12-01 | Học sinh xem audit | FR-47 | 403 (người ngoài quỹ 404, chưa đăng nhập 401); U-01 không hiện với học sinh | `AuditLogsApiTests.Permissions_owner_200_student_403_outsider_404_anonymous_401_TC_M12_01`, E2E `audit.spec.ts` |
+| TC-M12-02 | Lọc nhật ký theo ngày (giờ VN, trọn ngày), người, phạm vi, sự kiện, nhóm hành động (`payment.`), chỉ tự ghi nhận; phân trang | FR-47 | Đúng bản ghi, mới nhất trước, `total` đúng | `AuditLogsServiceTests`, `AuditLogsApiTests.Filters_paging_names_and_masked_ip_on_postgres_FR47` |
+| TC-M12-03 | Bộ lọc sai (`to < from`, `pageSize > 100`, `eventId` với phạm vi Chung, ngày sai định dạng) | FR-47 | 400 `validation_failed` | `AuditLogsApiTests.Invalid_filters_are_400` |
+| TC-M12-04 | Mọi API ghi của M1–M5 sinh audit đúng quỹ / người; audit không chứa mật khẩu tạm hay hash | FR-45, M12-T3 | Đủ 11 hành động cấp quỹ + 2 cấp tài khoản | `AuditLogsApiTests.Every_write_api_of_merged_modules_records_audit_checklist` |
+| TC-M12-05 | Xem trước / sau của một thao tác | FR-45, FR-46 | Hộp thoại hiện người, thời điểm, IP đã che, JSON trước / sau; tag "Tự ghi nhận" khi thủ quỹ tự thao tác cho mình | E2E `audit.spec.ts` |
 | TC-M13-01 | Học sinh xem báo cáo học sinh khác | FR-51 | 403/404 | |
 | TC-M14-01 | Quyết toán cuối năm khi còn sự kiện chưa quyết toán | BR-35 | 422 `year_end.open_events` | |
 | TC-M14-02 | Quỹ chung dư 300.000đ, 30 thành viên đã đóng bằng nhau, cộng số dư (theo tỷ lệ – OQ-19) | BR-36 | Mỗi người +10.000đ, quỹ `Archived`, thông báo cả lớp (Quỹ chung) | |

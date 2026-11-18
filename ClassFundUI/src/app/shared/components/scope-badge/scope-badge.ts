@@ -11,7 +11,9 @@ import { FinancialScope, SCOPE_LABEL } from '../../models/labels';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `<span class="cf-tag" [class.cf-tag--event]="scope() === 'Event'">{{ text() }}</span>`,
   styles: `
+    /* Canvas .b-ev: nền xanh nhạt, viền xanh, chữ xanh đậm. */
     .cf-tag--event {
+      border-color: color-mix(in srgb, var(--cf-primary) 30%, transparent);
       background: var(--cf-primary-tint);
       color: var(--cf-primary-dark);
     }

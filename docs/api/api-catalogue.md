@@ -140,7 +140,10 @@ Mã lỗi M1: `auth.invalid_credentials` (401, dùng chung cho email lạ và m�
 
 | Method | Path | Permission | FR | Trạng thái |
 |---|---|---|---|---|
-| GET | `/{f}/audit-logs?from=&to=&actorId=&scope=&eventId=&action=&selfOnly=` | `Audit.View` | FR-45–FR-47 | ⬜ |
+| GET | `/{f}/audit-logs?from=&to=&actorId=&scope=&eventId=&action=&selfOnly=&page=&pageSize=` → `PagedResult<{ id, at, actorUserId, actorName, action, scope, eventId, eventName, entityType, entityId, summary, isSelfAction, note, before, after, ipAddress }>`. Mới nhất trước; `from`/`to` là ngày giờ VN (`yyyy-MM-dd`, tính trọn ngày); `action` kết thúc bằng "." lọc cả nhóm (`member.`); `before`/`after` là JSON đã lưu; `ipAddress` đã che (`113.190.xx.xx`); `summary` dựng sẵn cho cột "Chi tiết". 400 khi `to < from`, `pageSize > 100`, hoặc `eventId` với `scope=General` | `Audit.View` (học sinh → 403) | FR-45–FR-47 | ✅ |
+| GET | `/{f}/audit-logs/actors` → `[{ userId, fullName }]` – người đã có thao tác trong quỹ (ô "Người thực hiện") | `Audit.View` | FR-47 | ✅ |
+
+`summary` do `AuditSummary` dựng từ Before/After/Note, không cần biết từng hành động: lấy trường đối tượng (`name`, `fullName`, `title`, `email`, `fileName`…), số tiền (`amount`, `amountDue`, `total`…), trường phụ (`role`, `kind`, `type`, `method`, `response`, `count`, `reason`), giá trị đổi hiện "cũ → mới". **Module mới đặt tên trường trong `After` theo các khóa này là cột Chi tiết tự hiện**; nhãn tiếng Việt của mã hành động (`AUDIT_ACTION_LABEL`), của trường và giá trị enum trong Before/After (`AUDIT_FIELD_LABEL`, `AUDIT_VALUE_LABEL`) thêm vào `ClassFundUI/src/app/features/audit/audit-format.ts` – hộp "Trước / sau" hiện bảng so sánh tiếng Việt, không hiện JSON; trường mã định danh (`id`, `…Id`) tự ẩn. `ipAddress` của máy nội bộ (127.0.0.1, ::1) trả "nội bộ (localhost)".
 
 ## M13 – Báo cáo
 
