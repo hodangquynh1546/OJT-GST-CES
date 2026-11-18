@@ -31,12 +31,6 @@ public sealed class Settlement(Guid fundId, Guid? eventId, int participantCount,
     /// <summary>Quyết toán sự kiện luôn Proportional (OQ-18); tổng kết cuối năm chờ OQ-19.</summary>
     public AllocationRule? AllocationRule { get; set; }
 
-    /// <summary>
-    /// Không dùng nữa: OQ-18 bỏ khoản thu bổ sung. Cột vẫn có trong schema đã áp lên Neon;
-    /// xóa bằng migration của M8-T0 (cần duyệt trước khi tạo).
-    /// </summary>
-    public Guid? SupplementaryChargeId { get; set; }
-
     public Guid SettledByUserId { get; init; } = settledByUserId;
 
     public DateTimeOffset SettledAt { get; init; } = settledAt;

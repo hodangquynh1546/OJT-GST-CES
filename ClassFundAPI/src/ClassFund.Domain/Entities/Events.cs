@@ -16,11 +16,8 @@ public sealed class Event(Guid fundId, string name, string? description, DateOnl
 
     public EventStatus Status { get; set; } = EventStatus.Open;
 
-    /// <summary>
-    /// Không dùng nữa: OQ-18 bỏ bước chốt danh sách. Cột vẫn có trong schema đã áp lên Neon;
-    /// đổi thành CompletedAt hoặc xóa bằng migration của M8-T0 (cần duyệt trước khi tạo).
-    /// </summary>
-    public DateTimeOffset? ListLockedAt { get; set; }
+    /// <summary>Thời điểm thủ quỹ kết thúc sự kiện (chuyển sang Completed); null khi chưa kết thúc.</summary>
+    public DateTimeOffset? CompletedAt { get; set; }
 
     public Guid CreatedByUserId { get; init; } = createdByUserId;
 

@@ -139,7 +139,7 @@ Người dùng: **Thủ quỹ chính** (Owner – người tạo quỹ), **Thủ
 
 | Mã | Yêu cầu | Nguồn |
 |---|---|---|
-| FR-53 | Quyết toán quỹ chung cuối năm **một lần duy nhất**, cách làm như quyết toán sự kiện nhưng chia cho **cả lớp** (mọi thành viên đang hoạt động): thừa → hoàn trực tiếp hoặc cộng số dư cá nhân, chia theo tỷ lệ số tiền mỗi người đã đóng vào quỹ chung (đề xuất OQ-19, chờ duyệt; trước đây: chọn chia đều / tỷ lệ, thiếu → khoản thu bổ sung chung). | 9.5, OQ-13, OQ-19 |
+| FR-53 | Quyết toán quỹ chung cuối năm **một lần duy nhất**, cách làm như quyết toán sự kiện nhưng chia cho **cả lớp** (mọi thành viên đang hoạt động): thừa → hoàn trực tiếp hoặc cộng số dư cá nhân, chia theo tỷ lệ số tiền mỗi người đã đóng vào quỹ chung (OQ-19, đã duyệt 2026-11-18, tính trên tổng đã đóng cả năm; trước đây: chọn chia đều / tỷ lệ, thiếu → khoản thu bổ sung chung). | 9.5, OQ-13, OQ-19 |
 | FR-54 | Chỉ quyết toán cuối năm khi mọi sự kiện đã quyết toán hoặc hủy. Xong thì quỹ chuyển "Đã tổng kết" (chỉ xem): không nhận khoản thu, giao dịch, sự kiện mới; vẫn rút được số dư cá nhân. | OQ-13 |
 
 ## 3. Yêu cầu phi chức năng

@@ -22,6 +22,20 @@ public class InitialSchemaTests(PostgresFixture database) : IClassFixture<Postgr
         Assert.False(db.Database.HasPendingModelChanges(), "Model đổi nhưng chưa có migration mới.");
     }
 
+    [Fact]
+    public async Task Obsolete_columns_are_gone_and_event_has_completed_at()
+    {
+        await using var db = database.CreateContext();
+        var columns = await db.Database
+            .SqlQueryRaw<string>(
+                "SELECT table_name || '.' || column_name AS \"Value\" FROM information_schema.columns WHERE table_schema = 'public' AND table_name IN ('Event', 'Settlement')")
+            .ToListAsync();
+
+        Assert.Contains("Event.CompletedAt", columns);
+        Assert.DoesNotContain("Event.ListLockedAt", columns);
+        Assert.DoesNotContain("Settlement.SupplementaryChargeId", columns);
+    }
+
     [Theory]
     [InlineData("AuditLog")]
     [InlineData("LedgerEntry")]

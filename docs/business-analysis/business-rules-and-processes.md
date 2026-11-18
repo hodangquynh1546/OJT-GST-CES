@@ -47,7 +47,7 @@
 | BR-20 | Từ `Completed`: không tạo khoản thu, không ghi chi mới (vẫn nhận thanh toán cho nghĩa vụ đã có). Sau `Settled` hoặc `Cancelled`: không nhận tiền nào nữa. | `EventStatusRules.AcceptsNewChargesAndExpenses`, `EventStatusRules.AcceptsPayments` |
 | BR-21 | Quyết toán chỉ khi `Completed`; tính trên người `IsFinal`; tổng thu = thu đã xác nhận của sự kiện (gồm tự ghi nhận), tổng chi = chi của sự kiện (trừ bút toán đảo). Do BR-38, tổng thu ≥ tổng chi nên chỉ có tiền thừa (hoặc vừa đủ). | M9 |
 | BR-22 | Tiền thừa chia **theo tỷ lệ số tiền mỗi người `IsFinal` đã đóng** cho sự kiện (OQ-18, không có chia đều); tổng chia = đúng số thừa (largest remainder). Hoàn trực tiếp → `LedgerEntry` chi `Source=Refund` khi thủ quỹ xác nhận đã hoàn từng người. Cộng số dư → `BalanceTransaction(SettlementCredit)` ngay. | M9 + M10 |
-| BR-23 | ~~Thiếu: tạo khoản thu `Supplementary`~~ – **bỏ** (OQ-18). Đề xuất (OQ-19): khi quyết toán, nghĩa vụ còn `Unpaid` → `Excluded`; phải xử lý hết thanh toán đang chờ trước khi quyết toán. | M9 |
+| BR-23 | ~~Thiếu: tạo khoản thu `Supplementary`~~ – **bỏ** (OQ-18). OQ-19 (đã duyệt): khi quyết toán, nghĩa vụ còn `Unpaid` → `Excluded`; phải xử lý hết (xác nhận hoặc từ chối) thanh toán đang chờ trước khi quyết toán, còn một khoản chờ thì chặn quyết toán. Tiền thừa chỉ chia theo số đã đóng thực tế, không truy thu phần nợ. | M9 |
 | BR-24 | Mỗi sự kiện quyết toán một lần (unique `Settlement.EventId`). | DB |
 
 ### 1.4b. Quyết toán cuối năm quỹ chung (OQ-13)
@@ -56,7 +56,7 @@
 |---|---|---|
 | BR-34 | Quyết toán quỹ chung làm **một lần duy nhất** mỗi quỹ (`Settlement` có `EventId = null`, unique theo quỹ). | `UX_Settlement_OneYearEndPerFund` |
 | BR-35 | Điều kiện: quỹ `Active` và mọi sự kiện đã `Settled` hoặc `Cancelled`. | `YearEndRule.EnsureCanClose` |
-| BR-36 | Người được chia: mọi thành viên `Active` của quỹ (cả lớp, gồm thủ quỹ). Tổng thu/chi chỉ tính giao dịch quỹ chung. Thừa → hoàn trực tiếp / cộng số dư, chia theo tỷ lệ tổng đã đóng các khoản thu chung (đề xuất OQ-19, chờ duyệt; trước đây có chọn chia đều và thiếu → khoản thu bổ sung chung). Cách tính dùng chung `SettlementCalculator` với quyết toán sự kiện. | M14 |
+| BR-36 | Người được chia: mọi thành viên `Active` của quỹ (cả lớp, gồm thủ quỹ). Tổng thu/chi chỉ tính giao dịch quỹ chung. Thừa → hoàn trực tiếp / cộng số dư, chia theo tỷ lệ tổng đã đóng cả năm vào các khoản thu chung (OQ-19, đã duyệt 2026-11-18; trước đây có chọn chia đều và thiếu → khoản thu bổ sung chung). Cách tính dùng chung `SettlementCalculator` với quyết toán sự kiện. | M14 |
 | BR-37 | Xong quyết toán → quỹ `Archived`: không nhận khoản thu, giao dịch, sự kiện, thành viên mới (trừ xác nhận hoàn tiền); vẫn xem báo cáo và rút số dư cá nhân. | `YearEndRule.EnsureFundActive` |
 
 ### 1.5. Số dư cá nhân
@@ -138,7 +138,7 @@ Thủ quỹ rút số dư của chính mình: tự xác nhận được (giống
 ### 2.6. Quyết toán cuối năm quỹ chung
 
 1. Mọi sự kiện đã quyết toán / hủy → thủ quỹ mở "Tổng kết cuối năm": hệ thống tổng hợp tổng thu, tổng chi, số dư quỹ chung, khoản chưa hoàn thành, số thành viên.
-2. Chọn phương án như quyết toán sự kiện (mục 2.3) – người được chia là **cả lớp**, theo tỷ lệ số tiền đã đóng vào quỹ chung (đề xuất OQ-19).
+2. Chọn phương án như quyết toán sự kiện (mục 2.3) – người được chia là **cả lớp**, theo tỷ lệ số tiền đã đóng vào quỹ chung (OQ-19, đã duyệt), tính trên tổng đã đóng cả năm.
 3. Xác nhận → `Settlement` (EventId null), thông báo `SettlementResult` cho cả lớp (phạm vi Quỹ chung), quỹ chuyển `Archived`.
 
 ### 2.5. Thêm học sinh

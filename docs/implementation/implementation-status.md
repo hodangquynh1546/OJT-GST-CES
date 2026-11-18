@@ -39,6 +39,7 @@ Nhánh `feature/rebuild-foundation`: xây lại từ đầu theo bản yêu cầ
 | 2026-11-17 | OQ-16: lưu file thực tế trên Neon Object Storage (hóa đơn, bill, ảnh đại diện, tài liệu) | `IEvidenceStorage` → `IFileStorage` + `StorageKeys` + `StorageOptions`; `FileRule` giới hạn theo loại; `AttachmentKind` thêm Avatar/Document; `Attachment.FundId` nullable; `User.AvatarAttachmentId`; task M5-T0 |
 | 2026-11-17 | OQ-17: thêm package `AWSSDK.S3` (ngoài training-doc) để gọi Neon Object Storage | Cài trong M5-T0, chỉ ở `ClassFund.Infrastructure` |
 | 2026-11-17 | M0-03 xong: áp `InitialSchema` + chạy `--seed` trên Neon; adapter Neon Object Storage chưa ghi nhận thử trên bucket thật | Bảng module, mục 3 |
+| 2026-11-18 | Nhóm duyệt OQ-19 (tổng kết cuối năm chia tiền thừa theo tổng đã đóng cả năm; nghĩa vụ `Unpaid` → `Excluded`, không truy thu; còn thanh toán chờ thì chặn quyết toán) và TD-03 (đổi tên `ListLockedAt` → `CompletedAt`, xóa `SupplementaryChargeId`) | OQ-19, BR-23/36, FR-53, `database-design.md`, `Event`/`Settlement`, migration `DropObsoleteEventSettlementColumns` (chưa áp Neon) |
 | 2026-11-18 | Duyệt thiết kế UI (canvas "ClassFund UI Design") → OQ-18: bỏ chốt danh sách, kết thúc loại người chưa đóng khoản nào, chi ≤ thu, quyết toán chỉ chia tiền thừa theo tỷ lệ đã đóng, form thu ≠ form chi, Ghi giao dịch ở Thu chi chung chỉ cho quỹ chung. OQ-19 chờ duyệt. | FR-26/27/32–38/43/50/53, BR-16…23/38/39; Domain: bỏ `EventStatus.ListLocked`, `ChargeKind.Supplementary`, `SettlementOutcome.Deficit`; `NotificationType` 5 → `EventParticipantExcluded`, thêm `EventUnpaidReminder`; `AcceptsNewMoney` → `AcceptsNewChargesAndExpenses` + `AcceptsPayments`; thêm `SpendingRule` (BR-38); FE `labels.ts`. Cột `Event.ListLockedAt`, `Settlement.SupplementaryChargeId` giữ lại, chờ migration (M8-T0) |
 
 ## 2. Foundation đã có
@@ -75,7 +76,7 @@ Nhánh `feature/rebuild-foundation`: xây lại từ đầu theo bản yêu cầ
 | Mã | Mô tả | Module |
 |---|---|---|
 | TD-01 | Dọn file chưa gắn owner > 24h (đã đưa vào M5-T1) | M5 |
-| TD-03 | Migration dọn cột không dùng sau OQ-18: `Event.ListLockedAt` (xóa hoặc đổi thành `CompletedAt`), `Settlement.SupplementaryChargeId` – cần nhóm duyệt rồi mới tạo; người áp lên Neon ghi ở mục 3 | M8-T0 |
+| TD-03 | Migration `DropObsoleteEventSettlementColumns` (đổi `Event.ListLockedAt` → `CompletedAt`, xóa `Settlement.SupplementaryChargeId`) – đã duyệt và tạo 2026-11-18, **chưa áp Neon**: người áp tạo branch Neon dự phòng, báo nhóm trước/sau, rồi ghi tên ở mục 3 | M8-T0 |
 | TD-02 | Tiến trình `ClassFund.Api.exe` cũ trên máy dev giữ khóa thư mục khi xóa code cũ – tắt trước khi build | – |
 
 ## 5. Sự cố

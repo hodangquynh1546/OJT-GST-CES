@@ -322,6 +322,9 @@ namespace ClassFund.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -337,9 +340,6 @@ namespace ClassFund.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("FundId")
                         .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("ListLockedAt")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -744,9 +744,6 @@ namespace ClassFund.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("SettledByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("SupplementaryChargeId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("SurplusMethod")
