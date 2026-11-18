@@ -109,17 +109,18 @@ Ký hiệu: **BE** backend, **FE** frontend, **T** test. Mỗi task kết thúc 
 
 | Task | Nội dung |
 |---|---|
-| M7-T1 BE | `LedgerService`: list theo phạm vi + lọc + phân trang + tổng thu/chi/số dư phạm vi; create (scope bắt buộc; Event phải thuộc quỹ và `AcceptsNewMoney`; danh mục đúng loại; `EvidenceRule.EnsureProvided`; gắn chứng từ); detail; reverse (bút toán đảo + lý do, một lần). Audit `ledger.create/reverse` với Scope. Học sinh: chỉ đọc (OQ-14). |
-| M7-T2 FE | L-01, L-02, L-03; form tự yêu cầu chứng từ khi số tiền > 500.000đ; hiển thị `ScopeBadge`. |
-| M7-T3 T | > 500k không chứng từ → 422; ghi vào sự kiện đã quyết toán → 422; tổng quỹ chung không gồm giao dịch sự kiện. |
+| M7-T1 BE | `LedgerService`: list theo phạm vi + lọc + phân trang + tổng thu/chi/số dư phạm vi; create **chỉ khoản chi** (OQ-18, BR-39: thu đi qua khoản thu M6) – scope bắt buộc; Event phải thuộc quỹ và đang `Open`; danh mục đúng loại; `EvidenceRule.EnsureProvided`; **chi ≤ số dư phạm vi (BR-38)**, khóa theo phạm vi trong transaction; gắn chứng từ; detail; reverse (bút toán đảo + lý do, một lần). Audit `ledger.create/reverse` với Scope. Học sinh: chỉ đọc (OQ-14). |
+| M7-T2 FE | L-01, L-02 (chỉ phạm vi Quỹ chung, không có ô chọn phạm vi; thu chi sự kiện ghi trong E-03; form tách **Thu** = tạo khoản thu như H-02 / khoản thu sự kiện, **Chi** = khoản chi có hiển thị mức chi tối đa và chặn khi vượt), L-03; form tự yêu cầu chứng từ khi số tiền > 500.000đ; hiển thị `ScopeBadge`. |
+| M7-T3 T | > 500k không chứng từ → 422; chi vượt số dư phạm vi → 422 `ledger.exceeds_balance`; ghi vào sự kiện đã kết thúc/quyết toán → 422; tổng quỹ chung không gồm giao dịch sự kiện. |
 
-### M8 – Sự kiện (FR-30 → FR-34, BR-16 → BR-20, OQ-04)
+### M8 – Sự kiện (FR-30 → FR-34, BR-16 → BR-20, OQ-18)
 
 | Task | Nội dung |
 |---|---|
-| M8-T1 BE | `EventsService`: list (học sinh: sự kiện được mời), create (mời mọi thành viên Active, thông báo `EventCreated`), update, cancel (chỉ khi chưa có tiền), respond (tham gia/không – chỉ khi `Open`; thủ quỹ tự trả lời không cần duyệt), participants, lock-list (BR-19), complete. Dùng `EventStatusRules`. Audit mọi chuyển trạng thái. Expose `InviteMemberAsync` cho M3. |
-| M8-T2 FE | E-01, E-02, E-03 (tab Tổng quan/Người tham gia; tab Khoản thu & Thu chi nhúng component M6b/M7). |
-| M8-T3 T | Chuyển trạng thái sai → 422; chốt danh sách loại đúng người; học sinh không được mời → 404. |
+| M8-T0 Domain | Theo OQ-18. **Đã làm 2026-11-18:** bỏ `EventStatus.ListLocked`, `ChargeKind.Supplementary`, `SettlementOutcome.Deficit`; `EventStatusRules` (`Open → Completed`), `AcceptsNewChargesAndExpenses` (chỉ `Open`) + `AcceptsPayments` (`Open`, `Completed`); `SpendingRule` (BR-38); `NotificationType` `EventParticipantExcluded`, `EventUnpaidReminder`. **Còn lại:** migration dọn cột `Event.ListLockedAt`, `Settlement.SupplementaryChargeId` (TD-03, cần duyệt trước khi tạo). |
+| M8-T1 BE | `EventsService`: list (học sinh: sự kiện được mời), create (mời mọi thành viên Active, thông báo `EventCreated`), update, cancel (chỉ khi chưa có tiền), respond (tham gia/không – chỉ khi `Open`; thủ quỹ tự trả lời không cần duyệt), participants (thủ quỹ: chỉ `Accepted`, kèm đã đóng / phải đóng, lọc Đã đóng / Chờ xác nhận / Chưa đóng), **complete** (BR-19: loại người chưa đóng khoản nào, nhắc người chưa đóng đủ). Dùng `EventStatusRules`. Audit mọi chuyển trạng thái. Expose `InviteMemberAsync` cho M3. |
+| M8-T2 FE | E-01, E-02, E-03 (tab Người tham gia có bộ lọc tình trạng; tab Khoản thu & Thu chi nhúng component M6b/M7; nút "Kết thúc sự kiện" với hộp thoại liệt kê người bị loại / được nhắc). |
+| M8-T3 T | Chuyển trạng thái sai → 422; kết thúc loại đúng người chưa đóng khoản nào, giữ người đóng một phần / đang chờ; sau kết thúc tạo khoản thu / ghi chi → 422 nhưng nộp phần còn lại → 200; học sinh không được mời → 404. |
 
 ### M6b – Khoản thu sự kiện & đóng bằng số dư (FR-19, FR-25, BR-15, BR-18, BR-32, OQ-05, OQ-10)
 
@@ -139,14 +140,14 @@ Ký hiệu: **BE** backend, **FE** frontend, **T** test. Mỗi task kết thúc 
 | M10-T3 FE | B-01: số dư, lịch sử biến động, nút **"Rút tiền"** (xác nhận "Rút toàn bộ X đ?"), trạng thái đang chờ; B-02: danh sách yêu cầu, liên hệ (email người yêu cầu), "Đã hoàn tiền" / "Từ chối". |
 | M10-T4 T | Rút khi số dư 0 → 422; gửi yêu cầu thứ hai khi đang chờ → 422/409; xác nhận trừ đúng toàn bộ; từ chối mở lại số dư; lịch sử khớp số dư; hai thao tác đồng thời không làm âm số dư. |
 
-### M9 – Quyết toán sự kiện (FR-35 → FR-39, BR-21 → BR-24, OQ-03)
+### M9 – Quyết toán sự kiện (FR-35 → FR-39, BR-21 → BR-24, OQ-18, OQ-19)
 
 | Task | Nội dung |
 |---|---|
-| M9-T1 Domain | `SettlementCalculator` (thuần, ở Domain/Rules, **dùng chung với M14**): chia đều / theo tỷ lệ, largest remainder, tổng = số thừa; chia thiếu. Unit test nhiều trường hợp biên (1 người, chia không hết, đóng góp 0). |
-| M9-T2 BE | `SettlementService`: preview, execute (Balanced/Surplus/Deficit; PersonalBalance → `CreditAsync`; DirectRefund → SettlementLine chờ; Deficit → Charge Supplementary + thông báo), confirm refunded line (LedgerEntry chi `Refund`), sự kiện → `Settled`. Audit + thông báo `SettlementResult`, `BalanceCredited`. |
-| M9-T3 FE | E-04: số liệu tổng hợp, chọn phương án, bảng xem trước, xác nhận; danh sách hoàn tiền chờ xác nhận. |
-| M9-T4 T | Quyết toán khi chưa Completed → 422; quyết toán hai lần → 409; tổng chia = số thừa; không có giao dịch nào chạm quỹ chung. |
+| M9-T1 Domain | `SettlementCalculator` (thuần, ở Domain/Rules, **dùng chung với M14**): chia tiền thừa **theo tỷ lệ số tiền đã đóng** (OQ-18; không còn chia đều, không còn chia thiếu), largest remainder, tổng = số thừa. Unit test nhiều trường hợp biên (1 người, chia không hết, đóng góp 0, đóng góp lệch). `AllocationRule.Equal` / `ChargeKind.Supplementary` không còn dùng cho sự kiện. |
+| M9-T2 BE | `SettlementService`: preview, execute (Balanced/Surplus; PersonalBalance → `CreditAsync`; DirectRefund → SettlementLine chờ; nghĩa vụ còn `Unpaid` → `Excluded` theo OQ-19), confirm refunded line (LedgerEntry chi `Refund`), sự kiện → `Settled`. Audit + thông báo `SettlementResult`, `BalanceCredited`. |
+| M9-T3 FE | E-04: số liệu tổng hợp, chọn cách trả (hoàn trực tiếp / cộng số dư), bảng xem trước (đã đóng, tỷ lệ, được nhận lại), xác nhận; danh sách hoàn tiền chờ xác nhận. |
+| M9-T4 T | Quyết toán khi chưa Completed → 422; quyết toán hai lần → 409; tổng chia = số thừa; phần mỗi người tỷ lệ với số đã đóng; không có giao dịch nào chạm quỹ chung. |
 
 ### M11 – Thông báo UI & nhắc hạn (FR-43, FR-44, OQ-12)
 
@@ -176,7 +177,7 @@ Ký hiệu: **BE** backend, **FE** frontend, **T** test. Mỗi task kết thúc 
 
 | Task | Nội dung |
 |---|---|
-| M14-T1 BE | `YearEndSettlementService`: preview (tổng thu/chi quỹ chung, số dư, khoản chưa hoàn thành, thành viên Active; phần chia mỗi người bằng `SettlementCalculator`, tỷ lệ theo tổng đã đóng các khoản thu chung); execute một lần (`YearEndRule.EnsureCanClose`; `Settlement` EventId null; thừa → `CreditAsync` hoặc SettlementLine chờ hoàn; thiếu → khoản thu bổ sung chung); quỹ → `Archived`; thông báo `SettlementResult` phạm vi Quỹ chung cho cả lớp; audit `year_end.settle`. |
-| M14-T2 BE | Rà soát các service ghi (M2, M3, M5–M8): gọi `YearEndRule.EnsureFundActive` để chặn tạo mới khi quỹ `Archived` (ngoại lệ: thanh toán khoản bổ sung cuối năm, xác nhận hoàn tiền, rút số dư). |
+| M14-T1 BE | `YearEndSettlementService`: preview (tổng thu/chi quỹ chung, số dư, khoản chưa hoàn thành, thành viên Active; phần chia mỗi người bằng `SettlementCalculator`, tỷ lệ theo tổng đã đóng các khoản thu chung); execute một lần (`YearEndRule.EnsureCanClose`; `Settlement` EventId null; thừa → `CreditAsync` hoặc SettlementLine chờ hoàn; không còn nhánh thiếu nếu OQ-19 được duyệt); quỹ → `Archived`; thông báo `SettlementResult` phạm vi Quỹ chung cho cả lớp; audit `year_end.settle`. |
+| M14-T2 BE | Rà soát các service ghi (M2, M3, M5–M8): gọi `YearEndRule.EnsureFundActive` để chặn tạo mới khi quỹ `Archived` (ngoại lệ: xác nhận hoàn tiền, rút số dư). |
 | M14-T3 FE | S-05: tổng kết + chọn phương án + xem trước + xác nhận (cảnh báo "chỉ làm một lần, quỹ sẽ chuyển chỉ xem"); banner "Quỹ đã tổng kết" trên các trang khi `Archived`. |
 | M14-T4 T | Còn sự kiện chưa quyết toán → 422; quyết toán lần hai → 422/409; tổng chia = số dư; không dùng giao dịch sự kiện; sau Archived tạo khoản thu/giao dịch → 422; vẫn rút được số dư. |

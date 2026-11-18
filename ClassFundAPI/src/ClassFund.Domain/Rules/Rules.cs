@@ -185,8 +185,7 @@ public static class EventStatusRules
 
     private static readonly IReadOnlyDictionary<EventStatus, EventStatus[]> Allowed = new Dictionary<EventStatus, EventStatus[]>
     {
-        [EventStatus.Open] = [EventStatus.ListLocked, EventStatus.Cancelled],
-        [EventStatus.ListLocked] = [EventStatus.Completed],
+        [EventStatus.Open] = [EventStatus.Completed, EventStatus.Cancelled],
         [EventStatus.Completed] = [EventStatus.Settled],
         [EventStatus.Settled] = [],
         [EventStatus.Cancelled] = [],
@@ -202,9 +201,28 @@ public static class EventStatusRules
         }
     }
 
-    /// <summary>Còn nhận khoản thu/chi mới? Sau khi quyết toán hoặc hủy thì không.</summary>
-    public static bool AcceptsNewMoney(EventStatus status) =>
-        status is EventStatus.Open or EventStatus.ListLocked or EventStatus.Completed;
+    /// <summary>Được tạo khoản thu / ghi chi mới cho sự kiện? Chỉ khi đang mở (BR-20).</summary>
+    public static bool AcceptsNewChargesAndExpenses(EventStatus status) => status is EventStatus.Open;
+
+    /// <summary>
+    /// Được nộp / xác nhận thanh toán cho nghĩa vụ đã có? Khi đang mở và sau khi kết thúc
+    /// (người chưa đóng đủ vẫn nộp được, BR-19); sau quyết toán hoặc hủy thì không.
+    /// </summary>
+    public static bool AcceptsPayments(EventStatus status) => status is EventStatus.Open or EventStatus.Completed;
+}
+
+/// <summary>Chi không vượt thu (BR-38): số tiền chi không lớn hơn số dư hiện có của phạm vi (quỹ chung hoặc sự kiện).</summary>
+public static class SpendingRule
+{
+    public const string ExceedsBalanceCode = "ledger.exceeds_balance";
+
+    public static void EnsureWithinBalance(long amount, long scopeBalance)
+    {
+        if (amount > scopeBalance)
+        {
+            throw new BusinessRuleException(ExceedsBalanceCode, "Số tiền chi vượt số dư hiện có. Tổng chi không được lớn hơn tổng thu.");
+        }
+    }
 }
 
 /// <summary>Kết quả xác định cách ghi nhận một lần xác nhận thanh toán.</summary>

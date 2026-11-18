@@ -164,22 +164,47 @@ public class PaymentConfirmationPolicyTests
 public class EventStatusRulesTests
 {
     [Theory]
-    [InlineData(EventStatus.Open, EventStatus.ListLocked, true)]
-    [InlineData(EventStatus.ListLocked, EventStatus.Completed, true)]
+    [InlineData(EventStatus.Open, EventStatus.Completed, true)]
     [InlineData(EventStatus.Completed, EventStatus.Settled, true)]
     [InlineData(EventStatus.Open, EventStatus.Cancelled, true)]
     [InlineData(EventStatus.Open, EventStatus.Settled, false)]
+    [InlineData(EventStatus.Completed, EventStatus.Open, false)]
+    [InlineData(EventStatus.Completed, EventStatus.Cancelled, false)]
     [InlineData(EventStatus.Settled, EventStatus.Open, false)]
     [InlineData(EventStatus.Cancelled, EventStatus.Open, false)]
     public void Transitions_follow_the_lifecycle(EventStatus from, EventStatus to, bool allowed) =>
         Assert.Equal(allowed, EventStatusRules.CanTransition(from, to));
 
+    [Theory]
+    [InlineData(EventStatus.Open, true)]
+    [InlineData(EventStatus.Completed, false)]
+    [InlineData(EventStatus.Settled, false)]
+    [InlineData(EventStatus.Cancelled, false)]
+    public void Only_open_events_accept_new_charges_and_expenses(EventStatus status, bool expected) =>
+        Assert.Equal(expected, EventStatusRules.AcceptsNewChargesAndExpenses(status));
+
+    [Theory]
+    [InlineData(EventStatus.Open, true)]
+    [InlineData(EventStatus.Completed, true)]
+    [InlineData(EventStatus.Settled, false)]
+    [InlineData(EventStatus.Cancelled, false)]
+    public void Payments_are_accepted_until_settlement(EventStatus status, bool expected) =>
+        Assert.Equal(expected, EventStatusRules.AcceptsPayments(status));
+}
+
+public class SpendingRuleTests
+{
+    [Theory]
+    [InlineData(3_500_000, 3_500_000)]
+    [InlineData(1, 3_500_000)]
+    public void Spending_within_balance_is_allowed(long amount, long balance) =>
+        SpendingRule.EnsureWithinBalance(amount, balance);
+
     [Fact]
-    public void Settled_and_cancelled_events_accept_no_new_money()
+    public void Spending_above_balance_is_refused()
     {
-        Assert.False(EventStatusRules.AcceptsNewMoney(EventStatus.Settled));
-        Assert.False(EventStatusRules.AcceptsNewMoney(EventStatus.Cancelled));
-        Assert.True(EventStatusRules.AcceptsNewMoney(EventStatus.Open));
+        var error = Assert.Throws<BusinessRuleException>(() => SpendingRule.EnsureWithinBalance(3_600_000, 3_500_000));
+        Assert.Equal(SpendingRule.ExceedsBalanceCode, error.Code);
     }
 }
 

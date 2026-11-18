@@ -51,3 +51,13 @@ Component **không** viết mã màu – chỉ dùng token. Token được ánh 
 - Số tiền thiếu/âm dùng `--cf-expense`; thừa dùng `--cf-income`.
 - Mật khẩu tạm hiển thị một lần trong dialog có nút "Sao chép" + cảnh báo "sẽ không hiển thị lại".
 - Mọi thông báo lỗi lấy theo `code` (`registerErrorMessages`); không hiện stack/chi tiết kỹ thuật.
+- **Form ghi chi** hiện mức chi tối đa (số dư phạm vi) dưới ô số tiền; vượt thì banner `--danger` và khóa nút lưu (BR-38).
+- **Form ghi thu** dùng chung bố cục với "Tạo khoản thu": tên, mục đích, số tiền mỗi người, hạn đóng, banner "Áp cho N người → tổng phải thu".
+- Hành động không hoàn tác (kết thúc sự kiện, quyết toán, tổng kết cuối năm) mở hộp thoại liệt kê hệ quả (ai bị loại, ai được nhắc, ai nhận thông báo) trước khi xác nhận.
+
+## 6. Bản thiết kế tham chiếu
+
+- Canvas **"ClassFund UI Design"** (Claude Design, riêng tư – chủ canvas chia sẻ khi cần): 34 màn hình chia 6 trang theo vai trò + 8 thành phần dùng chung; bấm Play ở màn Đăng nhập để đi theo luồng.
+- Bản thiết kế vẽ theo phong cách shadcn/ui (zinc, nút chính màu đen, bo góc 8–12 px) **chỉ để thống nhất bố cục và luồng**. Code vẫn dùng Kendo UI và token `--cf-*` ở trên; không thêm thư viện UI khác.
+- Khi làm màn hình: theo bố cục, nội dung, trạng thái và luồng của bản thiết kế; ánh xạ sang component Kendo tương ứng (Grid, Dialog, TabStrip, SegmentedControl/ButtonGroup, Upload). Chỗ bản thiết kế dùng hộp thoại cho H-02, E-02, L-02 thì giữ route ở sitemap để mở thẳng được.
+- Công tắc ghi "Bản mẫu" trên canvas chỉ để xem các trạng thái; không phải chức năng.

@@ -18,10 +18,12 @@
 | TC-M7-01 | Ghi chi 600.000đ không chứng từ | BR-06 | 422 `evidence.required` | |
 | TC-M7-02 | Ghi chi 500.000đ không chứng từ | BR-06 | 201 | |
 | TC-M7-03 | Tổng quan quỹ chung khi có giao dịch sự kiện | BR-02 | Không cộng giao dịch sự kiện | |
-| TC-M8-01 | Chốt danh sách khi có người chưa đóng đủ | BR-19 | Người đó bị loại, nghĩa vụ `Excluded` | |
-| TC-M9-01 | Thừa 150.000đ, 15 người, chia đều, cộng số dư | BR-22 | Mỗi người 10.000đ, số dư tăng, BalanceTransaction, thông báo | |
-| TC-M9-02 | Thừa 100.000đ, 3 người chia đều | BR-22, OQ-03 | 33.334 + 33.333 + 33.333 = 100.000 | |
-| TC-M9-03 | Thiếu 100.000đ | BR-23 | Khoản thu bổ sung cho người thực tế, sự kiện Settled | |
+| TC-M7-04 | Ghi chi lớn hơn số dư phạm vi (sự kiện còn 3.500.000đ, chi 3.600.000đ) | BR-38 | 422 `ledger.exceeds_balance`, không ghi sổ | |
+| TC-M8-01 | Kết thúc sự kiện: A chưa đóng khoản nào, B đóng 1/2 khoản, C có thanh toán đang chờ | BR-19 | A bị loại, nghĩa vụ `Excluded`, nhận thông báo; B, C vẫn `IsFinal`; B nhận thông báo nhắc | |
+| TC-M8-02 | Sau khi kết thúc: tạo khoản thu / ghi chi sự kiện | BR-20 | 422; B nộp phần còn lại và được xác nhận → 200 | |
+| TC-M9-01 | Thừa 150.000đ, 3 người đã đóng 100.000 / 100.000 / 50.000, cộng số dư | BR-22 | 60.000 + 60.000 + 30.000; số dư tăng, BalanceTransaction, thông báo | |
+| TC-M9-02 | Thừa 100.000đ, 3 người đã đóng bằng nhau | BR-22, OQ-03 | 33.334 + 33.333 + 33.333 = 100.000 (largest remainder) | |
+| TC-M9-03 | Tổng chia khi tỷ lệ lẻ (27 người 150.000 + 1 người 100.000, thừa 150.000) | BR-22 | 19 × 5.422 + 8 × 5.421 + 3.614 = 150.000 | |
 | TC-M9-04 | Quyết toán không chạm quỹ chung | BR-03 | Số dư quỹ chung trước = sau | |
 | TC-M10-01 | Bấm "Rút tiền" khi số dư 150.000đ | BR-26, OQ-11 | Yêu cầu 150.000đ (toàn bộ); số dư bị giữ; thủ quỹ nhận thông báo | |
 | TC-M10-03 | Gửi yêu cầu rút thứ hai khi đang chờ | BR-26 | 422 `withdrawal.pending_exists` | |
@@ -31,7 +33,7 @@
 | TC-M12-01 | Học sinh xem audit | FR-47 | 403 | |
 | TC-M13-01 | Học sinh xem báo cáo học sinh khác | FR-51 | 403/404 | |
 | TC-M14-01 | Quyết toán cuối năm khi còn sự kiện chưa quyết toán | BR-35 | 422 `year_end.open_events` | |
-| TC-M14-02 | Quỹ chung dư 300.000đ, 30 thành viên, chia đều, cộng số dư | BR-36 | Mỗi người +10.000đ, quỹ `Archived`, thông báo cả lớp (Quỹ chung) | |
+| TC-M14-02 | Quỹ chung dư 300.000đ, 30 thành viên đã đóng bằng nhau, cộng số dư (theo tỷ lệ – OQ-19) | BR-36 | Mỗi người +10.000đ, quỹ `Archived`, thông báo cả lớp (Quỹ chung) | |
 | TC-M14-03 | Quyết toán cuối năm lần thứ hai | BR-34 | 422 `year_end.already_closed` | |
 | TC-M14-04 | Tạo khoản thu sau khi quỹ Archived | BR-37 | 422 `fund.archived` | |
 | TC-M5-01 | Upload ảnh đại diện PDF hoặc > 2 MB | BR-07 | 422 `file.invalid` | |

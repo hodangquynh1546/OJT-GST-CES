@@ -7,11 +7,11 @@ export const SCOPE_LABEL: Record<FinancialScope, string> = {
   System: 'Hệ thống',
 };
 
-export type EventStatus = 'Open' | 'ListLocked' | 'Completed' | 'Settled' | 'Cancelled';
+/** Vòng đời sự kiện (OQ-18): Open → Completed → Settled; Cancelled từ Open. */
+export type EventStatus = 'Open' | 'Completed' | 'Settled' | 'Cancelled';
 
 export const EVENT_STATUS_LABEL: Record<EventStatus, string> = {
   Open: 'Đang mở',
-  ListLocked: 'Đã chốt danh sách',
   Completed: 'Đã kết thúc',
   Settled: 'Đã quyết toán',
   Cancelled: 'Đã hủy',
@@ -39,6 +39,6 @@ export const ASSIGNMENT_STATUS_LABEL: Record<AssignmentStatus, string> = {
   Unpaid: 'Chưa đóng',
   AwaitingConfirmation: 'Chờ xác nhận',
   Paid: 'Đã đóng',
-  Excluded: 'Bị loại khỏi danh sách',
+  Excluded: 'Bị loại khỏi sự kiện',
   Cancelled: 'Đã hủy',
 };
