@@ -73,6 +73,15 @@ describe('HTTP interceptors', () => {
     expect(navigate).toHaveBeenCalledWith('/login');
   });
 
+  it('401 khi sửa hồ sơ (PUT /auth/me) là phiên hết hạn: xóa phiên và về /login', () => {
+    http.put(apiUrl('/auth/me'), { fullName: 'A' }).subscribe({ error: () => undefined });
+    backend.expectOne(apiUrl('/auth/antiforgery')).flush({ antiforgeryToken: 'tok' });
+    backend.expectOne(apiUrl('/auth/me')).flush({ code: 'unauthorized' }, { status: 401, statusText: 'x' });
+
+    expect(clearSession).toHaveBeenCalled();
+    expect(navigate).toHaveBeenCalledWith('/login');
+  });
+
   it('401 khi đọc /auth/me không điều hướng', () => {
     http.get(apiUrl('/auth/me')).subscribe({ error: () => undefined });
     backend.expectOne(apiUrl('/auth/me')).flush({ code: 'unauthorized' }, { status: 401, statusText: 'x' });

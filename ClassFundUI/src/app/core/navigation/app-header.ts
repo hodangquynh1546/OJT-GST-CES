@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 
 import { AuthService } from '../auth/auth.service';
 import { CurrentFund } from '../services/current-fund.service';
@@ -43,6 +43,7 @@ import { ROLE_DISPLAY } from './role-display';
           <path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
         </svg>
       </a>
+      <button type="button" class="logout" (click)="logout()">Đăng xuất</button>
     </header>
   `,
   styles: `
@@ -128,6 +129,20 @@ import { ROLE_DISPLAY } from './role-display';
     .user-name {
       font-size: 13px;
     }
+    .logout {
+      min-height: 32px;
+      padding: 0 12px;
+      border: 1px solid var(--cf-border-strong);
+      border-radius: var(--cf-radius-md);
+      background: var(--cf-surface);
+      color: var(--cf-text);
+      font: inherit;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .logout:hover {
+      background: var(--cf-subtle);
+    }
     .user-role,
     .chevron {
       color: var(--cf-text-muted);
@@ -138,6 +153,7 @@ import { ROLE_DISPLAY } from './role-display';
 export class AppHeader {
   private readonly auth = inject(AuthService);
   private readonly currentFund = inject(CurrentFund);
+  private readonly router = inject(Router);
 
   protected readonly user = this.auth.user;
   protected readonly membership = this.currentFund.context;
@@ -156,4 +172,9 @@ export class AppHeader {
   protected readonly initial = computed(
     () => this.user()?.fullName.trim().split(/\s+/).pop()?.charAt(0) ?? '',
   );
+
+  protected async logout(): Promise<void> {
+    await this.auth.logout();
+    await this.router.navigateByUrl('/login');
+  }
 }

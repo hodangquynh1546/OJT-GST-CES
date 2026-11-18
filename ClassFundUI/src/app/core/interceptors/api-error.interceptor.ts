@@ -19,7 +19,10 @@ export const apiErrorInterceptor: HttpInterceptorFn = (request, next) => {
       }
 
       const apiError = ApiError.from(error);
-      const expectsAnonymous = [apiUrl('/auth/me'), apiUrl('/auth/login')].includes(request.url);
+      // Chỉ việc khôi phục phiên (GET /auth/me) và đăng nhập được phép nhận 401; PUT /auth/me là hành động của người
+      // đang đăng nhập, 401 ở đó nghĩa là phiên đã hết hạn.
+      const expectsAnonymous =
+        (request.method === 'GET' && request.url === apiUrl('/auth/me')) || request.url === apiUrl('/auth/login');
       if (apiError.status === 401 && !expectsAnonymous) {
         auth.clearSession();
         void router.navigateByUrl('/login');

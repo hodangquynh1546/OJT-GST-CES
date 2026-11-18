@@ -5,9 +5,17 @@
 
 | Mã | Mô tả | FR/BR | Kỳ vọng | Tự động |
 |---|---|---|---|---|
-| TC-M1-01 | Đăng ký tài khoản mới | FR-01 | 201, đăng nhập luôn, `accountPermissions` có `Fund.Create` | |
-| TC-M1-02 | Học sinh đăng nhập bằng mật khẩu tạm rồi gọi API khác | FR-03 | 403 `password.change_required` | |
-| TC-M1-03 | Đổi mật khẩu xong, cookie cũ ở trình duyệt khác | BR-29 | 401 | |
+| TC-M1-01 | Đăng ký tài khoản mới | FR-01 | 201, đăng nhập luôn, `accountPermissions` có `Fund.Create` | `AuthApiTests.Register_signs_in_and_me_returns_the_new_user`, e2e full `đăng ký → vào hệ thống…` |
+| TC-M1-02 | Học sinh đăng nhập bằng mật khẩu tạm rồi gọi API khác | FR-03 | 403 `password.change_required` | `AuthApiTests.Temporary_password_blocks_other_endpoints_until_changed`, e2e full `mật khẩu tạm (tài khoản seed)` |
+| TC-M1-03 | Đổi mật khẩu xong, cookie cũ ở trình duyệt khác | BR-29 | 401 | `AuthApiTests.Changing_password_invalidates_other_sessions_but_keeps_the_current_one`, e2e full `BR-29` |
+| TC-M1-04 | Đăng nhập sai mật khẩu / email không tồn tại | FR-02, BR-27 | 401 `auth.invalid_credentials`, cùng thông báo cho cả hai (không lộ email có tồn tại) | `AuthServiceTests`, `AuthApiTests.Login_with_*`, e2e mock/full |
+| TC-M1-05 | Đăng nhập vào tài khoản bị khóa | FR-02 | 401 `auth.account_disabled` chỉ khi mật khẩu đúng; phiên đang mở bị từ chối ngay | `AuthApiTests.Disabled_account_cannot_login_and_existing_session_is_rejected` |
+| TC-M1-06 | Đăng ký trùng email (khác hoa thường) / dữ liệu sai | BR-27, BR-28 | 409 `auth.email_exists` / 400 `validation_failed` kèm `errors` từng ô | `AuthApiTests.Register_with_*`, e2e full |
+| TC-M1-07 | Đổi mật khẩu sai mật khẩu hiện tại | FR-04 | **422** `auth.current_password_incorrect`, vẫn đăng nhập (không bị đá ra đăng nhập) | `AuthApiTests.Change_password_with_wrong_current_password_is_422_and_keeps_session`, e2e mock/full |
+| TC-M1-08 | Đăng nhập / đăng ký quá giới hạn trong 1 phút | NFR-01 | 429 `auth.rate_limited` | `AuthApiTests.Login_is_rate_limited_per_ip_with_429` |
+| TC-M1-09 | Audit đăng ký / đổi mật khẩu / sửa hồ sơ | NFR-02 | Đúng `Action`, Scope `System`; không chứa mật khẩu, hash, SecurityStamp | `AuthServiceTests`, `AuthApiTests.*audit*` |
+| TC-M1-10 | Request ghi thiếu header antiforgery | NFR-01 | 400 `antiforgery_failed` | `AuthApiTests.Write_request_without_antiforgery_header_is_rejected` |
+| TC-M1-11 | Phiên hết hạn khi sửa hồ sơ (PUT /auth/me → 401) | FR-04 | FE xóa phiên và về `/login` | `interceptors.spec.ts`, e2e mock `phiên hết hạn giữa chừng` |
 | TC-M3-01 | Thêm học sinh bằng email chưa có tài khoản | FR-09 | Trả mật khẩu tạm một lần; AuditLog không chứa mật khẩu | |
 | TC-M3-02 | Thêm nhiều email một lần: 1 mới, 1 đã có tài khoản, 1 đã là thành viên, 1 sai định dạng, 1 trùng trong danh sách | FR-09, OQ-20 | Kết quả từng dòng `created`/`existing_added`/`already_exists`/`invalid`, email trùng chỉ xử lý một lần, email lỗi không ảnh hưởng email khác; mật khẩu tạm chỉ cho tài khoản mới, AuditLog không chứa mật khẩu | |
 | TC-M3-03 | Thêm nhiều email với danh sách > 50 hoặc khi quỹ Archived | OQ-20, BR-37 | 400 / 422 `fund.archived` | |

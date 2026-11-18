@@ -1,14 +1,17 @@
 import { Routes } from '@angular/router';
 
-import { comingSoon } from '../../shared/components/coming-soon/coming-soon';
+import './auth.errors';
+import { ChangePasswordPage } from './change-password-page';
+import { LoginPage } from './login-page';
+import { RegisterPage } from './register-page';
 
-/** Màn hình giữ chỗ – module thay bằng màn hình thật (docs/ui-design/screen-specifications.md). */
+/** A-01 / A-02: dành cho khách (guestGuard ở `app.routes.ts`). */
 export const GUEST_ROUTES: Routes = [
-  { path: 'login', ...comingSoon('A-01', 'Đăng nhập') },
-  { path: 'register', ...comingSoon('A-02', 'Đăng ký thủ quỹ') },
+  { path: 'login', component: LoginPage, title: 'Đăng nhập · ClassFund' },
+  { path: 'register', component: RegisterPage, title: 'Đăng ký thủ quỹ · ClassFund' },
 ];
 
-/** Màn hình giữ chỗ – module thay bằng màn hình thật (docs/ui-design/screen-specifications.md). */
+/** A-03: cần đăng nhập, nằm ngoài shell để mật khẩu tạm không thấy menu. */
 export const CHANGE_PASSWORD_ROUTES: Routes = [
-  { path: '', ...comingSoon('A-03', 'Đổi mật khẩu') },
+  { path: '', component: ChangePasswordPage, title: 'Đổi mật khẩu · ClassFund' },
 ];

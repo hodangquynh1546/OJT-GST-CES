@@ -9,8 +9,8 @@
 |---|---|---|---|---|
 | `/login` | A-01 | Đăng nhập (email + mật khẩu) | guest | M1 |
 | `/register` | A-02 | Đăng ký thủ quỹ | guest | M1 |
-| `/change-password` | A-03 | Đổi mật khẩu (bắt buộc khi mật khẩu tạm) | đăng nhập | M1 |
-| `/account` | A-04 | Tài khoản của tôi | đăng nhập | M1 |
+| `/change-password` | A-03 | Đặt mật khẩu mới (bắt buộc khi mật khẩu tạm; đổi tự nguyện ở A-04) | đăng nhập | M1 |
+| `/account` | A-04 | Tài khoản của tôi (thông tin cá nhân + đổi mật khẩu; **ngoài khung menu quỹ**, chỉ có thanh trên: Quỹ của tôi, Đăng xuất – theo canvas) | đăng nhập | M1 |
 | `/funds` | F-01 | Quỹ của tôi (danh sách, nút Tạo quỹ nếu `Fund.Create`) | đăng nhập | M2 |
 | `/funds/new` | F-02 | Tạo quỹ | `Fund.Create` (kiểm ở màn hình) | M2 |
 | `/funds/:fundId` | S-01 | Tổng quan quỹ chung | `Fund.View` | M13 |

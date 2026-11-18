@@ -77,6 +77,13 @@ export class AuthService {
     );
   }
 
+  /** Sửa họ tên (FR-04); trả về thông tin người dùng mới. */
+  async updateProfile(fullName: string): Promise<CurrentUser> {
+    const user = await firstValueFrom(this.http.put<CurrentUser>(apiUrl('/auth/me'), { fullName }));
+    this.currentUser.set(user);
+    return user;
+  }
+
   /** Đăng xuất; luôn xóa phiên ở client kể cả khi gọi API lỗi, rồi lấy token antiforgery ẩn danh mới. */
   async logout(): Promise<void> {
     try {
