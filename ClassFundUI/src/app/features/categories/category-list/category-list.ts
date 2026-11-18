@@ -10,7 +10,6 @@ import { BehaviorSubject, combineLatest, firstValueFrom, map, switchMap } from '
 import { ConfirmDialog } from '../../../core/services/confirm-dialog.service';
 import { AppNotifications } from '../../../core/services/notification.service';
 import { AppState } from '../../../shared/components/app-state/app-state';
-import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { applyServerErrors, serverError } from '../../../shared/forms/server-errors';
 import { ApiError } from '../../../shared/models/api-error';
 import { LOADING, stateKind, toLoadState } from '../../../shared/state/load-state';
@@ -37,34 +36,33 @@ const notBlank = (control: AbstractControl<string | null>): ValidationErrors | n
     ErrorComponent,
     FormFieldComponent,
     LabelComponent,
-    PageHeader,
     ReactiveFormsModule,
     TextBoxComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="cf-page">
-      <app-page-header
-        title="Danh mục thu chi"
-        subtitle="Thêm, đổi tên, ngừng dùng. Danh mục đã có giao dịch không xóa được, chỉ ngừng dùng."
-      />
+    <div class="page">
+      <div class="head-t">
+        <h1>Danh mục thu chi</h1>
+        <p class="muted">Thêm, đổi tên, ngừng dùng. Danh mục đã có giao dịch không xóa được, chỉ ngừng dùng.</p>
+      </div>
 
-      <form class="cf-card add" [formGroup]="addForm" (ngSubmit)="add()" novalidate>
-        <kendo-formfield class="name-field">
-          <kendo-label [for]="nameInput" text="Tên danh mục" />
-          <kendo-textbox #nameInput formControlName="name" [maxlength]="nameMax" placeholder="VD: Văn nghệ" />
+      <form class="card add" [formGroup]="addForm" (ngSubmit)="add()" novalidate>
+        <kendo-formfield class="field name-field">
+          <kendo-label class="label" [for]="nameInput" text="Tên danh mục" />
+          <kendo-textbox #nameInput class="input" formControlName="name" [maxlength]="nameMax" placeholder="VD: Văn nghệ" />
           <kendo-formerror>{{ serverError(addForm.controls.name) ?? 'Vui lòng nhập tên danh mục.' }}</kendo-formerror>
         </kendo-formfield>
-        <div class="type">
-          <span class="k-label" id="type-label">Loại</span>
-          <div class="segmented" role="radiogroup" aria-labelledby="type-label">
+        <div class="field type-field">
+          <span class="label" id="type-label">Loại</span>
+          <div class="tabs" role="radiogroup" aria-labelledby="type-label">
             @for (type of types; track type) {
               <button
-                kendoButton
                 type="button"
                 role="radio"
+                class="tab"
+                [class.on]="addForm.controls.type.value === type"
                 [attr.aria-checked]="addForm.controls.type.value === type"
-                [themeColor]="addForm.controls.type.value === type ? 'primary' : 'base'"
                 (click)="addForm.controls.type.setValue(type)"
               >
                 {{ typeLabel[type] }}
@@ -72,47 +70,49 @@ const notBlank = (control: AbstractControl<string | null>): ValidationErrors | n
             }
           </div>
         </div>
-        <button kendoButton themeColor="primary" type="submit" [disabled]="busy()">Thêm danh mục</button>
+        <button kendoButton class="btn btn-p" type="submit" [disabled]="busy()">Thêm danh mục</button>
       </form>
 
       @let current = state();
       @if (kind(); as stateKindValue) {
         <app-state [kind]="stateKindValue" />
       } @else if (current.status === 'ready') {
-        <div class="columns">
+        <div class="grid2">
           @for (type of types; track type) {
-            <section class="cf-card list" [attr.aria-label]="'Danh mục ' + typeLabel[type].toLowerCase()">
-              <header>
+            <section class="card" [attr.aria-label]="'Danh mục ' + typeLabel[type].toLowerCase()">
+              <header class="card-h">
                 <h2>Danh mục {{ typeLabel[type].toLowerCase() }}</h2>
-                <span class="cf-tag" [class.cf-tag--success]="type === 'Income'" [class.cf-tag--danger]="type === 'Expense'">{{ typeLabel[type] }}</span>
+                <span class="badge" [class.b-ok]="type === 'Income'" [class.b-bad]="type === 'Expense'">{{ typeLabel[type] }}</span>
               </header>
               @for (category of byType()[type]; track category.id) {
                 <div class="row" [attr.data-category]="category.name">
                   @if (editingId() === category.id) {
                     <kendo-textbox
-                      class="rename"
+                      class="input rename"
                       [formControl]="renameControl"
                       [maxlength]="nameMax"
                       [inputAttributes]="{ 'aria-label': 'Tên mới cho ' + category.name }"
                       (keydown.enter)="$event.preventDefault(); saveRename(category)"
                       (keydown.escape)="cancelRename()"
                     />
-                    <button kendoButton size="small" themeColor="primary" type="button" [disabled]="busy()" (click)="saveRename(category)">Lưu</button>
-                    <button kendoButton size="small" fillMode="flat" type="button" (click)="cancelRename()">Hủy</button>
+                    <button kendoButton class="btn btn-p btn-s" type="button" [disabled]="busy()" (click)="saveRename(category)">Lưu</button>
+                    <button kendoButton class="btn btn-g btn-s" type="button" (click)="cancelRename()">Hủy</button>
                   } @else {
-                    <div class="main">
-                      <span class="name" [class.inactive]="!category.isActive">{{ category.name }}</span>
-                      <span class="cf-muted xs">{{ meta(category) }}</span>
+                    <div class="row-main">
+                      <span class="name" [class.strike]="!category.isActive">{{ category.name }}</span>
+                      <span class="muted xs">{{ meta(category) }}</span>
                     </div>
-                    <span class="cf-tag" [class.cf-tag--success]="category.isActive">{{ category.isActive ? 'Đang dùng' : 'Ngừng dùng' }}</span>
-                    <button kendoButton size="small" type="button" [disabled]="busy()" (click)="startRename(category)">Đổi tên</button>
-                    <button kendoButton size="small" fillMode="flat" type="button" [disabled]="busy()" (click)="toggle(category)">
+                    <span class="badge" [class.b-ok]="category.isActive" [class.b-gen]="!category.isActive">
+                      {{ category.isActive ? 'Đang dùng' : 'Ngừng dùng' }}
+                    </span>
+                    <button kendoButton class="btn btn-o btn-s" type="button" [disabled]="busy()" (click)="startRename(category)">Đổi tên</button>
+                    <button kendoButton class="btn btn-g btn-s" type="button" [disabled]="busy()" (click)="toggle(category)">
                       {{ category.isActive ? 'Ngừng dùng' : 'Dùng lại' }}
                     </button>
                   }
                 </div>
               } @empty {
-                <p class="cf-muted empty">Chưa có danh mục {{ typeLabel[type].toLowerCase() }}.</p>
+                <p class="muted empty">Chưa có danh mục {{ typeLabel[type].toLowerCase() }}.</p>
               }
             </section>
           }
@@ -120,91 +120,223 @@ const notBlank = (control: AbstractControl<string | null>): ValidationErrors | n
       }
     </div>
   `,
+  // Theo đúng canvas C-01 (Categories.dc.html + cf.css): kích thước, bo góc, khoảng cách lấy từ canvas; màu dùng token --cf-*.
   styles: `
-    .add {
+    .page {
       display: flex;
-      flex-wrap: wrap;
-      align-items: flex-start;
-      gap: 12px;
-      margin-bottom: 16px;
-      padding: 16px;
+      flex-direction: column;
+      gap: 24px;
+      max-width: var(--cf-content-max);
     }
-    .add > button {
-      margin-top: 24px;
-    }
-    .name-field {
-      flex: 2 1 240px;
-      margin: 0;
-    }
-    .type {
+    .head-t {
       display: flex;
-      flex: 1 1 180px;
       flex-direction: column;
       gap: 4px;
     }
-    .segmented {
-      display: flex;
-    }
-    .segmented button {
-      flex: 1;
-    }
-    .segmented button:first-child {
-      border-top-right-radius: 0;
-      border-bottom-right-radius: 0;
-    }
-    .segmented button:last-child {
-      border-top-left-radius: 0;
-      border-bottom-left-radius: 0;
-    }
-    .columns {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-      gap: 16px;
-    }
-    .list header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 16px;
-      border-bottom: 1px solid var(--cf-border);
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 600;
+      line-height: 32px;
+      letter-spacing: -0.02em;
     }
     h2 {
       margin: 0;
       font-size: 16px;
+      font-weight: 600;
+      line-height: 24px;
+    }
+    p {
+      margin: 0;
+    }
+    .muted {
+      color: var(--cf-text-muted);
+    }
+    .xs {
+      font-size: 12px;
+    }
+    .card {
+      border: 1px solid var(--cf-border);
+      border-radius: 12px;
+      background: var(--cf-surface);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+    .add {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 12px;
+      padding: 20px;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin: 0;
+    }
+    .name-field {
+      flex: 2 1 240px;
+    }
+    .type-field {
+      flex: 1 1 180px;
+    }
+    .label {
+      font-weight: 500;
+    }
+    /* Nhãn của kendo-label nằm trong component con: chỉnh cỡ chữ / lề cho khớp canvas, chỉ trong màn này. */
+    .add ::ng-deep .k-label {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    kendo-textbox.input {
+      min-height: 0;
+      height: 36px;
+      border-color: var(--cf-border);
+      border-radius: var(--cf-radius-lg);
+    }
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 4px;
+      padding: 4px;
+      border-radius: var(--cf-radius-lg);
+      background: var(--cf-subtle);
+    }
+    .tab {
+      display: inline-flex;
+      align-items: center;
+      height: 28px;
+      padding: 0 12px;
+      border: 0;
+      border-radius: var(--cf-radius-md);
+      background: transparent;
+      color: var(--cf-text-muted);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .tab.on {
+      background: var(--cf-surface);
+      color: var(--cf-ink);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+    }
+    /* Nút theo canvas (.btn, .btn-p, .btn-o, .btn-g, .btn-s) – vẫn là kendoButton. */
+    .btn.k-button {
+      min-height: 0;
+      height: 36px;
+      padding: 0 14px;
+      border: 1px solid transparent;
+      border-radius: var(--cf-radius-lg);
+      font-size: 14px;
+      font-weight: 500;
+      white-space: nowrap;
+      box-shadow: none;
+    }
+    .btn.btn-s.k-button {
+      height: 32px;
+      padding: 0 10px;
+      font-size: 13px;
+    }
+    .btn-p.k-button {
+      background: var(--cf-ink);
+      color: var(--cf-surface);
+    }
+    .btn-p.k-button:hover {
+      background: var(--cf-ink-hover);
+    }
+    .btn-p.k-button:disabled {
+      border-color: var(--cf-ink-soft);
+      background: var(--cf-ink-soft);
+    }
+    .btn-o.k-button {
+      border-color: var(--cf-border);
+      background: var(--cf-surface);
+      color: var(--cf-ink);
+    }
+    .btn-o.k-button:hover,
+    .btn-g.k-button:hover {
+      background: var(--cf-subtle);
+    }
+    .btn-g.k-button {
+      background: transparent;
+      color: var(--cf-ink);
+    }
+    .grid2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      align-items: start;
+      gap: 16px;
+    }
+    .card-h {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      height: 22px;
+      padding: 0 8px;
+      border: 1px solid var(--cf-border);
+      border-radius: 999px;
+      background: var(--cf-surface);
+      color: var(--cf-ink);
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .b-ok {
+      border-color: color-mix(in srgb, var(--cf-success-fg) 25%, transparent);
+      background: var(--cf-success-bg);
+      color: var(--cf-success-fg);
+    }
+    .b-bad {
+      border-color: color-mix(in srgb, var(--cf-danger-fg) 22%, transparent);
+      background: var(--cf-danger-bg);
+      color: var(--cf-danger-fg);
+    }
+    .b-gen {
+      border-color: transparent;
+      background: var(--cf-subtle);
+      color: var(--cf-text);
     }
     .row {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
-      gap: 8px;
-      padding: 10px 16px;
+      gap: 16px;
+      padding: 14px 16px;
       border-bottom: 1px solid var(--cf-subtle);
     }
     .row:last-child {
-      border-bottom: none;
+      border-bottom: 0;
     }
-    .main {
+    .row-main {
       display: flex;
-      flex: 1;
+      flex: 1 1 280px;
       flex-direction: column;
+      gap: 4px;
       min-width: 0;
     }
     .name {
       font-weight: 500;
     }
-    .inactive {
+    .strike {
       color: var(--cf-text-muted);
       text-decoration: line-through;
     }
     .rename {
-      flex: 1;
-    }
-    .xs {
-      font-size: 12px;
+      flex: 1 1 220px;
     }
     .empty {
-      margin: 0;
       padding: 16px;
-    }  `,
+    }
+  `,
 })
 export class CategoryList {
   private readonly api = inject(CategoriesApi);

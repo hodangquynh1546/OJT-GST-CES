@@ -29,6 +29,8 @@ test('student sees general fund and events but not management menu', async ({ pa
       },
     }),
   );
+  // F-01 gọi GET /funds (M2) – giả lập để không đi tới backend thật nếu đang chạy ở máy dev.
+  await page.route('**/api/v1/funds', (route) => route.fulfill({ json: [] }));
   await page.goto('/');
   // Sau đăng nhập luôn vào "Quỹ của tôi" (chưa có menu); chọn quỹ mới vào khung có menu.
   await expect(page).toHaveURL(/\/funds$/);
