@@ -1,16 +1,17 @@
 import { Routes } from '@angular/router';
 
-import { comingSoon } from '../../shared/components/coming-soon/coming-soon';
 import { FundListPage } from './fund-list-page';
 
-/** Màn hình giữ chỗ – module thay bằng màn hình thật (docs/ui-design/screen-specifications.md). */
+/**
+ * F-01 Quỹ của tôi, F-02 Tạo quỹ – ngoài khung có menu quỹ (app.routes.ts), có thanh trên riêng (`app-top-bar`).
+ * Quyền Fund.Create của F-02 kiểm ở màn hình và backend.
+ */
 export const FUND_LIST_ROUTES: Routes = [
-  // F-01: màn đầu tiên sau đăng nhập, ngoài khung menu quỹ (M1 làm phần điều hướng; M2 bổ sung số liệu thẻ và Tạo quỹ).
   { path: '', component: FundListPage, title: 'Quỹ của tôi · ClassFund' },
-  { path: 'new', ...comingSoon('F-02', 'Tạo quỹ') },
+  { path: 'new', title: 'Tạo quỹ · ClassFund', loadComponent: () => import('./fund-new/fund-new').then((m) => m.FundNew) },
 ];
 
-/** Màn hình giữ chỗ – module thay bằng màn hình thật (docs/ui-design/screen-specifications.md). */
+/** F-03 Thông tin quỹ (trong khung menu; guard Fund.Manage ở app.routes.ts). */
 export const FUND_SETTINGS_ROUTES: Routes = [
-  { path: '', ...comingSoon('F-03', 'Thông tin quỹ') },
+  { path: '', title: 'Thông tin quỹ', loadComponent: () => import('./fund-settings/fund-settings').then((m) => m.FundSettings) },
 ];

@@ -69,9 +69,9 @@ Ký hiệu: **BE** backend, **FE** frontend, **T** test. Mỗi task kết thúc 
 
 | Task | Nội dung |
 |---|---|
-| M2-T1 BE | `FundsService`: list quỹ của tôi; create (`Fund.Create`; Fund + FundMember Owner + `DefaultCategories`, một transaction, audit `fund.create`); get (thông tin công khai + vai trò của tôi); update tên/năm học (`fund.update`, before/after). |
-| M2-T2 FE | F-01 (thẻ quỹ, vai trò, nút Tạo quỹ theo `canCreateFund`), F-02, F-03; sau tạo quỹ gọi `restoreSession()` để cập nhật memberships. |
-| M2-T3 T | Tài khoản Provisioned tạo quỹ → 403; người ngoài xem quỹ → 404; Owner unique. |
+| M2-T1 BE | ✅ (2026-11-18) `FundsService`: list quỹ của tôi; create (`Fund.Create`; Fund + FundMember Owner + `DefaultCategories`, một transaction, audit `fund.create`); get (thông tin công khai + vai trò của tôi); update tên/năm học (`fund.update`, before/after). |
+| M2-T2 FE | ✅ F-01 (thẻ quỹ, vai trò, nút Tạo quỹ theo `canCreateFund`), F-02, F-03; sau tạo quỹ gọi `restoreSession()` để cập nhật memberships. |
+| M2-T3 T | ✅ Tài khoản Provisioned tạo quỹ → 403; người ngoài xem quỹ → 404; Owner unique. |
 
 ### M3 – Học sinh (FR-09 → FR-11, AZ-02, BR-30, OQ-15)
 
@@ -96,9 +96,9 @@ Ký hiệu: **BE** backend, **FE** frontend, **T** test. Mỗi task kết thúc 
 | Task | Nội dung |
 |---|---|
 | M5-T0 Infra | ✅ (2026-11-17) Cài package `AWSSDK.S3` (OQ-17 đã duyệt) vào `ClassFund.Infrastructure`. Cài `NeonObjectStorage : IFileStorage` trong `Infrastructure/Storage` dùng `StorageOptions` (Endpoint, Bucket, Region, AccessKeyId, SecretAccessKey; `ForcePathStyle = true`), chỉ dùng PutObject/GetObject/DeleteObject; nối nhánh `Storage:Provider = Neon` trong `DependencyInjection`; health check tùy chọn. Test: unit với client giả (không gọi Neon thật trong test tự động); kiểm thử tay một lần trên bucket dùng chung. Cập nhật `neon-database-guide.md` mục 3b. |
-| M5-T1 BE | `CategoriesService`: list/create/rename/deactivate (không xóa danh mục đã dùng). `AttachmentsService`: upload (multipart, `FileRule.EnsureAllowed(kind, …)`, `IFileStorage.SaveAsync`, Attachment `OwnerId = null` cho tới khi gắn), download (stream qua API, kiểm quyền AZ-05), dọn file chưa gắn quá 24h (khi upload mới – không cần job nền). Hàm dùng chung cho M1/M6/M7: `AttachToAsync(ids, ownerId, kind)`. Ảnh đại diện: `PUT /auth/me/avatar` (thay ảnh cũ, xóa object cũ). |
-| M5-T2 FE | C-01; component upload dùng chung trong `features/attachments/` (Kendo Upload, preview ảnh, giới hạn theo loại); ô ảnh đại diện ở A-04 và avatar ở header. |
-| M5-T3 T | Upload sai loại/quá cỡ theo từng loại → 422; học sinh tải minh chứng của người khác → 404; khóa lưu trữ không chứa tên file gốc. |
+| M5-T1 BE | ✅ (2026-11-18) `CategoriesService`: list/create/rename/deactivate (không xóa danh mục đã dùng). `AttachmentsService`: upload (multipart, `FileRule.EnsureAllowed(kind, …)`, `IFileStorage.SaveAsync`, Attachment `OwnerId = null` cho tới khi gắn), download (stream qua API, kiểm quyền AZ-05), dọn file chưa gắn quá 24h (khi upload mới – không cần job nền). Hàm dùng chung cho M1/M6/M7: `AttachToAsync(ids, ownerId, kind)`. Ảnh đại diện: `PUT /auth/me/avatar` (thay ảnh cũ, xóa object cũ). |
+| M5-T2 FE | ✅ C-01; component upload dùng chung trong `features/attachments/` (`<app-file-upload>`: `input type=file` + nút Kendo vì chưa cài `kendo-angular-upload`; preview ảnh, giới hạn theo loại); `<app-avatar>` sẵn sàng – việc gắn vào A-04 và header chuyển cho M1 (TD-04). |
+| M5-T3 T | ✅ Upload sai loại/quá cỡ theo từng loại → 422; học sinh tải minh chứng của người khác → 404; khóa lưu trữ không chứa tên file gốc. |
 
 ### M6a – Khoản thu chung & thanh toán (FR-18, FR-20 → FR-24, BR-10 → BR-14, AZ-01, AZ-04)
 

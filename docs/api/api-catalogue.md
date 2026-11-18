@@ -25,8 +25,10 @@
 | GET | `/auth/me` | Đăng nhập, AllowTemporaryPassword | FR-03 | ✅ |
 | PUT | `/auth/me` `{ fullName }` → user (còn mật khẩu tạm → 403 `password.change_required`) | Đăng nhập | FR-04 | ✅ |
 | POST | `/auth/change-password` `{ currentPassword, newPassword }` → `{ antiforgeryToken, user }` | Đăng nhập, AllowTemporaryPassword | FR-03, FR-04 | ✅ |
-| PUT | `/auth/me/avatar` (multipart, Kind `Avatar`) | Đăng nhập | FR-04 | ⬜ (sau M5-T0) |
-| GET | `/users/{userId}/avatar` (người cùng quỹ) | Đăng nhập | FR-04 | ⬜ (sau M5-T0) |
+| PUT | `/auth/me/avatar` (multipart `file`; ảnh JPG/PNG/WEBP ≤ 2 MB) → `{ attachmentId }`; thay ảnh cũ, xóa object cũ. 422 `file.invalid` | Đăng nhập | FR-04 | ✅ M5 (`AvatarController`) |
+| GET | `/users/{userId}/avatar` (stream ảnh; chính mình hoặc người cùng quỹ đang hoạt động, không thì / chưa có ảnh → 404) | Đăng nhập | FR-04 | ✅ M5 (`AvatarController`) |
+
+> Hai route ảnh đại diện do M5 cài trong `Features/Attachments/AvatarController` – `AuthController` của M1 không khai báo lại.
 
 Mã lỗi M1: `auth.invalid_credentials` (401, dùng chung cho email lạ và mật khẩu sai), `auth.account_disabled` (401, chỉ báo sau khi mật khẩu đúng), `auth.email_exists` (409), `auth.password_policy` / `auth.invalid_email` / `auth.invalid_name` (422; form gửi sai thì 400 `validation_failed` kèm `errors`), `auth.current_password_incorrect` (**422**, không phải 401 để client không coi là hết phiên), `auth.password_unchanged` (422), `auth.rate_limited` (429).
 
@@ -36,10 +38,10 @@ Mã lỗi M1: `auth.invalid_credentials` (401, dùng chung cho email lạ và m�
 
 | Method | Path | Permission | FR | Trạng thái |
 |---|---|---|---|---|
-| GET | `/funds` | Đăng nhập | FR-08 | ⬜ |
-| POST | `/funds` | `Fund.Create` | FR-05 | ⬜ |
-| GET | `/{f}` | `Fund.View` | FR-07 | ⬜ |
-| PUT | `/{f}` | `Fund.Manage` | FR-06 | ⬜ |
+| GET | `/funds` → `[{ id, name, schoolYear, status, myRole, memberCount, generalBalance, pendingPaymentCount? }]` (chỉ quỹ mình là thành viên Active; `generalBalance` chỉ tính EventId null; `pendingPaymentCount` chỉ có với người có `Payment.Confirm`) | Đăng nhập | FR-08 | ✅ |
+| POST | `/funds` `{ name (≤100), schoolYear ("2026-2027") }` → 201 `FundDto`; người tạo là Owner + danh mục mặc định, audit `fund.create` | `Fund.Create` (cấp tài khoản) | FR-05 | ✅ |
+| GET | `/{f}` → `{ id, name, schoolYear, status, createdAt, ownerName, memberCount, myRole }` | `Fund.View` | FR-07 | ✅ |
+| PUT | `/{f}` `{ name, schoolYear }` → `FundDto`; audit `fund.update` (before/after); 422 `fund.archived` | `Fund.Manage` | FR-06 | ✅ |
 
 ## M3 – Học sinh
 
@@ -65,11 +67,13 @@ Mã lỗi M1: `auth.invalid_credentials` (401, dùng chung cho email lạ và m�
 
 | Method | Path | Permission | FR | Trạng thái |
 |---|---|---|---|---|
-| GET | `/{f}/categories?type=` | `Fund.View` | FR-14 | ⬜ |
-| POST | `/{f}/categories` | `Category.Manage` | FR-14 | ⬜ |
-| PUT | `/{f}/categories/{id}` | `Category.Manage` | FR-14 | ⬜ |
-| POST | `/{f}/attachments` (multipart: `file`, `kind` = `Receipt`/`PaymentProof`/`Document`) → `{ id }`; file lên Neon Object Storage, `OwnerId` null tới khi gắn | `Ledger.Manage` (Receipt, Document) hoặc `Payment.Submit` (PaymentProof) | FR-15 | ⬜ |
-| GET | `/{f}/attachments/{id}` (stream file qua API, kiểm AZ-05; không trả URL bucket) | `Fund.View` | FR-17 | ⬜ |
+| GET | `/{f}/categories?type=&activeOnly=` → `[{ id, name, type, isSystem, isActive, usageCount }]` | `Fund.View` | FR-14 | ✅ |
+| POST | `/{f}/categories` `{ name (≤100), type }` → 201; 409 `category.duplicate_name` (trùng tên cùng loại, không phân biệt hoa thường); 422 `fund.archived` | `Category.Manage` | FR-14 | ✅ |
+| PUT | `/{f}/categories/{id}` `{ name, isActive }` – đổi tên, ngừng dùng / dùng lại (không có xóa) | `Category.Manage` | FR-14 | ✅ |
+| POST | `/{f}/attachments` (multipart: `file`, `kind` = `Receipt`/`PaymentProof`/`Document`) → 201 `{ id, kind, fileName, contentType, sizeBytes, uploadedAt }`; file lên Neon Object Storage, `OwnerId` null tới khi gắn. Kiểm loại + dung lượng + chữ ký đầu file → 422 `file.invalid`; quỹ Archived → 422 `fund.archived`. Đồng thời dọn file chưa gắn > 24h của quỹ | Route: `Fund.View`; service: `Ledger.Manage` (Receipt, Document) hoặc `Payment.Submit` (PaymentProof), thiếu → 403 | FR-15 | ✅ |
+| GET | `/{f}/attachments/{id}` (stream file qua API, `nosniff`, `no-store`; kiểm AZ-05 – không được xem → 404; không trả URL bucket) | `Fund.View` | FR-17 | ✅ |
+
+**Dùng trong module khác (không phải endpoint):** `IAttachmentsService.AttachToAsync(fundId, ids, ownerId, allowedKinds)` – gọi trong transaction của M6/M7 để gắn file (file phải thuộc quỹ, chưa gắn, do chính người dùng tải lên, đúng loại; không thì 422 `attachment.unusable`), `ListByOwnerAsync`; `ICategoriesService.EnsureUsableAsync` – 422 `category.unusable`.
 
 ## M6 – Khoản thu & thanh toán
 

@@ -54,3 +54,6 @@ kendo-ui-license.txt
 
 # ===== Claude Code (local only) =====
 .claude/settings.local.json
+
+# ===== Playwright MCP (ảnh chụp / snapshot khi đối chiếu thiết kế) =====
+.playwright-mcp/

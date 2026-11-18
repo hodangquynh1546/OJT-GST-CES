@@ -1,19 +1,24 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
+import { catchError, map, of } from 'rxjs';
 
 import { AuthService } from '../../core/auth/auth.service';
 import { fundShortName } from '../../core/navigation/fund-short-name';
 import { ROLE_DISPLAY } from '../../core/navigation/role-display';
+import { VndMoneyPipe } from '../../shared/pipes/vnd-money.pipe';
 import { TopBar } from '../account/top-bar';
+import { FundsApi } from './funds.api';
+import { FundSummary, displaySchoolYear } from './funds.models';
 
 /**
  * F-01 Quỹ của tôi (FR-08): màn đầu tiên sau đăng nhập, chưa có menu quỹ. Chọn một quỹ mới vào khung có menu.
- * Hiện tên quỹ + vai trò (tính riêng từng quỹ) từ `GET /auth/me`; số liệu trên thẻ (số dư, chờ xác nhận, số thành
- * viên, năm học) và nút Tạo quỹ thật do module M2 bổ sung.
+ * Danh sách + vai trò lấy ngay từ `GET /auth/me` (M1); M2 bổ sung số liệu thẻ từ `GET /funds`: năm học, số thành viên,
+ * số dư quỹ chung, số thanh toán chờ xác nhận (chỉ thủ quỹ), trạng thái đã tổng kết.
  */
 @Component({
   selector: 'app-fund-list-page',
-  imports: [RouterLink, TopBar],
+  imports: [RouterLink, TopBar, VndMoneyPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-top-bar variant="funds" />
@@ -32,12 +37,44 @@ import { TopBar } from '../account/top-bar';
         <ul class="grid" aria-label="Danh sách quỹ">
           @for (fund of funds(); track fund.fundId) {
             <li>
-              <a class="card" [routerLink]="['/funds', fund.fundId]" [attr.aria-label]="'Mở quỹ ' + fund.fundName">
-                <span class="logo" aria-hidden="true">{{ fund.short }}</span>
-                <span class="text">
-                  <b class="name">{{ fund.fundName }}</b>
+              <a
+                class="card"
+                [class.archived]="fund.summary?.status === 'Archived'"
+                [routerLink]="['/funds', fund.fundId]"
+                [attr.aria-label]="'Mở quỹ ' + fund.fundName"
+              >
+                <span class="top">
+                  <span class="logo" aria-hidden="true">{{ fund.short }}</span>
+                  <span class="text">
+                    <b class="name">{{ fund.fundName }}</b>
+                    @if (fund.summary; as summary) {
+                      <span class="meta">{{ year(summary.schoolYear) }} · {{ summary.memberCount }} thành viên</span>
+                    }
+                  </span>
+                  <span class="badge" [class]="'badge badge--' + fund.role">{{ fund.display.badge }}</span>
                 </span>
-                <span class="badge" [class]="'badge badge--' + fund.role">{{ fund.display.badge }}</span>
+                <!-- Số liệu M2 (GET /funds); chưa tải xong hoặc lỗi thì thẻ vẫn mở được quỹ. -->
+                @if (fund.summary; as summary) {
+                  @if (summary.status === 'Archived') {
+                    <span class="bottom inline">
+                      <span class="tag">Đã tổng kết</span>
+                      <span class="meta">Đã quyết toán cuối năm – chỉ xem</span>
+                    </span>
+                  } @else {
+                    <span class="bottom">
+                      <span class="kpi">
+                        <span class="meta">Số dư quỹ chung</span>
+                        <b class="money">{{ summary.generalBalance | vndMoney }}</b>
+                      </span>
+                      @if (summary.pendingPaymentCount !== null) {
+                        <span class="kpi">
+                          <span class="meta">Chờ xác nhận</span>
+                          <b>{{ summary.pendingPaymentCount }} thanh toán</b>
+                        </span>
+                      }
+                    </span>
+                  }
+                }
               </a>
             </li>
           }
@@ -105,8 +142,8 @@ import { TopBar } from '../account/top-bar';
     }
     .card {
       display: flex;
-      align-items: center;
-      gap: 12px;
+      flex-direction: column;
+      gap: 16px;
       box-sizing: border-box;
       padding: 20px;
       border: 1px solid var(--cf-border);
@@ -119,6 +156,51 @@ import { TopBar } from '../account/top-bar';
       border-color: var(--cf-border-strong);
       box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
       color: var(--cf-text);
+    }
+    .card.archived {
+      background: var(--cf-background);
+    }
+    .top {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .meta {
+      display: block;
+      color: var(--cf-text-muted);
+      font-size: 13px;
+    }
+    .bottom {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      padding-top: 16px;
+      border-top: 1px solid var(--cf-subtle);
+    }
+    .bottom.inline {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .kpi {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .money {
+      font-variant-numeric: tabular-nums;
+    }
+    .tag {
+      padding: 0 8px;
+      border-radius: var(--cf-radius-pill);
+      background: var(--cf-subtle);
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 22px;
+    }
+    .archived .logo {
+      background: var(--cf-subtle);
+      color: var(--cf-text-muted);
     }
     .logo {
       display: flex;
@@ -178,13 +260,26 @@ import { TopBar } from '../account/top-bar';
 })
 export class FundListPage {
   private readonly auth = inject(AuthService);
+  private readonly api = inject(FundsApi);
 
+  protected readonly year = displaySchoolYear;
   protected readonly canCreateFund = this.auth.canCreateFund;
+
+  /** Số liệu thẻ theo mã quỹ (M2). Lỗi → rỗng: thẻ vẫn hiện tên + vai trò từ phiên. */
+  private readonly summaries = toSignal(
+    this.api.listMine().pipe(
+      map((items) => new Map(items.map((item): [string, FundSummary] => [item.id, item]))),
+      catchError(() => of(new Map<string, FundSummary>())),
+    ),
+    { initialValue: new Map<string, FundSummary>() },
+  );
+
   protected readonly funds = computed(() =>
     (this.auth.user()?.memberships ?? []).map((item) => ({
       ...item,
       display: ROLE_DISPLAY[item.role],
       short: fundShortName(item.fundName),
+      summary: this.summaries().get(item.fundId) ?? null,
     })),
   );
 }

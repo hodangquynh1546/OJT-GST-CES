@@ -44,6 +44,11 @@ export class FakeAuthApi {
 
   async install(): Promise<void> {
     await this.page.route('**/api/v1/auth/**', (route) => this.handle(route));
+    // Trang đích sau đăng nhập (F-01, M2) gọi GET /funds; header/A-04 có thể gọi ảnh đại diện (M5).
+    await this.page.route('**/api/v1/funds', (route) =>
+      this.session ? route.fulfill({ json: [] }) : this.problem(route, 401, 'unauthorized', 'Bạn chưa đăng nhập.'),
+    );
+    await this.page.route('**/api/v1/users/*/avatar', (route) => this.problem(route, 404, 'not_found', 'Không tìm thấy.'));
   }
 
   addAccount(user: FakeUser, password: string): void {
