@@ -53,5 +53,17 @@
 | TC-M14-03 | Quyết toán cuối năm lần thứ hai | BR-34 | 422 `year_end.already_closed` | |
 | TC-M14-04 | Tạo khoản thu sau khi quỹ Archived | BR-37 | 422 `fund.archived` | |
 | TC-M14-05 | Quỹ Archived: học sinh có số dư gửi yêu cầu rút, thủ quỹ xác nhận đã trả | BR-37, OQ-11 | Thành công; số dư về 0; không bị chặn `fund.archived` | |
-| TC-M5-01 | Upload ảnh đại diện PDF hoặc > 2 MB | BR-07 | 422 `file.invalid` | |
-| TC-M5-02 | Học sinh tải bill chuyển khoản của học sinh khác | AZ-05 | 404 | |
+| TC-M2-01 | Tài khoản tự đăng ký tạo quỹ | FR-05 | 201, là Owner, có đủ danh mục mặc định, audit `fund.create` | `FundsApiTests.Self_registered_user_creates_fund_and_becomes_owner_with_default_categories_FR05` |
+| TC-M2-02 | Tài khoản Provisioned (học sinh) tạo quỹ | FR-05 | 403 | `FundsApiTests.Provisioned_account_cannot_create_fund_403` |
+| TC-M2-03 | Người ngoài quỹ xem quỹ | FR-07 | 404 (thành viên: 200) | `FundsApiTests.Outsider_viewing_fund_is_404_member_is_200_FR07` |
+| TC-M2-04 | Học sinh sửa thông tin quỹ / sửa quỹ đã Archived | FR-06, BR-37 | 403 / 422 `fund.archived` | `FundsApiTests.Update_requires_fund_manage_FR06`, `FundsServiceTests.Archived_fund_cannot_be_updated_BR37` |
+| TC-M2-05 | Danh sách quỹ: số dư quỹ chung không cộng tiền sự kiện; chỉ thủ quỹ thấy số thanh toán chờ | FR-08, BR-02 | Đúng số dư; `pendingPaymentCount` null với học sinh | `FundsServiceTests.List_mine_shows_role_members_general_balance_only_and_pending_for_confirmers` |
+| TC-M5-01 | Upload ảnh đại diện PDF hoặc > 2 MB | BR-07 | 422 `file.invalid` | `CategoriesAndFilesApiTests.Avatar_upload_rules_and_visibility_TC_M5_01`, `AttachmentsServiceTests.Avatar_must_be_small_image_TC_M5_01` |
+| TC-M5-02 | Học sinh tải bill chuyển khoản của học sinh khác | AZ-05 | 404 | `CategoriesAndFilesApiTests.Upload_and_download_follow_kind_permissions_and_AZ05_TC_M5_02` |
+| TC-M5-03 | Upload file khai `application/pdf` nhưng nội dung không phải PDF; hóa đơn > 5 MB | BR-07 | 422 `file.invalid`, không lưu object | `CategoriesAndFilesApiTests.Wrong_type_or_oversized_file_is_422_file_invalid` |
+| TC-M5-04 | Khóa lưu trữ không chứa tên file gốc | BR-07 | Khóa dạng `{kind}/{fundId}/{guid}.ext` | `AttachmentsServiceTests.Student_uploads_payment_proof_unattached_with_random_storage_key_BR07` |
+| TC-M5-05 | Học sinh tải hóa đơn (Receipt) | FR-15 | 403 | `CategoriesAndFilesApiTests.Upload_and_download_follow_kind_permissions_and_AZ05_TC_M5_02` |
+| TC-M5-06 | Học sinh xem chứng từ chi quỹ chung; chứng từ chi sự kiện khi chưa nhận tham gia | FR-17 | 200 / 404 | `AttachmentsServiceTests.Student_sees_general_expense_receipt_but_not_event_receipt_unless_participant_FR17` |
+| TC-M5-07 | Gắn file đã gắn / sai loại / do người khác tải lên | FR-15 | 422 `attachment.unusable` | `AttachmentsServiceTests.Attach_rejects_reuse_wrong_kind_and_foreign_uploads` |
+| TC-M5-08 | File tải lên quá 24h chưa gắn | TD-01 | Bị dọn khi có upload mới, không tải / gắn được nữa | `AttachmentsServiceTests.Unattached_files_older_than_24h_are_cleaned_on_next_upload_TD01` |
+| TC-M5-09 | Thêm danh mục trùng tên (khác hoa thường) cùng loại; ngừng dùng danh mục đã có giao dịch | FR-14 | 409 `category.duplicate_name`; ngừng dùng thành công, không xóa | `CategoriesAndFilesApiTests.Categories_crud_with_permissions_FR14`, `CategoriesServiceTests` |

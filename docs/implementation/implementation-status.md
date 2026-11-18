@@ -14,10 +14,10 @@ Nhánh `feature/rebuild-foundation`: xây lại từ đầu theo bản yêu cầ
 | M5-T0 Adapter Neon Object Storage | ✅ Code + 7 unit test (S3 client giả); chưa thử tay trên bucket thật | Claude Code | |
 | M0-03 Neon roles + áp migration + seed | ✅ 2026-11-17 – đã áp `InitialSchema` lên Neon và chạy `--seed` thành công | hodangquynh1546 | |
 | M1 Auth | ✅ 2026-11-18 – đã merge (105 unit + 29 integration + 50 FE spec + 41 e2e xanh) | Dev A | #32 |
-| M2 Quỹ | ⬜ | Dev B | |
+| M2 Quỹ | ✅ 2026-11-18 – BE + FE (F-01, F-02, F-03) + test; nhánh `feature/m2-m5-fund-category-files` | Dev B (Claude Code) | |
 | M3 Học sinh | ✅ 2026-11-18 – nhánh `feature/m3-members`, chưa mở PR (144 unit + 54 integration + 57 FE spec + 76 e2e xanh) | Dev A | |
 | M4 Thủ quỹ | ⬜ | Dev A | |
-| M5 Danh mục & chứng từ | ⬜ | Dev B | |
+| M5 Danh mục & chứng từ | ✅ 2026-11-18 – M5-T1/T2/T3: danh mục (C-01), upload/tải chứng từ (AZ-05), `AttachToAsync`, ảnh đại diện API + `<app-avatar>`; nhánh `feature/m2-m5-fund-category-files` | Dev B (Claude Code) | |
 | M6a Khoản thu chung & thanh toán | ⬜ | Dev A | |
 | M6b Khoản thu sự kiện | ⬜ | Dev A | |
 | M7 Thu chi | ⬜ | Dev B | |
@@ -45,6 +45,8 @@ Nhánh `feature/rebuild-foundation`: xây lại từ đầu theo bản yêu cầ
 | 2026-11-18 | M3 Học sinh làm xong (nhánh `feature/m3-members`). Quyết định kỹ thuật (đề xuất, chờ nhóm xác nhận): (1) **AZ-07** – chỉ sửa tên / cấp lại mật khẩu cho tài khoản `Provisioned` chưa ở quỹ nào khác (chống chiếm tài khoản), thêm `canManageAccount` vào DTO; (2) ngừng thành viên bị chặn khi còn thanh toán chờ xác nhận (thêm vào OQ-15: còn số dư thì đã chặn); (3) kích hoạt lại luôn về vai trò học sinh; (4) thêm nhiều email: tên tạm = phần trước `@`; (5) endpoint `GET …/removal-preview` để cảnh báo trước khi ngừng; (6) rate limit `members-bulk` 10 lần/phút/người dùng. **Điều hướng (theo yêu cầu 2026-11-18, canvas):** sau đăng nhập luôn vào F-01 Quỹ của tôi (không menu), chọn quỹ mới có menu; F-01/F-02/A-04 ngoài `AppShell` với thanh trên riêng; F-01 tối thiểu (tên quỹ + vai trò từ `/auth/me`), số liệu thẻ và Tạo quỹ thuộc M2. Sửa Foundation: `app.ts` thêm `kendoDialogContainer` (ConfirmDialog chưa từng chạy được trong app), `AuthService.homeUrl`, `app.routes.ts`, `playwright.config.ts` đọc cổng từ `E2E_UI_PORT`/`E2E_API_PORT`. | `Features/Members` (BE), `features/members` + `features/funds/fund-list-page` + `features/account/top-bar` (FE), AZ-07, TC-M3-01…09 |
 | 2026-11-18 | Chỉnh M1 theo canvas "ClassFund UI Design": A-01 chia đôi (nền tối + slogan), A-02 có dấu * / checklist mật khẩu / ô đồng ý trách nhiệm, A-03 "Đặt mật khẩu mới" + "Lưu và vào lớp", A-04 **ngoài khung menu quỹ** (thanh trên riêng) kèm đổi mật khẩu ngay trên trang; bỏ nút Hiện/Ẩn mật khẩu và mục "Quỹ của tôi" mà canvas không có | `app.routes.ts` (route `/account` ra khỏi `AppShell`), `styles.scss` (token `--cf-ink*`, `.cf-link-button`), `features/auth`, `features/account` |
 | 2026-11-18 | Nhóm duyệt OQ-19 (tổng kết cuối năm chia tiền thừa theo tổng đã đóng cả năm; nghĩa vụ `Unpaid` → `Excluded`, không truy thu; còn thanh toán chờ thì chặn quyết toán) và TD-03 (đổi tên `ListLockedAt` → `CompletedAt`, xóa `SupplementaryChargeId`) | OQ-19, BR-23/36, FR-53, `database-design.md`, `Event`/`Settlement`, migration `DropObsoleteEventSettlementColumns` (chưa áp Neon) |
+| 2026-11-18 | M2 + M5: file chưa gắn quá 24h / ảnh đại diện cũ được dọn bằng cách đánh dấu `Attachment.OwnerId = Guid.Empty` (`AttachmentOwners.Discarded`) rồi xóa object – không xóa dòng vì `app_user` không có quyền DELETE. Upload kiểm thêm chữ ký đầu file. Ô chọn file dùng `input type=file` (chưa cài `@progress/kendo-angular-upload`). Danh mục mặc định theo `DefaultCategories` trong code (canvas ghi tên khác). F-03: năm học chỉ xem theo bản thiết kế (API vẫn nhận). | `AttachmentsService`, `AvatarService`, `FileIntake`, `FileSignature`, `api-catalogue.md` |
+| 2026-11-18 | M2 gộp với khung mới của M1/M3: F-01 dùng `FundListPage` (ngoài khung menu, `app-top-bar`) và thêm số liệu thẻ từ `GET /funds`; F-02 cũng ngoài khung menu; F-03, C-01 trong khung. `kendoDialogContainer` dùng bản đã có trên main (`app.ts`) | `features/funds/fund-list-page.ts`, `fund-new`, `funds.routes.ts` |
 | 2026-11-18 | Duyệt thiết kế UI (canvas "ClassFund UI Design") → OQ-18: bỏ chốt danh sách, kết thúc loại người chưa đóng khoản nào, chi ≤ thu, quyết toán chỉ chia tiền thừa theo tỷ lệ đã đóng, form thu ≠ form chi, Ghi giao dịch ở Thu chi chung chỉ cho quỹ chung. OQ-19 chờ duyệt. | FR-26/27/32–38/43/50/53, BR-16…23/38/39; Domain: bỏ `EventStatus.ListLocked`, `ChargeKind.Supplementary`, `SettlementOutcome.Deficit`; `NotificationType` 5 → `EventParticipantExcluded`, thêm `EventUnpaidReminder`; `AcceptsNewMoney` → `AcceptsNewChargesAndExpenses` + `AcceptsPayments`; thêm `SpendingRule` (BR-38); FE `labels.ts`. Cột `Event.ListLockedAt`, `Settlement.SupplementaryChargeId` giữ lại, chờ migration (M8-T0) |
 
 ## 2. Foundation đã có
@@ -58,6 +60,7 @@ Nhánh `feature/rebuild-foundation`: xây lại từ đầu theo bản yêu cầ
 - Api: pipeline, cookie session, antiforgery, `RequirePermission`, filter mật khẩu tạm / validation / antiforgery, ProblemDetails, rate limit, Swagger, health, `--seed`.
 - `database/neon-roles.sql`, `.env.example`.
 - Test: 83 unit (kiến trúc, rule, permission, file storage, Neon adapter, AccessService, Audit, Notifier) – **xanh** (2026-11-18); 2 integration pipeline – **xanh**; 9 integration `InitialSchemaTests` (migration, trigger, CHECK, unique, xmin) – **xanh** (cần Docker Desktop đang chạy).
+- Sau M2 + M5 (2026-11-18): **119 unit** (thêm `FundsServiceTests`, `CategoriesServiceTests`, `AttachmentsServiceTests`) và **24 integration** (thêm `Modules/FundsApiTests`, `Modules/CategoriesAndFilesApiTests`; `ApiTestHost` đăng nhập bằng endpoint chỉ có trong test `/__test/login/{userId}` vì M1 chưa có) – **xanh**.
 
 ### Frontend (`ClassFundUI/`)
 
@@ -65,6 +68,7 @@ Nhánh `feature/rebuild-foundation`: xây lại từ đầu theo bản yêu cầ
 - Shared: `app-state`, `page-header`, `coming-soon`, `scope-badge`, `*appHasPermission`, pipes, `LoadState`, `applyServerErrors`, `ConfirmDialog`, `AppNotifications`, nhãn enum (`shared/models/labels.ts`).
 - Route đầy đủ cho mọi màn hình (giữ chỗ `comingSoon`), sinh bởi `scripts/gen-routes.mjs`.
 - 36 spec – **xanh**; `ng build` OK.
+- Sau M2 + M5 (2026-11-18): **48 spec** và **8 E2E mock** (thêm `e2e/mock/funds-categories.spec.ts`) – **xanh**; `ng build` không cảnh báo. Thành phần dùng chung cho module khác: `features/attachments/` (`<app-file-upload>`, `<app-avatar>`, `AttachmentsApi`), `CategoriesApi.list(fundId, { type, activeOnly })`.
 
 ### Chưa có (cố ý)
 
@@ -80,7 +84,10 @@ Nhánh `feature/rebuild-foundation`: xây lại từ đầu theo bản yêu cầ
 
 | Mã | Mô tả | Module |
 |---|---|---|
-| TD-01 | Dọn file chưa gắn owner > 24h (đã đưa vào M5-T1) | M5 |
+| ~~TD-01~~ | ✅ Dọn file chưa gắn owner > 24h – làm trong M5-T1 (mỗi lần upload dọn tối đa 20 file của quỹ) | M5 |
+| TD-04 | M1: gắn `<app-avatar [editable]="true">` vào A-04 và avatar trên header (header là file Foundation); `AuthController` không khai báo lại `/auth/me/avatar`, `/users/{id}/avatar` | M1 |
+| TD-05 | F-03 trên canvas có "Tài khoản nhận chuyển khoản" nhưng `Fund` chưa có cột – cần nhóm quyết định + migration nếu làm | M2 |
+| TD-06 | Thẻ quỹ của học sinh ở F-01: canvas có "Bạn cần đóng", "Số dư cá nhân" – bổ sung vào `FundSummaryDto` khi có M6/M10 | M6, M10 |
 | TD-03 | Migration `DropObsoleteEventSettlementColumns` (đổi `Event.ListLockedAt` → `CompletedAt`, xóa `Settlement.SupplementaryChargeId`) – đã duyệt và tạo 2026-11-18, **chưa áp Neon**: người áp tạo branch Neon dự phòng, báo nhóm trước/sau, rồi ghi tên ở mục 3 | M8-T0 |
 | TD-04 | Ảnh đại diện (FR-04, `PUT /auth/me/avatar`, `GET /users/{id}/avatar`) chưa làm: cần module M5 (`Attachment`) | M5 |
 | TD-05 | Đã đối chiếu A-01…A-04 với canvas "ClassFund UI Design" (2026-11-18). Chưa làm: ảnh đại diện (nút "Đổi ảnh đại diện" đang tắt, chờ M5 – TD-04); canvas dùng nút đen kiểu shadcn nên M1 đặt token `--cf-ink*` và chỉ áp cho màn A-01…A-04 (các màn khác vẫn nút xanh theo `design-system.md`) – nhóm quyết định có đổi toàn hệ thống không | M1 |
