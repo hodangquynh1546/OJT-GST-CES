@@ -40,7 +40,7 @@ Người dùng: **Thủ quỹ chính** (Owner – người tạo quỹ), **Thủ
 
 | Mã | Yêu cầu | Nguồn |
 |---|---|---|
-| FR-09 | Thủ quỹ thêm học sinh vào quỹ bằng email; email chưa có tài khoản → tạo tài khoản (Provisioned) với mật khẩu tạm; email đã có → chỉ thêm thành viên. | 1.1 |
+| FR-09 | Thủ quỹ thêm học sinh vào quỹ bằng email; email chưa có tài khoản → tạo tài khoản (Provisioned) với mật khẩu tạm; email đã có → chỉ thêm thành viên. Có thể thêm **nhiều email một lần** (tối đa 50, mỗi email xử lý độc lập, OQ-20). | 1.1, OQ-20 |
 | FR-10 | Thủ quỹ cấp lại mật khẩu tạm cho học sinh (hiển thị một lần). | 1.1 |
 | FR-11 | Thủ quỹ xem, tìm, sửa họ tên, xóa (ngừng) học sinh khỏi quỹ; dữ liệu tài chính lịch sử được giữ. | 1.1 |
 

@@ -75,9 +75,9 @@ Ký hiệu: **BE** backend, **FE** frontend, **T** test. Mỗi task kết thúc 
 
 | Task | Nội dung |
 |---|---|
-| M3-T1 BE | `MembersService`: list (lọc tên/email/role/status, phân trang); add by email (chuẩn hóa; mới → User Provisioned + `Credentials.TemporaryPassword()` trả một lần; đã có → chỉ thêm FundMember; đã là thành viên Active → 409 `member.already_exists`; Removed → kích hoạt lại); update họ tên; reset password (đổi hash + SecurityStamp + MustChangePassword); remove (OQ-15). AZ-02: Treasurer không thao tác trên Owner/Treasurer. Mời vào sự kiện `Open` khi thêm thành viên (gọi qua service M8 nếu đã có, nếu chưa: ghi việc tồn đọng). Audit không chứa mật khẩu. |
-| M3-T2 FE | M-01: grid Kendo, dialog thêm học sinh, dialog hiển thị mật khẩu tạm một lần (sao chép), xác nhận ngừng. |
-| M3-T3 T | Thêm email mới/cũ/trùng; Treasurer reset mật khẩu thủ quỹ khác → 403; mật khẩu tạm không xuất hiện trong AuditLog. |
+| M3-T1 BE | `MembersService`: list (lọc tên/email/role/status, phân trang); add by email (chuẩn hóa; mới → User Provisioned + `Credentials.TemporaryPassword()` trả một lần; đã có → chỉ thêm FundMember; đã là thành viên Active → 409 `member.already_exists`; Removed → kích hoạt lại); update họ tên; reset password (đổi hash + SecurityStamp + MustChangePassword); remove (OQ-15). AZ-02: Treasurer không thao tác trên Owner/Treasurer. Mời vào sự kiện `Open` khi thêm thành viên (gọi qua service M8 nếu đã có, nếu chưa: ghi việc tồn đọng). Audit không chứa mật khẩu. **Thêm nhiều email (OQ-20):** `AddManyAsync` (≤ 50 email, chuẩn hóa + bỏ trùng, mỗi email độc lập, kết quả từng dòng `created`/`existing_added`/`reactivated`/`already_exists`/`invalid`, mật khẩu tạm trả một lần, audit mỗi người một bản ghi, chặn khi quỹ `Archived`, rate limit chặt hơn). |
+| M3-T2 FE | M-01: grid Kendo, dialog thêm học sinh (một email hoặc dán nhiều email, mỗi dòng một email – OQ-20), bảng kết quả từng email kèm nút sao chép mật khẩu tạm (cảnh báo "đóng là mất"), xác nhận ngừng. |
+| M3-T3 T | Thêm email mới/cũ/trùng; Treasurer reset mật khẩu thủ quỹ khác → 403; mật khẩu tạm không xuất hiện trong AuditLog; thêm nhiều email: trộn mới/cũ/trùng/không hợp lệ → kết quả đúng từng dòng, email lỗi không ảnh hưởng email khác, > 50 email → 400, bị chặn khi `Archived`. |
 
 ### M4 – Thủ quỹ (FR-12, FR-13, AZ-02, AZ-03)
 
@@ -178,6 +178,6 @@ Ký hiệu: **BE** backend, **FE** frontend, **T** test. Mỗi task kết thúc 
 | Task | Nội dung |
 |---|---|
 | M14-T1 BE | `YearEndSettlementService`: preview (tổng thu/chi quỹ chung, số dư, khoản chưa hoàn thành, thành viên Active; phần chia mỗi người bằng `SettlementCalculator`, tỷ lệ theo tổng đã đóng các khoản thu chung); execute một lần (`YearEndRule.EnsureCanClose`; `Settlement` EventId null; thừa → `CreditAsync` hoặc SettlementLine chờ hoàn; không còn nhánh thiếu nếu OQ-19 được duyệt); quỹ → `Archived`; thông báo `SettlementResult` phạm vi Quỹ chung cho cả lớp; audit `year_end.settle`. |
-| M14-T2 BE | Rà soát các service ghi (M2, M3, M5–M8): gọi `YearEndRule.EnsureFundActive` để chặn tạo mới khi quỹ `Archived` (ngoại lệ: xác nhận hoàn tiền, rút số dư). |
-| M14-T3 FE | S-05: tổng kết + chọn phương án + xem trước + xác nhận (cảnh báo "chỉ làm một lần, quỹ sẽ chuyển chỉ xem"); banner "Quỹ đã tổng kết" trên các trang khi `Archived`. |
-| M14-T4 T | Còn sự kiện chưa quyết toán → 422; quyết toán lần hai → 422/409; tổng chia = số dư; không dùng giao dịch sự kiện; sau Archived tạo khoản thu/giao dịch → 422; vẫn rút được số dư. |
+| M14-T2 BE | Rà soát các service ghi (M2, M3, M5–M8): gọi `YearEndRule.EnsureFundActive` để chặn tạo mới khi quỹ `Archived` (ngoại lệ: xác nhận hoàn tiền, gửi yêu cầu rút và xác nhận rút số dư – BR-37). |
+| M14-T3 FE | S-05: tổng kết + chọn phương án + xem trước + xác nhận (cảnh báo: "Chỉ làm một lần. Quỹ sẽ đóng: không tạo khoản thu, giao dịch hay sự kiện mới. Vẫn xem báo cáo, rút số dư cá nhân và xác nhận hoàn tiền."); banner "Quỹ đã tổng kết" trên các trang khi `Archived`, cùng nội dung nói rõ những gì vẫn làm được. |
+| M14-T4 T | Còn sự kiện chưa quyết toán → 422; quyết toán lần hai → 422/409; tổng chia = số dư; không dùng giao dịch sự kiện; sau Archived tạo khoản thu/giao dịch → 422; vẫn rút được số dư: học sinh gửi yêu cầu rút và thủ quỹ xác nhận thành công (TC-M14-05). |

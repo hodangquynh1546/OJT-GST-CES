@@ -57,7 +57,7 @@
 | BR-34 | Quyết toán quỹ chung làm **một lần duy nhất** mỗi quỹ (`Settlement` có `EventId = null`, unique theo quỹ). | `UX_Settlement_OneYearEndPerFund` |
 | BR-35 | Điều kiện: quỹ `Active` và mọi sự kiện đã `Settled` hoặc `Cancelled`. | `YearEndRule.EnsureCanClose` |
 | BR-36 | Người được chia: mọi thành viên `Active` của quỹ (cả lớp, gồm thủ quỹ). Tổng thu/chi chỉ tính giao dịch quỹ chung. Thừa → hoàn trực tiếp / cộng số dư, chia theo tỷ lệ tổng đã đóng cả năm vào các khoản thu chung (OQ-19, đã duyệt 2026-11-18; trước đây có chọn chia đều và thiếu → khoản thu bổ sung chung). Cách tính dùng chung `SettlementCalculator` với quyết toán sự kiện. | M14 |
-| BR-37 | Xong quyết toán → quỹ `Archived`: không nhận khoản thu, giao dịch, sự kiện, thành viên mới (trừ xác nhận hoàn tiền); vẫn xem báo cáo và rút số dư cá nhân. | `YearEndRule.EnsureFundActive` |
+| BR-37 | Xong quyết toán → quỹ `Archived`: không nhận khoản thu, giao dịch, sự kiện, thành viên mới (trừ xác nhận hoàn tiền); vẫn xem báo cáo, **học sinh gửi yêu cầu rút số dư cá nhân và thủ quỹ xác nhận đã trả (OQ-11)**. | `YearEndRule.EnsureFundActive` |
 
 ### 1.5. Số dư cá nhân
 

@@ -45,6 +45,7 @@
 |---|---|---|---|---|
 | GET | `/{f}/members?search=&role=&status=` | `Member.Manage` | FR-11 | ⬜ |
 | POST | `/{f}/members` `{ email, fullName }` → `{ member, temporaryPassword? }` | `Member.Manage` | FR-09 | ⬜ |
+| POST | `/{f}/members/bulk` `{ emails[≤50] }` → `{ results[{ email, outcome (created/existing_added/reactivated/already_exists/invalid), member?, temporaryPassword? }] }` (mỗi email độc lập; mật khẩu tạm trả một lần) | `Member.Manage` | FR-09, OQ-20 | ⬜ |
 | PUT | `/{f}/members/{memberId}` | `Member.Manage` | FR-11 | ⬜ |
 | POST | `/{f}/members/{memberId}/reset-password` → `{ temporaryPassword }` | `Member.Manage` | FR-10 | ⬜ |
 | POST | `/{f}/members/{memberId}/remove` | `Member.Manage` | FR-11 | ⬜ |

@@ -9,6 +9,8 @@
 | TC-M1-02 | Học sinh đăng nhập bằng mật khẩu tạm rồi gọi API khác | FR-03 | 403 `password.change_required` | |
 | TC-M1-03 | Đổi mật khẩu xong, cookie cũ ở trình duyệt khác | BR-29 | 401 | |
 | TC-M3-01 | Thêm học sinh bằng email chưa có tài khoản | FR-09 | Trả mật khẩu tạm một lần; AuditLog không chứa mật khẩu | |
+| TC-M3-02 | Thêm nhiều email một lần: 1 mới, 1 đã có tài khoản, 1 đã là thành viên, 1 sai định dạng, 1 trùng trong danh sách | FR-09, OQ-20 | Kết quả từng dòng `created`/`existing_added`/`already_exists`/`invalid`, email trùng chỉ xử lý một lần, email lỗi không ảnh hưởng email khác; mật khẩu tạm chỉ cho tài khoản mới, AuditLog không chứa mật khẩu | |
+| TC-M3-03 | Thêm nhiều email với danh sách > 50 hoặc khi quỹ Archived | OQ-20, BR-37 | 400 / 422 `fund.archived` | |
 | TC-M4-01 | Thủ quỹ (không phải Owner) thu hồi thủ quỹ khác | FR-13 | 403 | |
 | TC-M6-01 | Học sinh nộp chuyển khoản không có minh chứng | BR-11 | 422 | |
 | TC-M6-02 | Thủ quỹ xác nhận thanh toán của học sinh | BR-10 | Paid, LedgerEntry thu, audit `IsSelfAction=false`, thông báo học sinh | |
@@ -36,5 +38,6 @@
 | TC-M14-02 | Quỹ chung dư 300.000đ, 30 thành viên đã đóng bằng nhau, cộng số dư (theo tỷ lệ – OQ-19) | BR-36 | Mỗi người +10.000đ, quỹ `Archived`, thông báo cả lớp (Quỹ chung) | |
 | TC-M14-03 | Quyết toán cuối năm lần thứ hai | BR-34 | 422 `year_end.already_closed` | |
 | TC-M14-04 | Tạo khoản thu sau khi quỹ Archived | BR-37 | 422 `fund.archived` | |
+| TC-M14-05 | Quỹ Archived: học sinh có số dư gửi yêu cầu rút, thủ quỹ xác nhận đã trả | BR-37, OQ-11 | Thành công; số dư về 0; không bị chặn `fund.archived` | |
 | TC-M5-01 | Upload ảnh đại diện PDF hoặc > 2 MB | BR-07 | 422 `file.invalid` | |
 | TC-M5-02 | Học sinh tải bill chuyển khoản của học sinh khác | AZ-05 | 404 | |
