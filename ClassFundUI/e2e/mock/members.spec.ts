@@ -255,7 +255,9 @@ test.describe('Thêm nhiều email (OQ-20)', () => {
 
     await dialog.getByRole('button', { name: 'Sao chép tất cả mật khẩu' }).click();
 
-    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('a@truong.edu.vn\tTam-0001-abcd\nb@truong.edu.vn\tTam-0002-abcd');
+    // Windows đổi LF thành CRLF khi ghi clipboard – chuẩn hóa trước khi so.
+    const copied = await page.evaluate(() => navigator.clipboard.readText());
+    expect(copied.replace(/\r\n/g, '\n')).toBe('a@truong.edu.vn\tTam-0001-abcd\nb@truong.edu.vn\tTam-0002-abcd');
   });
 
   test('quá 50 email: báo lỗi và không gọi API', async ({ page }) => {

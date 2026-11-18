@@ -22,6 +22,7 @@ function me(memberships: object[], canCreate = true) {
 
 const fund10A1 = { fundId: 'f1', fundName: 'Lớp 10A1', role: 'Owner', permissions: OWNER_PERMISSIONS };
 const clb = { fundId: 'f2', fundName: 'CLB Tiếng Anh', role: 'Student', permissions: STUDENT_PERMISSIONS };
+const archived9A1 = { fundId: 'f3', fundName: 'Lớp 9A1', role: 'Treasurer', permissions: OWNER_PERMISSIONS.filter((p) => p !== 'Treasurer.Manage') };
 
 async function common(page: Page, user: object) {
   await page.route('**/api/v1/auth/me', (route) => route.fulfill({ json: user }));
@@ -30,7 +31,8 @@ async function common(page: Page, user: object) {
 }
 
 test('F-01 shows fund cards with role and treasurer KPIs', async ({ page }) => {
-  await common(page, me([fund10A1, clb]));
+  // Danh sách + vai trò lấy từ phiên (M1); số liệu thẻ từ GET /funds (M2).
+  await common(page, me([fund10A1, clb, archived9A1]));
   await page.route('**/api/v1/funds', (route) =>
     route.fulfill({
       json: [
@@ -53,8 +55,19 @@ test('F-01 shows fund cards with role and treasurer KPIs', async ({ page }) => {
   await expect(page.getByRole('link', { name: /Lớp 9A1/ })).toContainText('Đã tổng kết');
   await page.screenshot({ path: 'test-results/F-01.png', fullPage: true });
 
-  await page.getByRole('button', { name: 'Tạo quỹ' }).click();
+  await page.getByRole('link', { name: /Tạo quỹ/ }).click();
   await expect(page).toHaveURL(/\/funds\/new$/);
+});
+
+test('F-01 still lists funds from the session when GET /funds fails', async ({ page }) => {
+  await common(page, me([fund10A1]));
+  await page.route('**/api/v1/funds', (route) => route.fulfill({ status: 500, contentType: 'application/problem+json', body: '{"code":"internal_error"}' }));
+
+  await page.goto('/funds');
+
+  const card = page.getByRole('link', { name: /Lớp 10A1/ });
+  await expect(card).toContainText('Thủ quỹ chính');
+  await expect(card).not.toContainText('Số dư quỹ chung');
 });
 
 test('F-01 empty state for student without funds has no create button', async ({ page }) => {
@@ -64,7 +77,7 @@ test('F-01 empty state for student without funds has no create button', async ({
   await page.goto('/funds');
 
   await expect(page.getByText('Bạn chưa thuộc quỹ nào')).toBeVisible();
-  await expect(page.getByRole('button', { name: /Tạo quỹ/ })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /Tạo quỹ/ })).toHaveCount(0);
 });
 
 test('F-02 creates a fund, refreshes session and opens it', async ({ page }) => {
