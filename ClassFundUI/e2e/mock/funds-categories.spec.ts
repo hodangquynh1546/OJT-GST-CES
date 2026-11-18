@@ -105,7 +105,7 @@ test('F-02 creates a fund, refreshes session and opens it', async ({ page }) => 
   await page.getByRole('button', { name: 'Tạo quỹ' }).click();
   await expect(page.getByText('Vui lòng nhập tên quỹ')).toBeVisible();
 
-  await page.getByLabel('Tên quỹ *').fill('  Lớp 10A1 ');
+  await page.getByLabel('Tên quỹ').fill('  Lớp 10A1 ');
   await page.getByRole('button', { name: 'Tạo quỹ' }).click();
 
   await expect(page).toHaveURL(/\/funds\/f1$/);

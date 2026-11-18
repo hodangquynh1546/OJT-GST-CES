@@ -26,7 +26,7 @@
   --cf-role-student: #7a4b00;
   --cf-role-student-tint: #fff1d6;
 
-  // Màn hình xác thực & tài khoản (canvas "ClassFund UI Design", M1): nút chính màu mực, nền tối của A-01.
+  // Màu mực của canvas "ClassFund UI Design": nút chính, chữ đậm, nền tối A-01. Dùng cho MỌI màn (design-system.md mục 6).
   --cf-ink: #18181b;
   --cf-ink-hover: #27272a;
   --cf-ink-soft: #a1a1aa;
@@ -40,14 +40,19 @@
   --cf-radius-md: 6px;
   --cf-radius-lg: 8px;
   --cf-radius-pill: 12px;
+  --cf-radius-card: 12px;
+  --cf-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04);
   --cf-shadow-toast: 0 8px 24px rgba(15, 23, 42, 0.25);
   --cf-shadow-dialog: 0 16px 40px rgba(15, 23, 42, 0.3);
 
   // Ánh xạ token ClassFund → Kendo Theme Default (design-system.md mục 6). Component dùng màu qua token, không viết mã màu.
-  --kendo-color-primary: var(--cf-primary);
-  --kendo-color-primary-hover: var(--cf-primary-dark);
-  --kendo-color-primary-active: var(--cf-primary-dark);
-  --kendo-color-primary-emphasis: var(--cf-primary);
+  // Nút chính / ô chọn / checkbox của Kendo màu mực như canvas (.btn-p) – không cần ghi đè trong từng màn.
+  --kendo-color-primary: var(--cf-ink);
+  --kendo-color-primary-hover: var(--cf-ink-hover);
+  --kendo-color-primary-active: var(--cf-ink-hover);
+  --kendo-color-primary-emphasis: var(--cf-ink);
+  --kendo-color-primary-subtle: var(--cf-subtle);
+  --kendo-color-on-primary: var(--cf-surface);
   --kendo-color-on-app-surface: var(--cf-text);
   --kendo-color-subtle: var(--cf-text-muted);
   --kendo-color-border: var(--cf-border);
@@ -91,13 +96,15 @@ a:hover {
   color: var(--cf-primary-dark);
 }
 
+// Thẻ theo canvas (.card): bo 12 px, bóng nhẹ.
 .cf-card {
   box-sizing: border-box;
   min-width: 0;
   padding: 16px;
   border: 1px solid var(--cf-border);
-  border-radius: var(--cf-radius-lg);
+  border-radius: var(--cf-radius-card);
   background: var(--cf-surface);
+  box-shadow: var(--cf-shadow-card);
 }
 
 // Liên kết trông như nút viền (Kendo `kendoButton` chỉ áp dụng cho <button>).
@@ -106,13 +113,13 @@ a:hover {
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  min-height: 40px;
-  padding: 0 16px;
-  border: 1px solid var(--cf-border-strong);
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--cf-border);
   border-radius: var(--cf-radius-lg);
   background: var(--cf-surface);
-  color: var(--cf-text);
-  font-weight: 600;
+  color: var(--cf-ink);
+  font-weight: 500;
   text-decoration: none;
 }
 
@@ -139,52 +146,74 @@ a:hover {
   color: var(--cf-expense);
 }
 
-// Tag chỉ hiển thị (design-system.md – Tag / badge): .cf-tag + biến thể ngữ nghĩa.
+// Tag chỉ hiển thị theo canvas (.badge): viên thuốc 22 px có viền; .cf-tag (xám) + biến thể ngữ nghĩa.
 .cf-tag {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  box-sizing: border-box;
+  height: 22px;
   padding: 0 8px;
-  border-radius: var(--cf-radius-pill);
+  border: 1px solid transparent;
+  border-radius: 999px;
   background: var(--cf-subtle);
   color: var(--cf-text);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 20px;
   white-space: nowrap;
 }
 
 .cf-tag--success {
+  border-color: color-mix(in srgb, var(--cf-success-fg) 25%, transparent);
   background: var(--cf-success-bg);
   color: var(--cf-success-fg);
 }
 
 .cf-tag--warning {
+  border-color: color-mix(in srgb, var(--cf-warning-fg) 25%, transparent);
   background: var(--cf-warning-bg);
   color: var(--cf-warning-fg);
 }
 
 .cf-tag--danger {
+  border-color: color-mix(in srgb, var(--cf-danger-fg) 22%, transparent);
   background: var(--cf-danger-bg);
   color: var(--cf-danger-fg);
 }
 
 // Thông báo trong trang (banner): role="status" cho cảnh báo, role="alert" cho lỗi.
+// Theo canvas (.alert): nền nhạt, viền, chữ 13 px.
 .cf-alert {
-  padding: 10px 12px;
-  border-radius: var(--cf-radius-md);
-  background: var(--cf-primary-tint);
-  color: var(--cf-primary-dark);
+  padding: 12px 14px;
+  border: 1px solid var(--cf-border);
+  border-radius: var(--cf-radius-lg);
+  background: var(--cf-background);
+  color: var(--cf-text);
+  font-size: 13px;
+  line-height: 20px;
 }
 
 .cf-alert--warning {
+  border-color: color-mix(in srgb, var(--cf-warning-fg) 25%, transparent);
   background: var(--cf-warning-bg);
   color: var(--cf-warning-fg);
 }
 
 .cf-alert--danger {
+  border-color: color-mix(in srgb, var(--cf-danger-fg) 22%, transparent);
   background: var(--cf-danger-bg);
   color: var(--cf-danger-fg);
+}
+
+// Dấu * của ô bắt buộc (canvas .req): <span class="cf-req">*</span>, hoặc đặt class cf-required lên kendo-formfield.
+.cf-req,
+.cf-required .k-label::after {
+  color: var(--cf-expense);
+}
+
+.cf-required .k-label::after {
+  content: ' *';
 }
 
 // Trang dữ liệu tối đa 1200 px, trang form / tài khoản 960 px.
@@ -202,18 +231,19 @@ a:hover {
   gap: 16px;
 }
 
+// Viền focus xám như canvas (.input:focus).
 :focus-visible {
-  outline: 2px solid var(--cf-primary);
+  outline: 2px solid var(--cf-ink-soft);
   outline-offset: 2px;
 }
 
-// Kích thước Kendo theo design-system.md mục 6 và Canvas DS-02: control medium 40 px, small 32 px.
+// Kích thước Kendo theo canvas "ClassFund UI Design" (cf.css): control medium 36 px, small 32 px, bo 8 px.
 // Kendo 23 không gắn class khi dùng giá trị mặc định (size medium → không có .k-input-md / .k-button-md,
 // fillMode solid + themeColor base → không có .k-button-solid / .k-button-base), nên chọn theo class luôn có
 // (.k-input, .k-picker, .k-button) và loại các biến thể có class riêng (sm / lg, flat, outline, icon…).
 .k-input:not(.k-input-sm, .k-input-lg),
 .k-picker:not(.k-picker-sm, .k-picker-lg) {
-  min-height: 40px;
+  min-height: 36px;
 }
 
 .k-input-sm,
@@ -223,39 +253,58 @@ a:hover {
 
 .k-input,
 .k-picker {
-  border-color: var(--cf-border-strong);
+  border-color: var(--cf-border);
+  border-radius: var(--cf-radius-lg);
+}
+
+// Ô chọn (dropdown) nền trắng như ô nhập của canvas (.input).
+.k-picker:not(.k-picker-flat, .k-picker-outline) {
+  background-color: var(--cf-surface);
+}
+
+.k-button {
+  border-radius: var(--cf-radius-lg);
+  font-weight: 500;
 }
 
 .k-button:not(.k-icon-button, .k-button-sm, .k-button-lg, .k-button-flat, .k-button-link, .k-button-clear) {
-  min-height: 40px;
-  padding-inline: 16px;
+  min-height: 36px;
+  padding-inline: 14px;
 }
 
 .k-button-sm:not(.k-icon-button) {
   min-height: 32px;
+  padding-inline: 10px;
+  font-size: 13px;
 }
 
-.k-button-primary {
-  font-weight: 600;
-}
-
-// Nút phụ (themeColor base, fillMode solid): nền trắng, viền (board DSComponents, Account).
+// Nút phụ (themeColor base, fillMode solid) và nút viền (fillMode outline) = .btn-o của canvas: nền trắng, viền nhạt, chữ mực.
 .k-button:not(.k-icon-button, .k-button-primary, .k-button-error, .k-button-secondary, .k-button-tertiary, .k-button-info,
     .k-button-success, .k-button-warning, .k-button-dark, .k-button-light, .k-button-inverse, .k-button-flat,
-    .k-button-outline, .k-button-link, .k-button-clear) {
-  border-color: var(--cf-border-strong);
+    .k-button-link, .k-button-clear),
+.k-button-outline:not(.k-button-error) {
+  border-color: var(--cf-border);
   background-color: var(--cf-surface);
-  font-weight: 500;
+  color: var(--cf-ink);
 
   &:hover {
-    background-color: var(--cf-background);
+    background-color: var(--cf-subtle);
   }
 }
 
-// Nhãn 13 px đậm; gợi ý / lỗi chữ thẳng 12 px.
+// Nút phẳng (fillMode flat) = .btn-g của canvas: không nền, chữ mực, nền xám khi trỏ.
+.k-button-flat:not(.k-button-error) {
+  color: var(--cf-ink);
+
+  &:hover {
+    background-color: var(--cf-subtle);
+  }
+}
+
+// Nhãn 14 px / 500 như canvas (.label); gợi ý / lỗi chữ thẳng 12 px.
 .k-label {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .k-form-hint,

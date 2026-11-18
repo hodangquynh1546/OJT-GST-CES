@@ -47,10 +47,10 @@ const notBlank = (control: AbstractControl<string | null>): ValidationErrors | n
         <p class="muted">Thêm, đổi tên, ngừng dùng. Danh mục đã có giao dịch không xóa được, chỉ ngừng dùng.</p>
       </div>
 
-      <form class="card add" [formGroup]="addForm" (ngSubmit)="add()" novalidate>
+      <form class="cf-card add" [formGroup]="addForm" (ngSubmit)="add()" novalidate>
         <kendo-formfield class="field name-field">
           <kendo-label class="label" [for]="nameInput" text="Tên danh mục" />
-          <kendo-textbox #nameInput class="input" formControlName="name" [maxlength]="nameMax" placeholder="VD: Văn nghệ" />
+          <kendo-textbox #nameInput formControlName="name" [maxlength]="nameMax" placeholder="VD: Văn nghệ" />
           <kendo-formerror>{{ serverError(addForm.controls.name) ?? 'Vui lòng nhập tên danh mục.' }}</kendo-formerror>
         </kendo-formfield>
         <div class="field type-field">
@@ -70,7 +70,7 @@ const notBlank = (control: AbstractControl<string | null>): ValidationErrors | n
             }
           </div>
         </div>
-        <button kendoButton class="btn btn-p" type="submit" [disabled]="busy()">Thêm danh mục</button>
+        <button kendoButton themeColor="primary" type="submit" [disabled]="busy()">Thêm danh mục</button>
       </form>
 
       @let current = state();
@@ -79,34 +79,34 @@ const notBlank = (control: AbstractControl<string | null>): ValidationErrors | n
       } @else if (current.status === 'ready') {
         <div class="grid2">
           @for (type of types; track type) {
-            <section class="card" [attr.aria-label]="'Danh mục ' + typeLabel[type].toLowerCase()">
+            <section class="cf-card list" [attr.aria-label]="'Danh mục ' + typeLabel[type].toLowerCase()">
               <header class="card-h">
                 <h2>Danh mục {{ typeLabel[type].toLowerCase() }}</h2>
-                <span class="badge" [class.b-ok]="type === 'Income'" [class.b-bad]="type === 'Expense'">{{ typeLabel[type] }}</span>
+                <span class="cf-tag" [class.cf-tag--success]="type === 'Income'" [class.cf-tag--danger]="type === 'Expense'">{{ typeLabel[type] }}</span>
               </header>
               @for (category of byType()[type]; track category.id) {
                 <div class="row" [attr.data-category]="category.name">
                   @if (editingId() === category.id) {
                     <kendo-textbox
-                      class="input rename"
+                      class="rename"
                       [formControl]="renameControl"
                       [maxlength]="nameMax"
                       [inputAttributes]="{ 'aria-label': 'Tên mới cho ' + category.name }"
                       (keydown.enter)="$event.preventDefault(); saveRename(category)"
                       (keydown.escape)="cancelRename()"
                     />
-                    <button kendoButton class="btn btn-p btn-s" type="button" [disabled]="busy()" (click)="saveRename(category)">Lưu</button>
-                    <button kendoButton class="btn btn-g btn-s" type="button" (click)="cancelRename()">Hủy</button>
+                    <button kendoButton themeColor="primary" size="small" type="button" [disabled]="busy()" (click)="saveRename(category)">Lưu</button>
+                    <button kendoButton fillMode="flat" size="small" type="button" (click)="cancelRename()">Hủy</button>
                   } @else {
                     <div class="row-main">
                       <span class="name" [class.strike]="!category.isActive">{{ category.name }}</span>
                       <span class="muted xs">{{ meta(category) }}</span>
                     </div>
-                    <span class="badge" [class.b-ok]="category.isActive" [class.b-gen]="!category.isActive">
+                    <span class="cf-tag" [class.cf-tag--success]="category.isActive">
                       {{ category.isActive ? 'Đang dùng' : 'Ngừng dùng' }}
                     </span>
-                    <button kendoButton class="btn btn-o btn-s" type="button" [disabled]="busy()" (click)="startRename(category)">Đổi tên</button>
-                    <button kendoButton class="btn btn-g btn-s" type="button" [disabled]="busy()" (click)="toggle(category)">
+                    <button kendoButton fillMode="outline" size="small" type="button" [disabled]="busy()" (click)="startRename(category)">Đổi tên</button>
+                    <button kendoButton fillMode="flat" size="small" type="button" [disabled]="busy()" (click)="toggle(category)">
                       {{ category.isActive ? 'Ngừng dùng' : 'Dùng lại' }}
                     </button>
                   }
@@ -155,12 +155,6 @@ const notBlank = (control: AbstractControl<string | null>): ValidationErrors | n
     .xs {
       font-size: 12px;
     }
-    .card {
-      border: 1px solid var(--cf-border);
-      border-radius: 12px;
-      background: var(--cf-surface);
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-    }
     .add {
       display: flex;
       flex-wrap: wrap;
@@ -182,18 +176,6 @@ const notBlank = (control: AbstractControl<string | null>): ValidationErrors | n
     }
     .label {
       font-weight: 500;
-    }
-    /* Nhãn của kendo-label nằm trong component con: chỉnh cỡ chữ / lề cho khớp canvas, chỉ trong màn này. */
-    .add ::ng-deep .k-label {
-      margin: 0;
-      font-size: 14px;
-      font-weight: 500;
-    }
-    kendo-textbox.input {
-      min-height: 0;
-      height: 36px;
-      border-color: var(--cf-border);
-      border-radius: var(--cf-radius-lg);
     }
     .tabs {
       display: grid;
@@ -222,46 +204,8 @@ const notBlank = (control: AbstractControl<string | null>): ValidationErrors | n
       color: var(--cf-ink);
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
     }
-    /* Nút theo canvas (.btn, .btn-p, .btn-o, .btn-g, .btn-s) – vẫn là kendoButton. */
-    .btn.k-button {
-      min-height: 0;
-      height: 36px;
-      padding: 0 14px;
-      border: 1px solid transparent;
-      border-radius: var(--cf-radius-lg);
-      font-size: 14px;
-      font-weight: 500;
-      white-space: nowrap;
-      box-shadow: none;
-    }
-    .btn.btn-s.k-button {
-      height: 32px;
-      padding: 0 10px;
-      font-size: 13px;
-    }
-    .btn-p.k-button {
-      background: var(--cf-ink);
-      color: var(--cf-surface);
-    }
-    .btn-p.k-button:hover {
-      background: var(--cf-ink-hover);
-    }
-    .btn-p.k-button:disabled {
-      border-color: var(--cf-ink-soft);
-      background: var(--cf-ink-soft);
-    }
-    .btn-o.k-button {
-      border-color: var(--cf-border);
-      background: var(--cf-surface);
-      color: var(--cf-ink);
-    }
-    .btn-o.k-button:hover,
-    .btn-g.k-button:hover {
-      background: var(--cf-subtle);
-    }
-    .btn-g.k-button {
-      background: transparent;
-      color: var(--cf-ink);
+    .list {
+      padding: 0;
     }
     .grid2 {
       display: grid;
@@ -276,34 +220,6 @@ const notBlank = (control: AbstractControl<string | null>): ValidationErrors | n
       justify-content: space-between;
       gap: 12px;
       padding: 16px;
-    }
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      height: 22px;
-      padding: 0 8px;
-      border: 1px solid var(--cf-border);
-      border-radius: 999px;
-      background: var(--cf-surface);
-      color: var(--cf-ink);
-      font-size: 12px;
-      font-weight: 500;
-      white-space: nowrap;
-    }
-    .b-ok {
-      border-color: color-mix(in srgb, var(--cf-success-fg) 25%, transparent);
-      background: var(--cf-success-bg);
-      color: var(--cf-success-fg);
-    }
-    .b-bad {
-      border-color: color-mix(in srgb, var(--cf-danger-fg) 22%, transparent);
-      background: var(--cf-danger-bg);
-      color: var(--cf-danger-fg);
-    }
-    .b-gen {
-      border-color: transparent;
-      background: var(--cf-subtle);
-      color: var(--cf-text);
     }
     .row {
       display: flex;

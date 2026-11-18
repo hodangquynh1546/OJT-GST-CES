@@ -10,13 +10,12 @@ import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { AppNotifications } from '../../../core/services/notification.service';
 import { AppState } from '../../../shared/components/app-state/app-state';
-import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { TopBar } from '../../account/top-bar';
 import { applyServerErrors, serverError } from '../../../shared/forms/server-errors';
 import { FundsApi } from '../funds.api';
 import '../funds.errors';
 import { FUND_NAME_MAX, createFundForm, fundBody } from '../fund-form';
-import { DEFAULT_CATEGORIES, currentSchoolYear, schoolYearOptions } from '../funds.models';
+import { DEFAULT_CATEGORIES, currentSchoolYear, displaySchoolYear, schoolYearOptions } from '../funds.models';
 
 /** F-02 · Tạo quỹ (FR-05): người tạo là thủ quỹ chính, danh mục mặc định tạo sẵn. */
 @Component({
@@ -29,7 +28,6 @@ import { DEFAULT_CATEGORIES, currentSchoolYear, schoolYearOptions } from '../fun
     FormFieldComponent,
     HintComponent,
     LabelComponent,
-    PageHeader,
     ReactiveFormsModule,
     RouterLink,
     TextBoxComponent,
@@ -39,8 +37,11 @@ import { DEFAULT_CATEGORIES, currentSchoolYear, schoolYearOptions } from '../fun
   template: `
     <app-top-bar variant="funds" />
     <main class="page">
-      <a routerLink="/funds" class="back cf-muted">← Quỹ của tôi</a>
-      <app-page-header title="Tạo quỹ" subtitle="Bạn sẽ là thủ quỹ chính. Danh mục thu chi mặc định được tạo sẵn." />
+      <div class="head-t">
+        <a routerLink="/funds" class="back">← Quỹ của tôi</a>
+        <h1>Tạo quỹ</h1>
+        <p class="cf-muted">Bạn sẽ là thủ quỹ chính. Danh mục thu chi mặc định được tạo sẵn.</p>
+      </div>
 
       @if (!auth.canCreateFund()) {
         <app-state
@@ -54,16 +55,23 @@ import { DEFAULT_CATEGORIES, currentSchoolYear, schoolYearOptions } from '../fun
             <div class="cf-alert cf-alert--danger" role="alert">{{ message }}</div>
           }
 
-          <kendo-formfield>
-            <kendo-label [for]="nameInput" text="Tên quỹ *" />
+          <kendo-formfield class="cf-required">
+            <kendo-label [for]="nameInput" text="Tên quỹ" />
             <kendo-textbox #nameInput formControlName="name" [maxlength]="nameMax" placeholder="VD: Lớp 10A1" />
             <kendo-formhint>VD: Lớp 10A1, CLB Tiếng Anh</kendo-formhint>
             <kendo-formerror>{{ serverError(form.controls.name) ?? 'Vui lòng nhập tên quỹ (tối đa 100 ký tự).' }}</kendo-formerror>
           </kendo-formfield>
 
-          <kendo-formfield>
-            <kendo-label [for]="yearInput" text="Năm học *" />
-            <kendo-dropdownlist #yearInput formControlName="schoolYear" [data]="years" />
+          <kendo-formfield class="cf-required">
+            <kendo-label [for]="yearInput" text="Năm học" />
+            <kendo-dropdownlist
+              #yearInput
+              formControlName="schoolYear"
+              [data]="years"
+              textField="text"
+              valueField="value"
+              [valuePrimitive]="true"
+            />
             <kendo-formerror>{{ serverError(form.controls.schoolYear) ?? 'Năm học có dạng 2026-2027.' }}</kendo-formerror>
           </kendo-formfield>
 
@@ -80,14 +88,14 @@ import { DEFAULT_CATEGORIES, currentSchoolYear, schoolYearOptions } from '../fun
           </div>
 
           <div class="actions">
-            <button kendoButton type="button" (click)="cancel()">Hủy</button>
+            <button kendoButton fillMode="outline" type="button" (click)="cancel()">Hủy</button>
             <button kendoButton themeColor="primary" type="submit" [disabled]="saving()">
               {{ saving() ? 'Đang tạo…' : 'Tạo quỹ' }}
             </button>
           </div>
         </form>
 
-        <div class="cf-alert next">
+        <div class="cf-alert">
           Bước tiếp theo: thêm học sinh bằng email ở mục <b>&nbsp;Học sinh</b>, rồi tạo khoản thu chung đầu tiên.
         </div>
       }
@@ -99,15 +107,30 @@ import { DEFAULT_CATEGORIES, currentSchoolYear, schoolYearOptions } from '../fun
       min-height: 100dvh;
       background: var(--cf-background);
     }
+    /* Theo canvas F-02 (FundNew.dc.html): trang 640 px giữa màn, khoảng cách 24 px, thẻ đệm 20 px. */
     .page {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
       box-sizing: border-box;
       max-width: 640px;
       margin: 0 auto;
-      padding: 32px 24px 48px;
+      padding: 24px;
+    }
+    .head-t {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    h1 {
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    p {
+      margin: 0;
     }
     .back {
-      display: inline-block;
-      margin-bottom: 8px;
+      color: var(--cf-text-muted);
       font-size: 13px;
       text-decoration: none;
     }
@@ -115,7 +138,7 @@ import { DEFAULT_CATEGORIES, currentSchoolYear, schoolYearOptions } from '../fun
       display: flex;
       flex-direction: column;
       gap: 16px;
-      padding: 24px;
+      padding: 20px;
     }
     kendo-formfield {
       margin: 0;
@@ -123,7 +146,7 @@ import { DEFAULT_CATEGORIES, currentSchoolYear, schoolYearOptions } from '../fun
     .defaults {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
     }
     .tags {
       display: flex;
@@ -135,9 +158,6 @@ import { DEFAULT_CATEGORIES, currentSchoolYear, schoolYearOptions } from '../fun
       justify-content: flex-end;
       gap: 8px;
     }
-    .next {
-      margin-top: 16px;
-    }
   `,
 })
 export class FundNew {
@@ -147,7 +167,8 @@ export class FundNew {
   private readonly notifications = inject(AppNotifications);
 
   protected readonly nameMax = FUND_NAME_MAX;
-  protected readonly years = schoolYearOptions();
+  /** Giá trị gửi API "2026-2027", hiển thị "2026–2027" như canvas. */
+  protected readonly years = schoolYearOptions().map((value) => ({ value, text: displaySchoolYear(value) }));
   protected readonly defaults = DEFAULT_CATEGORIES;
   protected readonly serverError = serverError;
   protected readonly form = createFundForm({ name: '', schoolYear: currentSchoolYear() });

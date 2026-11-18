@@ -10,9 +10,7 @@ import { firstValueFrom, map, switchMap, tap } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
 import { AppNotifications } from '../../../core/services/notification.service';
 import { AppState } from '../../../shared/components/app-state/app-state';
-import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { applyServerErrors, serverError } from '../../../shared/forms/server-errors';
-import { VnDatePipe } from '../../../shared/pipes/vn-date.pipe';
 import { LOADING, stateKind, toLoadState } from '../../../shared/state/load-state';
 import { FUND_NAME_MAX, createFundForm, fundBody } from '../fund-form';
 import { FundsApi } from '../funds.api';
@@ -28,15 +26,16 @@ import { FUND_STATUS_LABEL, FundDetail, displaySchoolYear } from '../funds.model
     ErrorComponent,
     FormFieldComponent,
     LabelComponent,
-    PageHeader,
     ReactiveFormsModule,
     TextBoxComponent,
-    VnDatePipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="cf-page settings">
-      <app-page-header title="Thông tin quỹ" subtitle="Thông tin công khai mọi thành viên xem được." />
+    <div class="page">
+      <div class="head-t">
+        <h1>Thông tin quỹ</h1>
+        <p class="cf-muted">Thông tin công khai mọi thành viên xem được.</p>
+      </div>
 
       @let current = state();
       @if (kind(); as stateKindValue) {
@@ -57,58 +56,78 @@ import { FUND_STATUS_LABEL, FundDetail, displaySchoolYear } from '../funds.model
           </kendo-formfield>
           <div class="row">
             <!-- Chỉ xem (không phải form control) nên không đặt trong kendo-formfield. -->
-            <div class="field stretch">
+            <div class="field">
               <kendo-label [for]="yearInput" text="Năm học" />
-              <kendo-textbox #yearInput [value]="year(fund.schoolYear)" [readonly]="true" [disabled]="true" />
+              <kendo-textbox #yearInput class="readonly" [value]="year(fund.schoolYear)" [readonly]="true" [disabled]="true" />
             </div>
             <div class="field">
               <span class="k-label">Trạng thái</span>
-              <span class="cf-tag" [class.cf-tag--success]="fund.status === 'Active'">{{ statusLabel[fund.status] }}</span>
+              <div>
+                <span class="cf-tag" [class.cf-tag--success]="fund.status === 'Active'">{{ statusLabel[fund.status] }}</span>
+              </div>
             </div>
           </div>
-          <dl class="meta">
-            <div><dt>Thủ quỹ chính</dt><dd>{{ fund.ownerName }}</dd></div>
-            <div><dt>Thành viên</dt><dd>{{ fund.memberCount }}</dd></div>
-            <div><dt>Ngày tạo</dt><dd>{{ fund.createdAt | vnDate }}</dd></div>
-          </dl>
           @if (!archived()) {
             <div class="actions">
-              <button kendoButton themeColor="primary" type="submit" [disabled]="saving() || form.pristine">
+              <button kendoButton themeColor="primary" type="submit" [disabled]="saving()">
                 {{ saving() ? 'Đang lưu…' : 'Lưu thay đổi' }}
               </button>
             </div>
           }
         </form>
 
-        <section class="cf-card section">
+        <section class="cf-card section compact">
           <h2>Tổng kết cuối năm</h2>
-          <p class="cf-muted">
-            Quyết toán quỹ chung một lần duy nhất khi mọi sự kiện đã quyết toán hoặc hủy. Sau đó quỹ chuyển "Đã tổng kết" – chỉ xem.
+          <p class="cf-muted small">
+            Quyết toán quỹ chung một lần duy nhất khi mọi sự kiện đã quyết toán hoặc hủy. Sau đó quỹ chuyển “Đã tổng kết” – chỉ xem.
           </p>
           <div>
-            <button kendoButton type="button" (click)="goYearEnd(fund.id)">Đi tới tổng kết cuối năm</button>
+            <button kendoButton fillMode="outline" type="button" (click)="goYearEnd(fund.id)">Đi tới tổng kết cuối năm</button>
           </div>
         </section>
       }
     </div>
   `,
   styles: `
-    .settings {
+    /* Theo canvas F-03 (FundSettings.dc.html): trang 860 px, khoảng cách 24 px, thẻ đệm 20 px. */
+    .page {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
       max-width: 860px;
+    }
+    .head-t {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    h1 {
+      font-weight: 600;
+      letter-spacing: -0.02em;
     }
     .section {
       display: flex;
       flex-direction: column;
       gap: 16px;
-      margin-bottom: 16px;
-      padding: 24px;
+      padding: 20px;
+    }
+    .section.compact {
+      gap: 8px;
     }
     h2 {
       margin: 0;
       font-size: 16px;
+      font-weight: 600;
+      line-height: 24px;
     }
     p {
       margin: 0;
+    }
+    .small {
+      font-size: 13px;
+    }
+    kendo-textbox.readonly {
+      background: var(--cf-subtle);
     }
     kendo-formfield {
       margin: 0;
@@ -121,32 +140,11 @@ import { FUND_STATUS_LABEL, FundDetail, displaySchoolYear } from '../funds.model
     .field {
       display: flex;
       flex-direction: column;
-      align-items: flex-start;
-      gap: 6px;
-    }
-    .field.stretch {
-      align-items: stretch;
-    }
-    .meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 24px;
-      margin: 0;
-    }
-    .meta dt {
-      color: var(--cf-text-muted);
-      font-size: 12px;
-    }
-    .meta dd {
-      margin: 0;
-      font-weight: 500;
+      gap: 8px;
     }
     .actions {
       display: flex;
       justify-content: flex-end;
-    }
-    .cf-alert {
-      margin-bottom: 16px;
     }
   `,
 })
