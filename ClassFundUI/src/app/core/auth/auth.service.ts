@@ -48,16 +48,16 @@ export class AuthService {
     return this.currentUser()?.accountPermissions.includes(permission) ?? false;
   }
 
-  /** Trang chính sau đăng nhập: một quỹ → vào thẳng quỹ; nhiều quỹ hoặc chưa có quỹ → danh sách quỹ. */
+  /**
+   * Trang chính sau đăng nhập (canvas "ClassFund UI Design"): luôn là "Quỹ của tôi" (F-01, chưa có menu quỹ);
+   * người dùng chọn quỹ muốn mở rồi mới vào khung có menu. Còn mật khẩu tạm thì phải đổi mật khẩu trước.
+   */
   homeUrl(): string {
     const user = this.currentUser();
     if (!user) {
       return '/login';
     }
-    if (user.mustChangePassword) {
-      return '/change-password';
-    }
-    return user.memberships.length === 1 ? `/funds/${user.memberships[0].fundId}` : '/funds';
+    return user.mustChangePassword ? '/change-password' : '/funds';
   }
 
   // ---------- M1 – Auth & Tài khoản (nối API ở module M1) ----------

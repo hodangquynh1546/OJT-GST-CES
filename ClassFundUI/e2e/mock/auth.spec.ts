@@ -70,7 +70,7 @@ test.describe('A-01 Đăng nhập', () => {
     await expect(page).toHaveURL(/\/login$/);
   });
 
-  test('đăng nhập đúng: chuẩn hóa email, gửi token antiforgery, vào danh sách quỹ và thấy tên ở header', async ({ page }) => {
+  test('đăng nhập đúng: chuẩn hóa email, gửi token antiforgery, vào danh sách quỹ và thấy ảnh đại diện', async ({ page }) => {
     const api = await setup(page);
     await page.goto('/login');
 
@@ -79,7 +79,7 @@ test.describe('A-01 Đăng nhập', () => {
     await page.getByLabel('Mật khẩu', { exact: true }).press('Enter');
 
     await expect(page).toHaveURL(/\/funds$/);
-    await expect(page.getByRole('banner').getByText('Nguyễn An')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Tài khoản của Nguyễn An' })).toBeVisible();
     const login = api.last('POST', '/login');
     expect(login?.body).toEqual({ email: 'AN@Example.com', password: 'Passw0rd1' });
     expect(login?.csrf).toBe('anon-token');
@@ -190,7 +190,7 @@ test.describe('A-02 Đăng ký thủ quỹ', () => {
     await page.getByRole('button', { name: 'Tạo tài khoản' }).click();
 
     await expect(page).toHaveURL(/\/funds$/);
-    await expect(page.getByRole('banner').getByText('Trần Bình')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Tài khoản của Trần Bình' })).toBeVisible();
     expect(api.last('POST', '/register')?.body).toEqual({
       fullName: 'Trần Bình',
       email: 'binh@example.com',
@@ -423,5 +423,83 @@ test.describe('A-04 Tài khoản của tôi', () => {
     await page.getByRole('button', { name: 'Lưu thay đổi' }).click();
 
     await expect(page).toHaveURL(/\/login$/);
+  });
+});
+
+test.describe('F-01 Quỹ của tôi (màn đầu sau đăng nhập)', () => {
+  const MEMBERSHIPS: FakeUser['memberships'] = [
+    { fundId: 'f1', fundName: 'Lớp 10A1', role: 'Owner', permissions: ['Fund.View'] },
+    { fundId: 'f2', fundName: 'CLB Tiếng Anh', role: 'Student', permissions: ['Fund.View'] },
+    { fundId: 'f3', fundName: 'Lớp 9A1', role: 'Treasurer', permissions: ['Fund.View'] },
+  ];
+
+  test('đăng nhập xong luôn vào Quỹ của tôi, không có menu', async ({ page }) => {
+    await setup(page);
+    await page.goto('/login');
+    await page.getByLabel('Email').fill('an@example.com');
+    await page.getByLabel('Mật khẩu', { exact: true }).fill('Passw0rd1');
+    await page.getByRole('button', { name: 'Đăng nhập' }).click();
+
+    await expect(page).toHaveURL(/\/funds$/);
+    await expect(page.getByRole('heading', { name: 'Quỹ của tôi' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Điều hướng chính' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Đăng xuất' })).toBeVisible();
+  });
+
+  test('chỉ có một quỹ vẫn vào danh sách, chọn quỹ mới mở menu', async ({ page }) => {
+    await setup(page, { ...AN, memberships: [MEMBERSHIPS[0]] });
+    await page.goto('/');
+
+    await expect(page).toHaveURL(/\/funds$/);
+    await page.getByRole('link', { name: 'Mở quỹ Lớp 10A1' }).click();
+    await expect(page).toHaveURL(/\/funds\/f1$/);
+    await expect(page.getByRole('navigation', { name: 'Điều hướng chính' })).toBeVisible();
+  });
+
+  test('thẻ quỹ hiện tên và vai trò; chọn quỹ khác vào đúng quỹ đó', async ({ page }) => {
+    await setup(page, { ...AN, memberships: MEMBERSHIPS });
+    await page.goto('/funds');
+
+    const list = page.getByRole('list', { name: 'Danh sách quỹ' });
+    await expect(list.getByRole('link')).toHaveCount(3);
+    await expect(list.getByRole('link', { name: 'Mở quỹ Lớp 10A1' })).toContainText('Thủ quỹ chính');
+    await expect(list.getByRole('link', { name: 'Mở quỹ CLB Tiếng Anh' })).toContainText('Học sinh');
+    await expect(list.getByRole('link', { name: 'Mở quỹ Lớp 9A1' })).toContainText('Thủ quỹ');
+    await list.getByRole('link', { name: 'Mở quỹ CLB Tiếng Anh' }).click();
+    await expect(page).toHaveURL(/\/funds\/f2$/);
+  });
+
+  test('chưa thuộc quỹ nào: trạng thái rỗng và nút Tạo quỹ cho tài khoản tự đăng ký', async ({ page }) => {
+    await setup(page, AN);
+    await page.goto('/funds');
+
+    await expect(page.getByText('Bạn chưa thuộc quỹ nào')).toBeVisible();
+    await expect(page.getByRole('link', { name: '+ Tạo quỹ' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Tạo quỹ đầu tiên' })).toBeVisible();
+  });
+
+  test('tài khoản không có quyền tạo quỹ không thấy nút Tạo quỹ', async ({ page }) => {
+    await setup(page, { ...AN, accountPermissions: [] });
+    await page.goto('/funds');
+
+    await expect(page.getByText('Bạn chưa thuộc quỹ nào')).toBeVisible();
+    await expect(page.getByRole('link', { name: /Tạo quỹ/ })).toHaveCount(0);
+  });
+
+  test('ảnh đại diện dẫn tới Tài khoản; Quỹ của tôi ở Tài khoản dẫn về danh sách quỹ', async ({ page }) => {
+    await setup(page, { ...AN, fullName: 'Nguyễn Minh Anh' });
+    await page.goto('/funds');
+
+    await page.getByRole('link', { name: 'Tài khoản của Nguyễn Minh Anh' }).click();
+    await expect(page).toHaveURL(/\/account$/);
+    await page.getByRole('link', { name: 'Quỹ của tôi' }).click();
+    await expect(page).toHaveURL(/\/funds$/);
+  });
+
+  test('mật khẩu tạm: không vào được danh sách quỹ cho tới khi đổi mật khẩu', async ({ page }) => {
+    await setup(page, TEMP_USER);
+    await page.goto('/funds');
+
+    await expect(page).toHaveURL(/\/change-password$/);
   });
 });

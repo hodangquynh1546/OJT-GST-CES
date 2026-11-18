@@ -119,7 +119,7 @@ describe('AuthService (M1)', () => {
     expect(auth.homeUrl()).toBe('/login');
   });
 
-  it('một quỹ → vào thẳng quỹ; nhiều quỹ hoặc chưa có → danh sách quỹ', async () => {
+  it('luôn vào danh sách quỹ (F-01), kể cả khi chỉ có một quỹ; chọn quỹ mới vào khung có menu', async () => {
     const one: CurrentUser = {
       ...USER,
       memberships: [{ fundId: 'f1', fundName: 'Lớp 10A1', role: 'Owner', permissions: ['Fund.View'] }],
@@ -128,6 +128,6 @@ describe('AuthService (M1)', () => {
     http.expectOne('/api/v1/auth/login').flush({ antiforgeryToken: 't', user: one });
     await done;
 
-    expect(auth.homeUrl()).toBe('/funds/f1');
+    expect(auth.homeUrl()).toBe('/funds');
   });
 });

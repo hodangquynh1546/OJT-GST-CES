@@ -56,7 +56,7 @@ Bản thiết kế nhóm menu thủ quỹ thành **Quỹ chung** (Tổng quan, T
 
 ## 3. Quy tắc điều hướng
 
-- Sau đăng nhập: mật khẩu tạm → `/change-password`; đúng 1 quỹ → `/funds/:id`; còn lại → `/funds`.
+- Sau đăng nhập: mật khẩu tạm → `/change-password`; còn lại **luôn → `/funds` (F-01 Quỹ của tôi, không có menu quỹ, kể cả khi chỉ có một quỹ)**. Chọn một quỹ mới vào `/funds/:id` và hiện menu quỹ (theo canvas "ClassFund UI Design"). F-01, F-02 và A-04 nằm ngoài khung menu, chỉ có thanh trên (logo, Đăng xuất, ảnh đại diện).
 - Không thuộc quỹ → 404; thiếu quyền → 403 (guard + backend).
 - 401 từ API → xóa phiên, về `/login`.
 - Header hiện quỹ đang mở, badge vai trò, "Đổi quỹ" khi có nhiều quỹ hoặc được tạo quỹ.

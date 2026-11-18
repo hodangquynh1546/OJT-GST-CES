@@ -26,6 +26,12 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadChildren: () => import('./features/auth/auth.routes').then((m) => m.CHANGE_PASSWORD_ROUTES),
   },
+  // F-01 / F-02 cũng ngoài khung có menu: sau đăng nhập người dùng chọn quỹ rồi mới vào `funds/:fundId` (có menu).
+  {
+    path: 'funds',
+    canActivate: [authGuard],
+    loadChildren: () => import('./features/funds/funds.routes').then((m) => m.FUND_LIST_ROUTES),
+  },
   // A-04 nằm ngoài khung có menu quỹ (canvas "ClassFund UI Design"): chỉ có thanh trên riêng.
   {
     path: 'account',
@@ -37,10 +43,6 @@ export const routes: Routes = [
     component: AppShell,
     canActivate: [authGuard],
     children: [
-      {
-        path: 'funds',
-        loadChildren: () => import('./features/funds/funds.routes').then((m) => m.FUND_LIST_ROUTES),
-      },
       {
         path: 'funds/:fundId',
         canActivate: [fundPermissionGuard(Permissions.FundView)],

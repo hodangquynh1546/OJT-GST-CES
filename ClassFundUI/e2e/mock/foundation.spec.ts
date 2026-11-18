@@ -30,6 +30,10 @@ test('student sees general fund and events but not management menu', async ({ pa
     }),
   );
   await page.goto('/');
+  // Sau đăng nhập luôn vào "Quỹ của tôi" (chưa có menu); chọn quỹ mới vào khung có menu.
+  await expect(page).toHaveURL(/\/funds$/);
+  await expect(page.getByRole('navigation', { name: 'Điều hướng chính' })).toHaveCount(0);
+  await page.getByRole('link', { name: 'Mở quỹ Lớp 10A1' }).click();
   await expect(page).toHaveURL(/\/funds\/f1$/);
   const nav = page.getByRole('navigation', { name: 'Điều hướng chính' });
   await expect(nav.getByText('Thu chi chung')).toBeVisible();

@@ -75,6 +75,8 @@ Ký hiệu: **BE** backend, **FE** frontend, **T** test. Mỗi task kết thúc 
 
 ### M3 – Học sinh (FR-09 → FR-11, AZ-02, BR-30, OQ-15)
 
+> ✅ **Đã làm 2026-11-18** (nhánh `feature/m3-members`, chưa merge). Ghi chú: mời vào sự kiện `Open` chờ M8 (TD-10); AZ-07 và các quyết định kỹ thuật ở `implementation-status.md` nhật ký 2026-11-18.
+
 | Task | Nội dung |
 |---|---|
 | M3-T1 BE | `MembersService`: list (lọc tên/email/role/status, phân trang); add by email (chuẩn hóa; mới → User Provisioned + `Credentials.TemporaryPassword()` trả một lần; đã có → chỉ thêm FundMember; đã là thành viên Active → 409 `member.already_exists`; Removed → kích hoạt lại); update họ tên; reset password (đổi hash + SecurityStamp + MustChangePassword); remove (OQ-15). AZ-02: Treasurer không thao tác trên Owner/Treasurer. Mời vào sự kiện `Open` khi thêm thành viên (gọi qua service M8 nếu đã có, nếu chưa: ghi việc tồn đọng). Audit không chứa mật khẩu. **Thêm nhiều email (OQ-20):** `AddManyAsync` (≤ 50 email, chuẩn hóa + bỏ trùng, mỗi email độc lập, kết quả từng dòng `created`/`existing_added`/`reactivated`/`already_exists`/`invalid`, mật khẩu tạm trả một lần, audit mỗi người một bản ghi, chặn khi quỹ `Archived`, rate limit chặt hơn). |

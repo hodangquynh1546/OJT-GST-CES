@@ -24,7 +24,9 @@ cd ClassFundUI && E2E_FULL=1 npx playwright test
 docker rm -f classfund-e2e-pg
 ```
 
-Đặt biến môi trường `ConnectionStrings__App` trực tiếp như trên để chắc chắn không dùng chuỗi Neon trong user-secrets / `.env`. Tài khoản seed mật khẩu tạm chỉ dùng được một lần: chạy lại thì đổi `E2E_STUDENT_EMAIL` (hocsinh1/2/3.demo@classfund.local) hoặc tạo lại database tạm.
+Đặt biến môi trường `ConnectionStrings__App` trực tiếp như trên để chắc chắn không dùng chuỗi Neon trong user-secrets / `.env`.
+
+**Nếu cổng 5286 / 4200 đang do API / giao diện khác dùng (ví dụ API của bạn đang nối Neon)** thì Playwright sẽ tái sử dụng nó (`reuseExistingServer`) và ghi dữ liệu vào đó. Khi đó chạy bộ riêng ở cổng khác: API `ASPNETCORE_URLS=http://localhost:5287` (thêm `--no-launch-profile`), giao diện `ng serve --port 4201 --proxy-config <file proxy trỏ 5287>`, rồi `E2E_FULL=1 E2E_UI_PORT=4201 E2E_API_PORT=5287 npx playwright test`. Tài khoản seed mật khẩu tạm chỉ dùng được một lần: chạy lại thì đổi `E2E_STUDENT_EMAIL` (hocsinh1/2/3.demo@classfund.local) hoặc tạo lại database tạm.
 
 ## Nguyên tắc
 

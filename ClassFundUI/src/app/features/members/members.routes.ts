@@ -1,8 +1,7 @@
 import { Routes } from '@angular/router';
 
-import { comingSoon } from '../../shared/components/coming-soon/coming-soon';
+import './members.errors';
+import { MembersPage } from './members-page';
 
-/** Màn hình giữ chỗ – module thay bằng màn hình thật (docs/ui-design/screen-specifications.md). */
-export const MEMBER_ROUTES: Routes = [
-  { path: '', ...comingSoon('M-01', 'Học sinh') },
-];
+/** M-01 Học sinh (cần `Member.Manage`, guard ở `app.routes.ts`). */
+export const MEMBER_ROUTES: Routes = [{ path: '', component: MembersPage, title: 'Học sinh · ClassFund' }];
