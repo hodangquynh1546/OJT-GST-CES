@@ -18,17 +18,18 @@
 | `…/members` | M-01 | Học sinh: danh sách, thêm bằng email, cấp mật khẩu tạm, ngừng | `Member.Manage` | M3 |
 | `…/treasurers` | T-01 | Thủ quỹ: phân quyền / thu hồi | `Treasurer.Manage` | M4 |
 | `…/categories` | C-01 | Danh mục thu chi | `Category.Manage` | M5 |
-| `…/charges` | H-01 | Khoản thu chung (thủ quỹ: tạo, theo dõi đã/chưa đóng) | `Fund.View` | M6 |
-| `…/charges/new` | H-02 | Tạo khoản thu chung | `Charge.Manage` | M6 |
+| `…/charges` | H-01 | Khoản thu chung: danh sách Đang mở / Đã đóng (học sinh: kèm tình trạng của mình) | `Fund.View` | M6 |
+| `…/charges/new` | H-02 | Tạo khoản thu chung (bản thiết kế: hộp thoại mở từ H-01) | `Charge.Manage` | M6 |
+| `…/charges/:chargeId` | H-01b | Theo dõi một khoản thu: lọc đã/chưa đóng, ghi nhận tiền mặt, nhắc, đóng khoản (route thêm khi làm M6) | `Charge.Manage` | M6 |
 | `…/my-payments` | H-03 | Khoản cần đóng của tôi (chung + sự kiện), nộp tiền, trạng thái | `Payment.Submit` | M6 |
 | `…/payments` | H-04 | Xác nhận thanh toán (hàng chờ, xem minh chứng, xác nhận/từ chối) | `Payment.Confirm` | M6 |
 | `…/ledger` | L-01 | Thu chi chung (lịch sử, lọc) | `Fund.View` | M7 |
-| `…/ledger/new` | L-02 | Ghi giao dịch (phạm vi bắt buộc, chứng từ > 500k) | `Ledger.Manage` | M7 |
+| `…/ledger/new` | L-02 | Ghi giao dịch **quỹ chung** (không chọn phạm vi): Thu = tạo khoản thu chung; Chi = khoản chi ≤ số dư, chứng từ > 500k (bản thiết kế: hộp thoại mở từ L-01) | `Ledger.Manage` | M7 |
 | `…/ledger/:entryId` | L-03 | Chi tiết giao dịch + chứng từ, bút toán đảo | `Fund.View` | M7 |
-| `…/events` | E-01 | Danh sách sự kiện | `Event.Participate` | M8 |
-| `…/events/new` | E-02 | Tạo sự kiện | `Event.Manage` | M8 |
-| `…/events/:eventId` | E-03 | Chi tiết sự kiện: tab Tổng quan · Người tham gia · Khoản thu · Thu chi | `Event.Participate` | M8 (+M6, M7) |
-| `…/events/:eventId/settlement` | E-04 | Quyết toán sự kiện | `Settlement.Execute` (xem: `Event.Participate`) | M9 |
+| `…/events` | E-01 | Danh sách sự kiện: Đang diễn ra / Đã quyết toán – hủy; học sinh trả lời tham gia ngay trên thẻ | `Event.Participate` | M8 |
+| `…/events/new` | E-02 | Tạo sự kiện (bản thiết kế: hộp thoại mở từ E-01) | `Event.Manage` | M8 |
+| `…/events/:eventId` | E-03 | Chi tiết sự kiện. Thủ quỹ: tiến trình Đang mở → Đã kết thúc → Đã quyết toán, KPI, tab Người tham gia (chỉ người `Accepted`, lọc Đã đóng / Chờ xác nhận / Chưa đóng) · Khoản thu sự kiện · Thu chi sự kiện (ghi chi ≤ số dư), nút Kết thúc / Hủy / Quyết toán. Học sinh: trả lời tham gia, khoản của mình, khoản chi công khai | `Event.Participate` | M8 (+M6, M7) |
+| `…/events/:eventId/settlement` | E-04 | Quyết toán sự kiện: đối chiếu, bảng chia tiền thừa theo tỷ lệ đã đóng, chọn hoàn trực tiếp / cộng số dư, đánh dấu "Đã hoàn" | `Settlement.Execute` (xem: `Event.Participate`) | M9 |
 | `…/balance` | B-01 | Số dư cá nhân, lịch sử biến động, nút "Rút tiền" (rút toàn bộ) | `Balance.ViewOwn` | M10 |
 | `…/withdrawals` | B-02 | Xử lý yêu cầu rút tiền | `Balance.Handle` | M10 |
 | `…/notifications` | N-01 | Thông báo | `Fund.View` | M11 |
@@ -50,6 +51,8 @@
 | Xác nhận thanh toán · Yêu cầu rút tiền · Báo cáo | | ✔ | ✔ |
 | Học sinh · Danh mục · Nhật ký hoạt động · Thông tin quỹ | | ✔ | ✔ |
 | Thủ quỹ | | | ✔ |
+
+Bản thiết kế nhóm menu thủ quỹ thành **Quỹ chung** (Tổng quan, Thu chi chung, Khoản thu chung, Sự kiện) · **Cá nhân** (Khoản cần đóng, Số dư cá nhân, Thông báo) · **Quản lý** (phần còn lại). Học sinh chỉ có hai nhóm đầu.
 
 ## 3. Quy tắc điều hướng
 

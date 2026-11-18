@@ -26,7 +26,7 @@ Quyền cấp tài khoản (không gắn quỹ): `Fund.Create` – chỉ tài kh
 | `Member.Manage` | Thêm học sinh bằng email, cấp mật khẩu tạm, sửa, ngừng | ✔ | ✔ | |
 | `Treasurer.Manage` | Phân quyền / thu hồi thủ quỹ | ✔ | | |
 | `Category.Manage` | Quản lý danh mục | ✔ | ✔ | |
-| `Event.Manage` | Tạo/sửa/hủy, chốt danh sách, kết thúc sự kiện | ✔ | ✔ | |
+| `Event.Manage` | Tạo/sửa/hủy, kết thúc sự kiện | ✔ | ✔ | |
 | `Event.Participate` | Xem sự kiện được mời, xác nhận tham gia | ✔ | ✔ | ✔ |
 | `Charge.Manage` | Tạo/đóng/hủy khoản thu (chung, sự kiện) | ✔ | ✔ | |
 | `Ledger.Manage` | Ghi thu/chi, bút toán đảo, đính chứng từ | ✔ | ✔ | |

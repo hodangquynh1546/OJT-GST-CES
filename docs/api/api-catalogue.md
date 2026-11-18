@@ -86,7 +86,7 @@
 | Method | Path | Permission | FR | Trạng thái |
 |---|---|---|---|---|
 | GET | `/{f}/ledger-entries?scope=&eventId=&type=&categoryId=&from=&to=` | `Fund.View` | FR-28 | ⬜ |
-| POST | `/{f}/ledger-entries` `{ scope, eventId?, type, categoryId, title, purpose, amount, transactionDate, note?, transferCode?, attachmentIds[] }` | `Ledger.Manage` | FR-26, FR-27, FR-16 | ⬜ |
+| POST | `/{f}/ledger-entries` `{ scope, eventId?, categoryId, title, purpose, amount, transactionDate, note?, attachmentIds[] }` – **chỉ ghi chi** (OQ-18): ghi thu = tạo khoản thu (`POST /{f}/charges`). 422 `ledger.exceeds_balance` khi chi vượt số dư phạm vi (BR-38). | `Ledger.Manage` | FR-26, FR-27, FR-16 | ⬜ |
 | GET | `/{f}/ledger-entries/{id}` | `Fund.View` | FR-27 | ⬜ |
 | POST | `/{f}/ledger-entries/{id}/reverse` `{ reason }` | `Ledger.Manage` | FR-29 | ⬜ |
 
@@ -98,15 +98,15 @@
 | POST | `/{f}/events` | `Event.Manage` | FR-30 | ⬜ |
 | GET | `/{f}/events/{eventId}` | `Event.Participate` | FR-34 | ⬜ |
 | PUT | `/{f}/events/{eventId}` | `Event.Manage` | FR-30 | ⬜ |
-| POST | `/{f}/events/{eventId}/cancel` · `/lock-list` · `/complete` | `Event.Manage` | FR-30, FR-32, FR-33 | ⬜ |
-| GET | `/{f}/events/{eventId}/participants` | `Event.Participate` (học sinh: danh sách tên + trả lời) | FR-34 | ⬜ |
+| POST | `/{f}/events/{eventId}/cancel` · `/complete` (kết thúc: loại người chưa đóng khoản nào, BR-19; bỏ `/lock-list`, OQ-18) | `Event.Manage` | FR-30, FR-33 | ⬜ |
+| GET | `/{f}/events/{eventId}/participants?paymentStatus=` | `Event.Participate` (thủ quỹ: chỉ người `Accepted` + đã đóng/phải đóng + tình trạng; học sinh: danh sách tên + trả lời) | FR-32, FR-34 | ⬜ |
 | PUT | `/{f}/events/{eventId}/me/response` `{ response }` | `Event.Participate` | FR-31 | ⬜ |
 
 ## M9 – Quyết toán
 
 | Method | Path | Permission | FR | Trạng thái |
 |---|---|---|---|---|
-| GET | `/{f}/events/{eventId}/settlement/preview?surplusMethod=&allocation=` | `Settlement.Execute` | FR-35, FR-36 | ⬜ |
+| GET | `/{f}/events/{eventId}/settlement/preview?surplusMethod=` (luôn chia theo tỷ lệ đã đóng, OQ-18) | `Settlement.Execute` | FR-35, FR-36 | ⬜ |
 | POST | `/{f}/events/{eventId}/settlement` | `Settlement.Execute` | FR-35–FR-39 | ⬜ |
 | GET | `/{f}/events/{eventId}/settlement` | `Event.Participate` | FR-50 | ⬜ |
 | POST | `/{f}/events/{eventId}/settlement/lines/{lineId}/refunded` | `Settlement.Execute` | FR-37 | ⬜ |

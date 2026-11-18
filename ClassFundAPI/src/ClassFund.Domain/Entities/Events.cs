@@ -16,7 +16,10 @@ public sealed class Event(Guid fundId, string name, string? description, DateOnl
 
     public EventStatus Status { get; set; } = EventStatus.Open;
 
-    /// <summary>Thời điểm thủ quỹ chốt danh sách tham gia thực tế.</summary>
+    /// <summary>
+    /// Không dùng nữa: OQ-18 bỏ bước chốt danh sách. Cột vẫn có trong schema đã áp lên Neon;
+    /// đổi thành CompletedAt hoặc xóa bằng migration của M8-T0 (cần duyệt trước khi tạo).
+    /// </summary>
     public DateTimeOffset? ListLockedAt { get; set; }
 
     public Guid CreatedByUserId { get; init; } = createdByUserId;
@@ -35,7 +38,10 @@ public sealed class EventParticipant(Guid eventId, Guid userId) : Entity
 
     public DateTimeOffset? RespondedAt { get; set; }
 
-    /// <summary>True nếu thuộc danh sách tham gia thực tế sau khi chốt (đã hoàn thành nghĩa vụ đóng tiền).</summary>
+    /// <summary>
+    /// True nếu còn tham gia sau khi sự kiện kết thúc: người Accepted đã đóng ít nhất một khoản
+    /// hoặc có thanh toán đang chờ (BR-19). Người chưa đóng khoản nào bị loại, ghi ExclusionReason.
+    /// </summary>
     public bool IsFinal { get; set; }
 
     public string? ExclusionReason { get; set; }

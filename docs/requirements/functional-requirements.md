@@ -10,9 +10,9 @@ Hệ thống quản lý quỹ lớp với **hai phạm vi tài chính độc l�
 | Phạm vi | Mô tả | Quyết toán |
 |---|---|---|
 | **Quỹ chung** | Thu chi phục vụ hoạt động chung của cả lớp, không gắn sự kiện | Không quyết toán theo từng hoạt động; tổng kết cuối năm |
-| **Quỹ sự kiện** | Thu chi riêng của từng sự kiện | Quyết toán riêng khi sự kiện kết thúc (thừa → hoàn/cộng số dư; thiếu → thu bổ sung) |
+| **Quỹ sự kiện** | Thu chi riêng của từng sự kiện | Quyết toán riêng khi sự kiện kết thúc: chia lại tiền thừa (hoàn trực tiếp / cộng số dư) theo tỷ lệ số tiền mỗi người đã đóng |
 
-Không tự động gộp giao dịch sự kiện vào quỹ chung, không lấy quỹ chung bù sự kiện, không chuyển tiền thừa sự kiện vào quỹ chung.
+Không tự động gộp giao dịch sự kiện vào quỹ chung, không lấy quỹ chung bù sự kiện, không chuyển tiền thừa sự kiện vào quỹ chung. Ở mọi phạm vi, **tổng chi không bao giờ vượt tổng thu** (OQ-18) nên không có trường hợp quyết toán thiếu.
 
 Người dùng: **Thủ quỹ chính** (Owner – người tạo quỹ), **Thủ quỹ** (được phân quyền), **Học sinh**. Thủ quỹ đồng thời có thể tham gia như học sinh.
 
@@ -77,8 +77,8 @@ Người dùng: **Thủ quỹ chính** (Owner – người tạo quỹ), **Thủ
 
 | Mã | Yêu cầu | Nguồn |
 |---|---|---|
-| FR-26 | Thủ quỹ ghi khoản thu / chi với phạm vi bắt buộc: quỹ chung **hoặc** một sự kiện (không bao giờ cả hai). | 6.3 |
-| FR-27 | Mỗi giao dịch có: tên, mục đích, danh mục, số tiền, ngày giao dịch, người thực hiện, chứng từ & ghi chú (nếu có). | 6.3 |
+| FR-26 | Thủ quỹ ghi thu / chi với phạm vi bắt buộc: quỹ chung **hoặc** một sự kiện (không bao giờ cả hai). Form **thu** và **chi** khác nhau: ghi **thu** = tạo khoản thu (như FR-18 / FR-19: tên, mục đích, số tiền mỗi người, hạn đóng), tiền vào sổ khi từng thanh toán được xác nhận; ghi **chi** = khoản chi theo FR-27. Tổng chi của phạm vi không được vượt tổng thu (số dư hiện có), OQ-18. Màn "Thu chi chung → Ghi giao dịch" chỉ ghi cho **quỹ chung** (không có lựa chọn phạm vi); thu chi của sự kiện ghi trong trang chi tiết sự kiện. | 6.3, OQ-18 |
+| FR-27 | Mỗi khoản chi có: tên, mục đích, danh mục, số tiền, ngày giao dịch, người thực hiện, chứng từ & ghi chú (nếu có). | 6.3 |
 | FR-28 | Xem lịch sử giao dịch theo phạm vi, lọc theo thời gian / danh mục / loại. | 2.1, 9.2 |
 | FR-29 | Sổ thu chi chỉ ghi thêm; sửa sai bằng bút toán đảo có lý do (không sửa/xóa dòng cũ). | 8 |
 
@@ -88,18 +88,18 @@ Người dùng: **Thủ quỹ chính** (Owner – người tạo quỹ), **Thủ
 |---|---|---|
 | FR-30 | Thủ quỹ tạo, sửa, hủy sự kiện; mọi thành viên đang hoạt động được mời. | 3 |
 | FR-31 | Học sinh (và thủ quỹ) xác nhận tham gia / không tham gia; thủ quỹ tự xác nhận không cần thủ quỹ khác. | 3.1 |
-| FR-32 | Thủ quỹ chốt danh sách tham gia thực tế khi hết hạn: người chưa hoàn thành nghĩa vụ đóng tiền bị loại; thanh toán tự ghi nhận của thủ quỹ cũng được tính nhưng lưu lịch sử riêng. | 3.4 |
-| FR-33 | Thủ quỹ kết thúc sự kiện. | 3 |
-| FR-34 | Theo dõi tổng thu, tổng chi, thừa/thiếu, người tham gia và tình hình đóng tiền của từng sự kiện. | 2.2 |
+| FR-32 | Danh sách người tham gia chỉ gồm người **đã xác nhận tham gia**, với tình trạng đóng tiền: Đã đóng / Chờ xác nhận / Chưa đóng. Thanh toán tự ghi nhận của thủ quỹ được tính nhưng lưu lịch sử riêng. | 3.4, OQ-18 |
+| FR-33 | Thủ quỹ **kết thúc** sự kiện đang mở (không có bước chốt danh sách riêng): người chưa đóng khoản nào bị loại; người chưa đóng đủ nhận thông báo nhắc và vẫn được đóng phần còn lại; từ đó sự kiện không tạo khoản thu và không ghi chi mới. | 3, OQ-18 |
+| FR-34 | Theo dõi tổng thu, tổng chi, tiền thừa, người tham gia và tình hình đóng tiền của từng sự kiện. | 2.2 |
 
 ### 2.9. Quyết toán sự kiện (M9)
 
 | Mã | Yêu cầu | Nguồn |
 |---|---|---|
-| FR-35 | Quyết toán sự kiện đã kết thúc: tổng hợp số người thực tế, tổng thu, tổng chi, thừa/thiếu. | 4 |
-| FR-36 | Thừa: chọn hoàn tiền trực tiếp **hoặc** cộng vào số dư cá nhân; chọn cách chia đều / theo tỷ lệ đóng góp; chỉ người tham gia thực tế được chia. | 4.1 |
+| FR-35 | Quyết toán sự kiện đã kết thúc: tổng hợp số người tham gia, tổng thu, tổng chi, tiền thừa (luôn ≥ 0 vì chi ≤ thu). | 4, OQ-18 |
+| FR-36 | Tiền thừa: chọn hoàn tiền trực tiếp **hoặc** cộng vào số dư cá nhân; luôn chia **theo tỷ lệ số tiền mỗi người tham gia đã đóng** (không có lựa chọn chia đều). | 4.1, OQ-18 |
 | FR-37 | Hoàn trực tiếp: thủ quỹ ghi nhận giao dịch hoàn cho từng người. | 4.1 |
-| FR-38 | Thiếu: tạo khoản thu bổ sung cho người tham gia thực tế, xử lý theo quy trình thanh toán thường. | 4.2 |
+| FR-38 | ~~Thiếu: tạo khoản thu bổ sung~~ – **bỏ** (OQ-18): chi không vượt thu nên không phát sinh thiếu. Cần thêm tiền thì tạo khoản thu khi sự kiện còn mở. | 4.2, OQ-18 |
 | FR-39 | Hoàn tất quyết toán → sự kiện chuyển "Đã quyết toán", không nhận thu/chi mới. | 4.3 |
 
 ### 2.10. Số dư cá nhân (M10)
@@ -114,7 +114,7 @@ Người dùng: **Thủ quỹ chính** (Owner – người tạo quỹ), **Thủ
 
 | Mã | Yêu cầu | Nguồn |
 |---|---|---|
-| FR-43 | Thông báo nội bộ: sự kiện mới; khoản thu chung; khoản thu sự kiện (**chỉ người tham gia**); khoản thu sắp đến hạn; khoản thu bổ sung; kết quả quyết toán; tiền cộng vào số dư; yêu cầu rút tiền được xử lý; thanh toán được xác nhận / bị từ chối. | 7 |
+| FR-43 | Thông báo nội bộ: sự kiện mới; khoản thu chung; khoản thu sự kiện (**chỉ người tham gia**); khoản thu sắp đến hạn; bị loại / nhắc đóng phần còn lại khi sự kiện kết thúc; kết quả quyết toán; tiền cộng vào số dư; yêu cầu rút tiền được xử lý; thanh toán được xác nhận / bị từ chối. | 7 |
 | FR-44 | Mỗi thông báo ghi rõ phạm vi Quỹ chung / Sự kiện; xem danh sách, đánh dấu đã đọc, đếm chưa đọc. | 7 |
 
 ### 2.12. Audit log (M12)
@@ -131,7 +131,7 @@ Người dùng: **Thủ quỹ chính** (Owner – người tạo quỹ), **Thủ
 |---|---|---|
 | FR-48 | Tổng quan quỹ chung: tổng thu, tổng chi, số dư, tổng học sinh, khoản thu chưa hoàn thành, khoản chi đã phát sinh – **không** gồm số liệu sự kiện. | 9.1 |
 | FR-49 | Báo cáo thu chi chung: theo danh mục, lọc thời gian, theo dõi số dư, lịch sử. | 9.2 |
-| FR-50 | Tổng quan sự kiện: số đăng ký, số thực tế, tổng cần thu, đã thu, chưa thu, tổng chi, thừa/thiếu, đã hoàn, đã cộng số dư, trạng thái quyết toán. | 9.3 |
+| FR-50 | Tổng quan sự kiện: số tham gia, số còn lại sau kết thúc, tổng cần thu, đã thu, chưa thu, tổng chi, tiền thừa, đã hoàn, đã cộng số dư, trạng thái quyết toán. | 9.3 |
 | FR-51 | Báo cáo học sinh (thủ quỹ): danh sách, đã đóng quỹ chung, khoản chung chưa đóng, lịch sử đóng sự kiện, số dư, lịch sử hoàn tiền, lịch sử dùng số dư. Học sinh chỉ xem của mình. | 9.4 |
 | FR-52 | Báo cáo tổng kết cuối năm quỹ chung: tổng thu/chi năm, số dư cuối năm, khoản chưa hoàn thành, lịch sử giao dịch năm. | 9.5 |
 
@@ -139,7 +139,7 @@ Người dùng: **Thủ quỹ chính** (Owner – người tạo quỹ), **Thủ
 
 | Mã | Yêu cầu | Nguồn |
 |---|---|---|
-| FR-53 | Quyết toán quỹ chung cuối năm **một lần duy nhất**, cách làm như quyết toán sự kiện nhưng chia cho **cả lớp** (mọi thành viên đang hoạt động): thừa → hoàn trực tiếp hoặc cộng số dư cá nhân (chia đều / theo tỷ lệ đóng góp quỹ chung); thiếu → khoản thu bổ sung chung. | 9.5, OQ-13 |
+| FR-53 | Quyết toán quỹ chung cuối năm **một lần duy nhất**, cách làm như quyết toán sự kiện nhưng chia cho **cả lớp** (mọi thành viên đang hoạt động): thừa → hoàn trực tiếp hoặc cộng số dư cá nhân, chia theo tỷ lệ số tiền mỗi người đã đóng vào quỹ chung (đề xuất OQ-19, chờ duyệt; trước đây: chọn chia đều / tỷ lệ, thiếu → khoản thu bổ sung chung). | 9.5, OQ-13, OQ-19 |
 | FR-54 | Chỉ quyết toán cuối năm khi mọi sự kiện đã quyết toán hoặc hủy. Xong thì quỹ chuyển "Đã tổng kết" (chỉ xem): không nhận khoản thu, giao dịch, sự kiện mới; vẫn rút được số dư cá nhân. | OQ-13 |
 
 ## 3. Yêu cầu phi chức năng

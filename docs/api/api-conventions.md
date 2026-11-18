@@ -6,7 +6,7 @@
 - Tài nguyên theo quỹ: `/api/v1/funds/{fundId}/...` (`ApiRoutes.Fund`). `fundId` chỉ **chọn quỹ**; quyền do backend suy ra từ `FundMember`.
 - Tài nguyên theo người dùng hiện tại: `/me/...` dưới quỹ (ví dụ `/funds/{fundId}/me/assignments`), không truyền userId.
 - Danh từ số nhiều, kebab-case: `/charges`, `/ledger-entries`, `/withdrawal-requests`.
-- Hành động chuyển trạng thái: `POST /{id}/<động-từ>` (`/confirm`, `/reject`, `/lock-list`, `/complete`).
+- Hành động chuyển trạng thái: `POST /{id}/<động-từ>` (`/confirm`, `/reject`, `/complete`).
 - Phạm vi tài chính truyền bằng query/body `scope=General|Event` + `eventId` khi `Event`; hoặc route con `/events/{eventId}/...`.
 
 ## 2. Định dạng

@@ -39,18 +39,19 @@ Nhánh `feature/rebuild-foundation`: xây lại từ đầu theo bản yêu cầ
 | 2026-11-17 | OQ-16: lưu file thực tế trên Neon Object Storage (hóa đơn, bill, ảnh đại diện, tài liệu) | `IEvidenceStorage` → `IFileStorage` + `StorageKeys` + `StorageOptions`; `FileRule` giới hạn theo loại; `AttachmentKind` thêm Avatar/Document; `Attachment.FundId` nullable; `User.AvatarAttachmentId`; task M5-T0 |
 | 2026-11-17 | OQ-17: thêm package `AWSSDK.S3` (ngoài training-doc) để gọi Neon Object Storage | Cài trong M5-T0, chỉ ở `ClassFund.Infrastructure` |
 | 2026-11-17 | M0-03 xong: áp `InitialSchema` + chạy `--seed` trên Neon; adapter Neon Object Storage chưa ghi nhận thử trên bucket thật | Bảng module, mục 3 |
+| 2026-11-18 | Duyệt thiết kế UI (canvas "ClassFund UI Design") → OQ-18: bỏ chốt danh sách, kết thúc loại người chưa đóng khoản nào, chi ≤ thu, quyết toán chỉ chia tiền thừa theo tỷ lệ đã đóng, form thu ≠ form chi, Ghi giao dịch ở Thu chi chung chỉ cho quỹ chung. OQ-19 chờ duyệt. | FR-26/27/32–38/43/50/53, BR-16…23/38/39; Domain: bỏ `EventStatus.ListLocked`, `ChargeKind.Supplementary`, `SettlementOutcome.Deficit`; `NotificationType` 5 → `EventParticipantExcluded`, thêm `EventUnpaidReminder`; `AcceptsNewMoney` → `AcceptsNewChargesAndExpenses` + `AcceptsPayments`; thêm `SpendingRule` (BR-38); FE `labels.ts`. Cột `Event.ListLockedAt`, `Settlement.SupplementaryChargeId` giữ lại, chờ migration (M8-T0) |
 
 ## 2. Foundation đã có
 
 ### Backend (`ClassFundAPI/`)
 
 - Solution 4 project + 2 test project, `Directory.Build.props` (net10.0, Nullable, TreatWarningsAsErrors).
-- Domain: 18 entity (`Entities/`), enum (`Enums/Enums.cs`), `Permissions` + `RolePermissions`, rule dùng chung (`Rules/Rules.cs`: `MoneyRule`, `EvidenceRule`, `FileRule`, `WithdrawalRule`, `YearEndRule`, `EventStatusRules`, `PaymentConfirmationPolicy`, `PasswordPolicy`, `EmailAddress`, `VietnamTime`, `DefaultCategories`), `BusinessRuleException`.
+- Domain: 18 entity (`Entities/`), enum (`Enums/Enums.cs`), `Permissions` + `RolePermissions`, rule dùng chung (`Rules/Rules.cs`: `MoneyRule`, `EvidenceRule`, `FileRule`, `WithdrawalRule`, `YearEndRule`, `EventStatusRules`, `SpendingRule`, `PaymentConfirmationPolicy`, `PasswordPolicy`, `EmailAddress`, `VietnamTime`, `DefaultCategories`), `BusinessRuleException`.
 - Application/Common: `IAppDb`, exception chuẩn, `PagedResult`, `AuditTrail` + `AuditEntry`, `Notifier`, `IFileStorage` + `StorageKeys`, `AccessService`, `ICurrentUser`, `IPasswordHasher`, `ISessionStore`, `Credentials`.
 - Infrastructure: `AppDbContext` + cấu hình đủ 18 bảng (index, unique, CHECK, xmin), migration `InitialSchema` (+ trigger append-only), `AppDb`, `AspNetPasswordHasher` (PBKDF2 + pepper), `IdentityStore`, `NeonObjectStorage` (`AWSSDK.S3`) + `LocalFileStorage` + `StorageOptions`, `DatabaseSeeder`, `AppDbContextFactory` (migrator).
 - Api: pipeline, cookie session, antiforgery, `RequirePermission`, filter mật khẩu tạm / validation / antiforgery, ProblemDetails, rate limit, Swagger, health, `--seed`.
 - `database/neon-roles.sql`, `.env.example`.
-- Test: 72 unit (kiến trúc, rule, permission, file storage, Neon adapter, AccessService, Audit, Notifier) – **xanh**; 2 integration pipeline – **xanh**; 9 integration `InitialSchemaTests` (migration, trigger, CHECK, unique, xmin) – **xanh** (cần Docker Desktop đang chạy).
+- Test: 83 unit (kiến trúc, rule, permission, file storage, Neon adapter, AccessService, Audit, Notifier) – **xanh** (2026-11-18); 2 integration pipeline – **xanh**; 9 integration `InitialSchemaTests` (migration, trigger, CHECK, unique, xmin) – **xanh** (cần Docker Desktop đang chạy).
 
 ### Frontend (`ClassFundUI/`)
 
@@ -61,7 +62,7 @@ Nhánh `feature/rebuild-foundation`: xây lại từ đầu theo bản yêu cầ
 
 ### Chưa có (cố ý)
 
-- Migration chưa áp lên Neon (M0-03). Không controller / service nghiệp vụ nào. Màn hình thật.
+- Không controller / service nghiệp vụ nào. Màn hình thật (đã có bản thiết kế UI, xem `ui-design/design-system.md` mục 6).
 
 ## 3. Người chạy migration trên Neon
 
@@ -74,6 +75,7 @@ Nhánh `feature/rebuild-foundation`: xây lại từ đầu theo bản yêu cầ
 | Mã | Mô tả | Module |
 |---|---|---|
 | TD-01 | Dọn file chưa gắn owner > 24h (đã đưa vào M5-T1) | M5 |
+| TD-03 | Migration dọn cột không dùng sau OQ-18: `Event.ListLockedAt` (xóa hoặc đổi thành `CompletedAt`), `Settlement.SupplementaryChargeId` – cần nhóm duyệt rồi mới tạo; người áp lên Neon ghi ở mục 3 | M8-T0 |
 | TD-02 | Tiến trình `ClassFund.Api.exe` cũ trên máy dev giữ khóa thư mục khi xóa code cũ – tắt trước khi build | – |
 
 ## 5. Sự cố

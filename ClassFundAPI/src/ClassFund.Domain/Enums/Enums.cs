@@ -11,12 +11,13 @@ public enum MemberStatus { Active = 1, Removed = 2 }
 
 public enum FundStatus { Active = 1, Archived = 2 }
 
-/// <summary>Open → ListLocked (chốt danh sách) → Completed (kết thúc) → Settled (đã quyết toán); Cancelled từ Open.</summary>
-public enum EventStatus { Open = 1, ListLocked = 2, Completed = 3, Settled = 4, Cancelled = 5 }
+/// <summary>Open → Completed (kết thúc) → Settled (đã quyết toán); Cancelled từ Open. Không có bước chốt danh sách (OQ-18).</summary>
+public enum EventStatus { Open = 1, Completed = 3, Settled = 4, Cancelled = 5 }
 
 public enum ParticipationResponse { Pending = 1, Accepted = 2, Declined = 3 }
 
-public enum ChargeKind { Regular = 1, Supplementary = 2 }
+/// <summary>Chi không vượt thu (BR-38) nên không còn khoản thu bổ sung khi quyết toán (OQ-18).</summary>
+public enum ChargeKind { Regular = 1 }
 
 public enum ChargeStatus { Open = 1, Closed = 2, Cancelled = 3 }
 
@@ -38,7 +39,8 @@ public enum AllocationRule { Equal = 1, Proportional = 2 }
 
 public enum SurplusMethod { DirectRefund = 1, PersonalBalance = 2 }
 
-public enum SettlementOutcome { Balanced = 1, Surplus = 2, Deficit = 3 }
+/// <summary>Tổng chi luôn ≤ tổng thu (BR-38) nên quyết toán chỉ có vừa đủ hoặc thừa.</summary>
+public enum SettlementOutcome { Balanced = 1, Surplus = 2 }
 
 public enum SettlementLineStatus { PendingRefund = 1, Refunded = 2, CreditedToBalance = 3 }
 
@@ -55,10 +57,15 @@ public enum NotificationType
     GeneralChargeCreated = 2,
     EventChargeCreated = 3,
     ChargeDueSoon = 4,
-    SupplementaryChargeCreated = 5,
+
+    /// <summary>Bị loại khỏi sự kiện khi kết thúc vì chưa đóng khoản nào (BR-19).</summary>
+    EventParticipantExcluded = 5,
     SettlementResult = 6,
     BalanceCredited = 7,
     WithdrawalProcessed = 8,
     PaymentConfirmed = 9,
     PaymentRejected = 10,
+
+    /// <summary>Sự kiện đã kết thúc, nhắc người chưa đóng đủ nộp phần còn lại (BR-19).</summary>
+    EventUnpaidReminder = 11,
 }

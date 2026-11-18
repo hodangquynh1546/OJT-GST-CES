@@ -65,9 +65,9 @@ erDiagram
 
 | Bảng | Cột chính | Ràng buộc / index |
 |---|---|---|
-| `Event` | FundId, Name, Description, EventDate, Status, ListLockedAt, CreatedByUserId, CreatedAt | `IX_Event_Fund_Status` |
-| `EventParticipant` | EventId, UserId, Response (`Pending`/`Accepted`/`Declined`), RespondedAt, IsFinal, ExclusionReason | `UX_EventParticipant_Event_User` |
-| `Charge` | FundId, **EventId?**, Title, Purpose, AmountPerPerson, DueDate, Kind (`Regular`/`Supplementary`), Status (`Open`/`Closed`/`Cancelled`), CreatedByUserId, CreatedAt | CHECK AmountPerPerson > 0; `IX_Charge_Fund_Event_Status` |
+| `Event` | FundId, Name, Description, EventDate, Status (`Open`/`Completed`/`Settled`/`Cancelled` – OQ-18), ListLockedAt *(không dùng, chờ migration M8-T0)*, CreatedByUserId, CreatedAt | `IX_Event_Fund_Status` |
+| `EventParticipant` | EventId, UserId, Response (`Pending`/`Accepted`/`Declined`), RespondedAt, IsFinal (còn tham gia sau khi kết thúc, BR-19), ExclusionReason | `UX_EventParticipant_Event_User` |
+| `Charge` | FundId, **EventId?**, Title, Purpose, AmountPerPerson, DueDate, Kind (`Regular` – đã bỏ `Supplementary`, OQ-18), Status (`Open`/`Closed`/`Cancelled`), CreatedByUserId, CreatedAt | CHECK AmountPerPerson > 0; `IX_Charge_Fund_Event_Status` |
 | `ChargeAssignment` | ChargeId, UserId, AmountDue, Status (`Unpaid`/`AwaitingConfirmation`/`Paid`/`Excluded`/`Cancelled`) | `UX_ChargeAssignment_Charge_User`; CHECK AmountDue ≥ 0 |
 | `Payment` | AssignmentId, PayerUserId, Amount, Method (`Cash`/`BankTransfer`/`PersonalBalance`), TransferCode, Status (`Submitted`/`Confirmed`/`Rejected`), SubmittedAt, ConfirmedByUserId, ConfirmedAt, ConfirmationMode (`Verified`/`SelfDeclared`), RejectionReason | `UX_Payment_OneActivePerAssignment` (unique partial: Status <> 'Rejected'); CHECK Amount > 0 |
 
@@ -84,7 +84,7 @@ Bút toán đảo: dòng mới cùng phạm vi, Type ngược lại, `ReversesEn
 
 | Bảng | Cột chính | Ràng buộc / index |
 |---|---|---|
-| `Settlement` | FundId, **EventId?** (null = quyết toán cuối năm quỹ chung), ParticipantCount, TotalCollected, TotalSpent, Outcome, SurplusMethod?, AllocationRule?, SupplementaryChargeId?, SettledByUserId, SettledAt | `UX_Settlement_EventId` (partial, EventId NOT NULL); `UX_Settlement_OneYearEndPerFund` (partial, EventId NULL) – mỗi phạm vi quyết toán đúng một lần |
+| `Settlement` | FundId, **EventId?** (null = quyết toán cuối năm quỹ chung), ParticipantCount, TotalCollected, TotalSpent, Outcome (`Balanced`/`Surplus`), SurplusMethod?, AllocationRule? (sự kiện luôn `Proportional`), SupplementaryChargeId? *(không dùng, chờ migration M8-T0)*, SettledByUserId, SettledAt | `UX_Settlement_EventId` (partial, EventId NOT NULL); `UX_Settlement_OneYearEndPerFund` (partial, EventId NULL) – mỗi phạm vi quyết toán đúng một lần |
 | `SettlementLine` | SettlementId, UserId, Contributed, RefundAmount, Status (`PendingRefund`/`Refunded`/`CreditedToBalance`), ConfirmedByUserId, ConfirmedAt | `UX_SettlementLine_Settlement_User`; CHECK RefundAmount ≥ 0 |
 | `PersonalBalance` | FundId, UserId, Balance, `xmin` | `UX_PersonalBalance_Fund_User`; CHECK Balance ≥ 0 |
 | `BalanceTransaction` | FundId, UserId, Type (`SettlementCredit`/`ChargePayment`/`Withdrawal`/`Adjustment`), Amount (có dấu), BalanceAfter, ReferenceId, CreatedByUserId, CreatedAt | CHECK BalanceAfter ≥ 0. **Append-only** |
