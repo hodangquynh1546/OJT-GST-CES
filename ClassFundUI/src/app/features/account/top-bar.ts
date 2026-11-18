@@ -2,18 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input } from '@an
 import { Router, RouterLink } from '@angular/router';
 
 import { AuthService } from '../../core/auth/auth.service';
-
-/** Chữ cái đầu của hai từ cuối (tên Việt: "Nguyễn Minh Anh" → "MA"). */
-export function initialsOf(fullName: string | null | undefined): string {
-  return (fullName ?? '')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(-2)
-    .map((word) => word.charAt(0))
-    .join('')
-    .toUpperCase();
-}
+import { initialsOf } from '../../shared/utils/initials';
 
 /**
  * Thanh trên của các màn ngoài khung menu quỹ (canvas "ClassFund UI Design"): F-01 Quỹ của tôi, F-02 Tạo quỹ,

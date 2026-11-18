@@ -27,8 +27,36 @@ const ids = (permissions: Permission[]) =>
   buildNavItems({ fundId: 'f1', role: null, permissions }).map((item) => item.id);
 
 describe('buildNavItems', () => {
-  it('outside a fund shows only the fund list', () => {
-    expect(buildNavItems({ fundId: null, role: null, permissions: [] }).map((i) => i.id)).toEqual(['funds']);
+  it('outside a fund shows no menu items (switching funds is the fund card, not a menu item)', () => {
+    expect(buildNavItems({ fundId: null, role: null, permissions: [] })).toEqual([]);
+  });
+
+  it('groups items as Quỹ chung · Cá nhân · Quản lý, students have no management group', () => {
+    const groupsOf = (permissions: Permission[]) => [
+      ...new Set(buildNavItems({ fundId: 'f1', role: null, permissions }).map((item) => item.group)),
+    ];
+    expect(groupsOf(STUDENT)).toEqual(['Quỹ chung', 'Cá nhân']);
+    expect(groupsOf(TREASURER)).toEqual(['Quỹ chung', 'Cá nhân', 'Quản lý']);
+  });
+
+  it('uses the labels of the design canvas', () => {
+    const labels = buildNavItems({ fundId: 'f1', role: null, permissions: TREASURER }).map((item) => item.label);
+    expect(labels).toEqual([
+      'Tổng quan',
+      'Thu chi chung',
+      'Khoản thu chung',
+      'Sự kiện',
+      'Khoản cần đóng',
+      'Số dư cá nhân',
+      'Thông báo',
+      'Xác nhận thanh toán',
+      'Yêu cầu rút tiền',
+      'Báo cáo',
+      'Học sinh',
+      'Danh mục',
+      'Nhật ký hoạt động',
+      'Thông tin quỹ',
+    ]);
   });
 
   it('student sees general fund, events and personal items but no management', () => {
