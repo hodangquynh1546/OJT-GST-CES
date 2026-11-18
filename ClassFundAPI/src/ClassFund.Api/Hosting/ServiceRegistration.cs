@@ -155,6 +155,14 @@ public static class ServiceRegistration
             StatusCodes.Status429TooManyRequests,
             RateLimitPolicies.RejectedCode,
             "Bạn đã thử quá nhiều lần. Vui lòng chờ 1 phút rồi thử lại."));
+        options.AddPolicy(RateLimitPolicies.MembersBulk, httpContext => RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.User.FindFirst(SessionClaims.UserId)?.Value ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = RateLimitPolicies.MembersBulkPermitLimit,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+            }));
         options.AddPolicy(RateLimitPolicies.Auth, httpContext => RateLimitPartition.GetFixedWindowLimiter(
             httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             _ => new FixedWindowRateLimiterOptions

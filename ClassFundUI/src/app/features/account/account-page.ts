@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
 import { ButtonComponent } from '@progress/kendo-angular-buttons';
 
 import { AuthService } from '../../core/auth/auth.service';
@@ -15,6 +14,7 @@ import {
   passwordsMatchValidator,
 } from '../auth/auth-validators';
 import { PasswordRules } from '../auth/password-rules';
+import { TopBar, initialsOf } from './top-bar';
 
 /**
  * A-04 Tài khoản của tôi (FR-04): thông tin cá nhân dùng chung cho mọi quỹ + đổi mật khẩu.
@@ -22,24 +22,10 @@ import { PasswordRules } from '../auth/password-rules';
  */
 @Component({
   selector: 'app-account-page',
-  imports: [ReactiveFormsModule, RouterLink, ButtonComponent, AuthField, PasswordRules],
+  imports: [ReactiveFormsModule, ButtonComponent, AuthField, PasswordRules, TopBar],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <header class="bar">
-      <a class="brand" [routerLink]="homeUrl()">
-        <span class="logo" aria-hidden="true">
-          <svg width="16" height="16" viewBox="0 0 24 24">
-            <path d="M4 7h16v12H4zM4 7l2-3h12l2 3M9 12h6" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </span>
-        <b>ClassFund</b>
-      </a>
-      <nav class="bar-actions" aria-label="Tài khoản">
-        <a routerLink="/funds" class="cf-link-button">Quỹ của tôi</a>
-        <button type="button" kendoButton fillMode="outline" (click)="logout()">Đăng xuất</button>
-      </nav>
-    </header>
+    <app-top-bar variant="account" />
 
     <main class="page">
       <h1>Tài khoản của tôi</h1>
@@ -135,37 +121,6 @@ import { PasswordRules } from '../auth/password-rules';
       --kendo-color-primary-emphasis: var(--cf-ink);
       --kendo-border-radius-md: var(--cf-radius-lg);
     }
-    .bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      box-sizing: border-box;
-      height: var(--cf-header-height);
-      padding: 0 24px;
-      border-bottom: 1px solid var(--cf-border);
-      background: var(--cf-surface);
-    }
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      color: var(--cf-text);
-      text-decoration: none;
-    }
-    .logo {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 28px;
-      height: 28px;
-      border-radius: 8px;
-      background: var(--cf-ink);
-      color: var(--cf-surface);
-    }
-    .bar-actions {
-      display: flex;
-      gap: 8px;
-    }
     .page {
       box-sizing: border-box;
       width: 100%;
@@ -233,21 +188,11 @@ import { PasswordRules } from '../auth/password-rules';
 })
 export class AccountPage {
   private readonly auth = inject(AuthService);
-  private readonly router = inject(Router);
   private readonly notifications = inject(AppNotifications);
   private readonly fb = inject(NonNullableFormBuilder);
 
   protected readonly nameMaxLength = FULL_NAME_MAX_LENGTH;
-  protected readonly homeUrl = computed(() => this.auth.homeUrl());
-  /** Chữ cái đầu của hai từ cuối (tên Việt: "Nguyễn Minh Anh" → "MA"). */
-  protected readonly initials = computed(() => {
-    const words = (this.auth.user()?.fullName ?? '').trim().split(/\s+/).filter(Boolean);
-    return words
-      .slice(-2)
-      .map((word) => word.charAt(0))
-      .join('')
-      .toUpperCase();
-  });
+  protected readonly initials = computed(() => initialsOf(this.auth.user()?.fullName));
 
   protected readonly profileForm = this.fb.group({
     fullName: ['', [Validators.required, Validators.maxLength(FULL_NAME_MAX_LENGTH), (c: { value: string }) => (c.value.trim() ? null : { required: true })]],
@@ -318,10 +263,5 @@ export class AccountPage {
     } finally {
       this.savingPassword.set(false);
     }
-  }
-
-  protected async logout(): Promise<void> {
-    await this.auth.logout();
-    await this.router.navigateByUrl('/login');
   }
 }

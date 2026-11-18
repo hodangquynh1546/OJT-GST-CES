@@ -58,6 +58,7 @@ Quyền phụ thuộc **dữ liệu** (không thể diễn đạt bằng permiss
 | AZ-04 | Xác nhận thanh toán: người xác nhận == người nộp ⇒ `SelfDeclared` (chỉ khi có `Payment.Confirm`); khác ⇒ `Verified`. Dùng `PaymentConfirmationPolicy`. | M6 |
 | AZ-05 | Học sinh không xem minh chứng thanh toán của học sinh khác (FR-17). | M5 |
 | AZ-06 | Học sinh chỉ thấy sự kiện mình được mời và khoản thu sự kiện mình tham gia. | M6, M8 |
+| AZ-07 | Chỉ sửa họ tên / cấp lại mật khẩu tạm cho tài khoản **do thủ quỹ cấp (`Provisioned`) và không còn là thành viên hoạt động của quỹ nào khác**; tài khoản tự đăng ký hoặc đang ở quỹ khác thì từ chối 422 `member.account_not_managed` (họ tự đổi ở trang Tài khoản). Ngăn thủ quỹ một quỹ chiếm tài khoản của người ở quỹ khác. Không tự thao tác trên chính mình: 422 `member.cannot_act_on_self`. *(đề xuất của M3, chờ nhóm xác nhận)* | M3 |
 
 ## 4. Phía frontend
 

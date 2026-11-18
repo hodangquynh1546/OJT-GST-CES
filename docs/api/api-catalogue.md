@@ -45,12 +45,13 @@ Mã lỗi M1: `auth.invalid_credentials` (401, dùng chung cho email lạ và m�
 
 | Method | Path | Permission | FR | Trạng thái |
 |---|---|---|---|---|
-| GET | `/{f}/members?search=&role=&status=` | `Member.Manage` | FR-11 | ⬜ |
-| POST | `/{f}/members` `{ email, fullName }` → `{ member, temporaryPassword? }` | `Member.Manage` | FR-09 | ⬜ |
-| POST | `/{f}/members/bulk` `{ emails[≤50] }` → `{ results[{ email, outcome (created/existing_added/reactivated/already_exists/invalid), member?, temporaryPassword? }] }` (mỗi email độc lập; mật khẩu tạm trả một lần) | `Member.Manage` | FR-09, OQ-20 | ⬜ |
-| PUT | `/{f}/members/{memberId}` | `Member.Manage` | FR-11 | ⬜ |
-| POST | `/{f}/members/{memberId}/reset-password` → `{ temporaryPassword }` | `Member.Manage` | FR-10 | ⬜ |
-| POST | `/{f}/members/{memberId}/remove` | `Member.Manage` | FR-11 | ⬜ |
+| GET | `/{f}/members?search=&role=&status=&page=&pageSize=` → `PagedResult<{ id, userId, fullName, email, role, status, mustChangePassword, joinedAt, removedAt, canManageAccount }>` (mặc định `status=Active`; thứ tự Owner → Treasurer → học sinh theo tên) | `Member.Manage` | FR-11 | ✅ |
+| POST | `/{f}/members` `{ email, fullName }` → 201 `{ email, outcome, member, temporaryPassword?, message? }` (đã là thành viên → 409 `member.already_exists`; quỹ Archived → 422 `fund.archived`) | `Member.Manage` | FR-09 | ✅ |
+| POST | `/{f}/members/bulk` `{ emails[≤50] }` → `{ results[{ email, outcome (`Created`/`ExistingAdded`/`Reactivated`/`AlreadyExists`/`Invalid`), member?, temporaryPassword?, message? }] }` (mỗi email độc lập; mật khẩu tạm trả một lần; tên tạm của tài khoản mới = phần trước `@`; rate limit 10 lần/phút/người dùng → 429) | `Member.Manage` | FR-09, OQ-20 | ✅ |
+| PUT | `/{f}/members/{memberId}` `{ fullName }` → member (AZ-02, AZ-07) | `Member.Manage` | FR-11 | ✅ |
+| POST | `/{f}/members/{memberId}/reset-password` → `{ temporaryPassword }` (đổi hash + SecurityStamp + MustChangePassword; AZ-02, AZ-07) | `Member.Manage` | FR-10 | ✅ |
+| GET | `/{f}/members/{memberId}/removal-preview` → `{ unpaidCount, pendingPaymentCount, balance, canRemove, blockedReason }` (cảnh báo trước khi ngừng, OQ-15) | `Member.Manage` | FR-11 | ✅ |
+| POST | `/{f}/members/{memberId}/remove` → `{ cancelledAssignments }` (422 `member.has_balance` / `member.pending_payments` / `member.cannot_remove_owner`; 409 `member.already_removed`) | `Member.Manage` | FR-11 | ✅ |
 
 ## M4 – Thủ quỹ
 

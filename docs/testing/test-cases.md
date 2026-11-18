@@ -16,9 +16,15 @@
 | TC-M1-09 | Audit đăng ký / đổi mật khẩu / sửa hồ sơ | NFR-02 | Đúng `Action`, Scope `System`; không chứa mật khẩu, hash, SecurityStamp | `AuthServiceTests`, `AuthApiTests.*audit*` |
 | TC-M1-10 | Request ghi thiếu header antiforgery | NFR-01 | 400 `antiforgery_failed` | `AuthApiTests.Write_request_without_antiforgery_header_is_rejected` |
 | TC-M1-11 | Phiên hết hạn khi sửa hồ sơ (PUT /auth/me → 401) | FR-04 | FE xóa phiên và về `/login` | `interceptors.spec.ts`, e2e mock `phiên hết hạn giữa chừng` |
-| TC-M3-01 | Thêm học sinh bằng email chưa có tài khoản | FR-09 | Trả mật khẩu tạm một lần; AuditLog không chứa mật khẩu | |
+| TC-M3-01 | Thêm học sinh bằng email chưa có tài khoản | FR-09 | Trả mật khẩu tạm một lần; AuditLog không chứa mật khẩu | `MembersServiceTests.Add_*`, `MembersApiTests.Owner_adds_a_new_email…`, `…Add_audit_is_written…`, e2e mock/full `Thêm một email` |
 | TC-M3-02 | Thêm nhiều email một lần: 1 mới, 1 đã có tài khoản, 1 đã là thành viên, 1 sai định dạng, 1 trùng trong danh sách | FR-09, OQ-20 | Kết quả từng dòng `created`/`existing_added`/`already_exists`/`invalid`, email trùng chỉ xử lý một lần, email lỗi không ảnh hưởng email khác; mật khẩu tạm chỉ cho tài khoản mới, AuditLog không chứa mật khẩu | |
-| TC-M3-03 | Thêm nhiều email với danh sách > 50 hoặc khi quỹ Archived | OQ-20, BR-37 | 400 / 422 `fund.archived` | |
+| TC-M3-03 | Thêm nhiều email với danh sách > 50 hoặc khi quỹ Archived | OQ-20, BR-37 | 400 / 422 `fund.archived` | `MembersApiTests.Bulk_add_rejects_empty_and_more_than_50…`, `…Add_to_an_archived_fund…`, e2e mock |
+| TC-M3-04 | Thêm nhiều email: kết quả từng dòng, tài khoản mới đăng nhập được bằng mật khẩu tạm, rate limit | OQ-20 | Từng dòng đúng outcome; mật khẩu tạm chỉ cho tài khoản mới; 10 lần/phút → 429 | `MembersApiTests.Bulk_add_*`, e2e full `thêm nhiều email` |
+| TC-M3-05 | Thủ quỹ thao tác trên thủ quỹ chính / thủ quỹ khác | AZ-02 | 403 (sửa, cấp mật khẩu, ngừng); chủ quỹ thì được; UI ẩn nút | `MembersServiceTests.Treasurer_cannot_touch…`, `MembersApiTests.Treasurer_cannot_touch…`, e2e mock |
+| TC-M3-06 | Sửa tên / cấp mật khẩu cho tài khoản tự đăng ký hoặc đang ở quỹ khác; cho chính mình | AZ-07 | 422 `member.account_not_managed` / `member.cannot_act_on_self`; UI khóa nút | `MembersServiceTests.Cannot_*`, `MembersApiTests.Cannot_rename_or_reset…`, e2e full |
+| TC-M3-07 | Cấp lại mật khẩu tạm | FR-10, BR-29 | Mật khẩu mới trả một lần, mật khẩu cũ và phiên cũ hết hiệu lực, buộc đổi; audit không có mật khẩu | `MembersApiTests.Reset_password_gives…`, e2e full `cấp lại mật khẩu tạm` |
+| TC-M3-08 | Ngừng thành viên: học sinh còn khoản chưa đóng / còn số dư / còn thanh toán chờ / là chủ quỹ | OQ-15, BR-30 | Khoản `Unpaid` của khoản đang mở → `Cancelled`, dữ liệu cũ giữ nguyên; còn số dư hoặc thanh toán chờ → 422; chủ quỹ → 422; mất quyền truy cập quỹ (404) nhưng tài khoản còn; thêm lại → `Reactivated` | `MembersServiceTests.Remove_*`, `MembersApiTests.Remove_*`, e2e mock/full |
+| TC-M3-09 | Sau đăng nhập luôn vào Quỹ của tôi (không menu), chọn quỹ mới có menu | điều hướng | `/funds` kể cả khi một quỹ; mật khẩu tạm → `/change-password` | e2e mock `F-01 Quỹ của tôi`, `auth.service.spec.ts` |
 | TC-M4-01 | Thủ quỹ (không phải Owner) thu hồi thủ quỹ khác | FR-13 | 403 | |
 | TC-M6-01 | Học sinh nộp chuyển khoản không có minh chứng | BR-11 | 422 | |
 | TC-M6-02 | Thủ quỹ xác nhận thanh toán của học sinh | BR-10 | Paid, LedgerEntry thu, audit `IsSelfAction=false`, thông báo học sinh | |

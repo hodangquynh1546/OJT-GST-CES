@@ -40,11 +40,11 @@ async function newSession(browser: Browser): Promise<Page> {
 test('đăng ký → vào hệ thống → tải lại vẫn đăng nhập → đăng xuất → đăng nhập lại', async ({ page }) => {
   const email = newEmail();
   await register(page, email, 'Trần Bình');
-  await expect(page.getByRole('banner').getByText('Trần Bình')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Tài khoản của Trần Bình' })).toBeVisible();
 
   await page.reload();
   await expect(page).toHaveURL(/\/funds$/);
-  await expect(page.getByRole('banner').getByText('Trần Bình')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Tài khoản của Trần Bình' })).toBeVisible();
 
   await page.getByRole('banner').getByRole('button', { name: 'Đăng xuất' }).click();
   await expect(page).toHaveURL(/\/login$/);
@@ -201,13 +201,18 @@ test('mật khẩu tạm (tài khoản seed): bị buộc đổi, endpoint khác
   await page.getByRole('button', { name: 'Lưu và vào lớp' }).click();
 
   // Có đúng một quỹ → vào thẳng quỹ, thấy tên quỹ và vai trò Học sinh.
+  await expect(page).toHaveURL(/\/funds$/);
+  await page.getByRole('link', { name: 'Mở quỹ Lớp 10A1 (demo)' }).click();
   await expect(page).toHaveURL(/\/funds\/[0-9a-f-]{36}$/);
   await expect(page.getByRole('banner').getByText('Lớp 10A1 (demo)')).toBeVisible();
   await expect(page.getByRole('banner').getByText('Học sinh', { exact: true }).first()).toBeVisible();
 });
 
-test('thủ quỹ seed vào thẳng quỹ demo với vai trò Thủ quỹ chính, trang tài khoản không có menu quỹ', async ({ page }) => {
+test('thủ quỹ seed: sau đăng nhập vào Quỹ của tôi (không menu), chọn quỹ mới có menu; trang tài khoản không có menu quỹ', async ({ page }) => {
   await login(page, 'thuquy.demo@classfund.local', SEED_PASSWORD);
+  await expect(page).toHaveURL(/\/funds$/);
+  await expect(page.getByRole('navigation', { name: 'Điều hướng chính' })).toHaveCount(0);
+  await page.getByRole('link', { name: 'Mở quỹ Lớp 10A1 (demo)' }).click();
   await expect(page).toHaveURL(/\/funds\/[0-9a-f-]{36}$/);
 
   await expect(page.getByRole('banner').getByText('Thủ quỹ chính').first()).toBeVisible();
