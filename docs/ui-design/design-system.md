@@ -21,6 +21,8 @@ Component **không** viết mã màu – chỉ dùng token. Token được ánh 
 - Control Kendo theo canvas: medium **36 px**, small 32 px, bo 8 px; nhãn 14 px / 500. Thẻ bo 12 px + bóng nhẹ (`--cf-radius-card`, `--cf-shadow-card`). Font hệ thống 14/20.
 - Nút (cài sẵn trong `styles.scss`, không ghi đè trong màn): chính `themeColor="primary"` (đen, canvas `.btn-p`); phụ `fillMode="outline"` hoặc mặc định (trắng viền, `.btn-o`); phẳng `fillMode="flat"` (`.btn-g`); nhỏ `size="small"` (`.btn-s`); phá hủy `themeColor="error"`.
 - Ô bắt buộc: đặt `class="cf-required"` lên `kendo-formfield` (hiện `*` đỏ) hoặc `<span class="cf-req">*</span>`.
+- Bảng `kendo-grid` (cài sẵn, canvas `.tbl`): đặt trong `.cf-card` có `padding: 0`; tiêu đề chữ xám 500, không kẻ dọc, ô đệm 12 × 16 px. Phân trang theo canvas: tắt `pageable` của Grid, tự làm chân thẻ "N bản ghi" + nút `Trước` / `Sau` (`fillMode="outline" size="small"`) như U-01.
+- Hộp thoại `kendo-dialog` / `ConfirmDialog` (cài sẵn, canvas `.dlg`): bo 12 px, đệm 24 px, tiêu đề 16 px đậm không kẻ, nút căn phải (`<kendo-dialog-actions layout="end">`).
 - KPI: lưới 4 cột `.cf-kpis` với thẻ `.cf-card`.
 
 ## 3. Lớp tiện ích

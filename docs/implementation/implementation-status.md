@@ -25,7 +25,7 @@ Nhánh `feature/rebuild-foundation`: xây lại từ đầu theo bản yêu cầ
 | M9 Quyết toán | ⬜ | Dev A | |
 | M10 Số dư cá nhân | ⬜ | Dev B | |
 | M11 Thông báo | ⬜ | Dev A | |
-| M12 Audit viewer | ⬜ | Dev B | |
+| M12 Audit viewer | ✅ 2026-11-18 – M12-T1/T2/T3: `GET /audit-logs` (+ `/actors`), U-01 theo canvas, checklist audit M1–M5; nhánh `feature/m12-audit-viewer` | Dev B (Claude Code) | |
 | M13 Báo cáo | ⬜ | Dev B | |
 | M14 Quyết toán cuối năm | ⬜ | Dev A | |
 
@@ -47,6 +47,7 @@ Nhánh `feature/rebuild-foundation`: xây lại từ đầu theo bản yêu cầ
 | 2026-11-18 | Chỉnh M1 theo canvas "ClassFund UI Design": A-01 chia đôi (nền tối + slogan), A-02 có dấu * / checklist mật khẩu / ô đồng ý trách nhiệm, A-03 "Đặt mật khẩu mới" + "Lưu và vào lớp", A-04 **ngoài khung menu quỹ** (thanh trên riêng) kèm đổi mật khẩu ngay trên trang; bỏ nút Hiện/Ẩn mật khẩu và mục "Quỹ của tôi" mà canvas không có | `app.routes.ts` (route `/account` ra khỏi `AppShell`), `styles.scss` (token `--cf-ink*`, `.cf-link-button`), `features/auth`, `features/account` |
 | 2026-11-18 | Nhóm duyệt OQ-19 (tổng kết cuối năm chia tiền thừa theo tổng đã đóng cả năm; nghĩa vụ `Unpaid` → `Excluded`, không truy thu; còn thanh toán chờ thì chặn quyết toán) và TD-03 (đổi tên `ListLockedAt` → `CompletedAt`, xóa `SupplementaryChargeId`) | OQ-19, BR-23/36, FR-53, `database-design.md`, `Event`/`Settlement`, migration `DropObsoleteEventSettlementColumns` (chưa áp Neon) |
 | 2026-11-18 | M2 + M5: file chưa gắn quá 24h / ảnh đại diện cũ được dọn bằng cách đánh dấu `Attachment.OwnerId = Guid.Empty` (`AttachmentOwners.Discarded`) rồi xóa object – không xóa dòng vì `app_user` không có quyền DELETE. Upload kiểm thêm chữ ký đầu file. Ô chọn file dùng `input type=file` (chưa cài `@progress/kendo-angular-upload`). Danh mục mặc định theo `DefaultCategories` trong code (canvas ghi tên khác). F-03: năm học chỉ xem theo bản thiết kế (API vẫn nhận). | `AttachmentsService`, `AvatarService`, `FileIntake`, `FileSignature`, `api-catalogue.md` |
+| 2026-11-18 | M12 Audit viewer: chỉ đọc; cột "Chi tiết" dựng ở backend (`AuditSummary`) từ Before/After/Note theo tên trường chung, không cần biết từng hành động; IP che hai phần cuối; ngày lọc theo giờ VN quy về UTC (Npgsql chỉ nhận offset 0); thêm `GET /audit-logs/actors` cho ô "Người thực hiện". Style chung theo canvas mở rộng cho **Kendo Grid** (`.tbl`) và **Kendo Dialog** (`.dlg`), nhãn phạm vi "Sự kiện" có viền (`.b-ev`) | `Features/AuditLogs` (BE), `features/audit` (FE), `styles.scss`, `scope-badge.ts`, TC-M12-01…05 |
 | 2026-11-18 | M2 gộp với khung mới của M1/M3: F-01 dùng `FundListPage` (ngoài khung menu, `app-top-bar`) và thêm số liệu thẻ từ `GET /funds`; F-02 cũng ngoài khung menu; F-03, C-01 trong khung. `kendoDialogContainer` dùng bản đã có trên main (`app.ts`) | `features/funds/fund-list-page.ts`, `fund-new`, `funds.routes.ts` |
 | 2026-11-18 | Duyệt thiết kế UI (canvas "ClassFund UI Design") → OQ-18: bỏ chốt danh sách, kết thúc loại người chưa đóng khoản nào, chi ≤ thu, quyết toán chỉ chia tiền thừa theo tỷ lệ đã đóng, form thu ≠ form chi, Ghi giao dịch ở Thu chi chung chỉ cho quỹ chung. OQ-19 chờ duyệt. | FR-26/27/32–38/43/50/53, BR-16…23/38/39; Domain: bỏ `EventStatus.ListLocked`, `ChargeKind.Supplementary`, `SettlementOutcome.Deficit`; `NotificationType` 5 → `EventParticipantExcluded`, thêm `EventUnpaidReminder`; `AcceptsNewMoney` → `AcceptsNewChargesAndExpenses` + `AcceptsPayments`; thêm `SpendingRule` (BR-38); FE `labels.ts`. Cột `Event.ListLockedAt`, `Settlement.SupplementaryChargeId` giữ lại, chờ migration (M8-T0) |
 
@@ -61,6 +62,7 @@ Nhánh `feature/rebuild-foundation`: xây lại từ đầu theo bản yêu cầ
 - Api: pipeline, cookie session, antiforgery, `RequirePermission`, filter mật khẩu tạm / validation / antiforgery, ProblemDetails, rate limit, Swagger, health, `--seed`.
 - `database/neon-roles.sql`, `.env.example`.
 - Test: 83 unit (kiến trúc, rule, permission, file storage, Neon adapter, AccessService, Audit, Notifier) – **xanh** (2026-11-18); 2 integration pipeline – **xanh**; 9 integration `InitialSchemaTests` (migration, trigger, CHECK, unique, xmin) – **xanh** (cần Docker Desktop đang chạy).
+- Sau M12 (2026-11-18, đã gồm M1–M5): **215 unit** và **85 integration** – **xanh**; checklist audit M1–M5 trong `Modules/AuditLogsApiTests`.
 - Sau M2 + M5 (2026-11-18): **119 unit** (thêm `FundsServiceTests`, `CategoriesServiceTests`, `AttachmentsServiceTests`) và **24 integration** (thêm `Modules/FundsApiTests`, `Modules/CategoriesAndFilesApiTests`; `ApiTestHost` đăng nhập bằng endpoint chỉ có trong test `/__test/login/{userId}` vì M1 chưa có) – **xanh**.
 
 ### Frontend (`ClassFundUI/`)
@@ -69,6 +71,7 @@ Nhánh `feature/rebuild-foundation`: xây lại từ đầu theo bản yêu cầ
 - Shared: `app-state`, `page-header`, `coming-soon`, `scope-badge`, `*appHasPermission`, pipes, `LoadState`, `applyServerErrors`, `ConfirmDialog`, `AppNotifications`, nhãn enum (`shared/models/labels.ts`).
 - Route đầy đủ cho mọi màn hình (giữ chỗ `comingSoon`), sinh bởi `scripts/gen-routes.mjs`.
 - 36 spec – **xanh**; `ng build` OK.
+- Sau M12 (2026-11-18, đã gồm M1–M5): **83 spec** và **86 E2E mock** (thêm `e2e/mock/audit.spec.ts`) – **xanh**.
 - Sau M2 + M5 (2026-11-18): **48 spec** và **8 E2E mock** (thêm `e2e/mock/funds-categories.spec.ts`) – **xanh**; `ng build` không cảnh báo. Thành phần dùng chung cho module khác: `features/attachments/` (`<app-file-upload>`, `<app-avatar>`, `AttachmentsApi`), `CategoriesApi.list(fundId, { type, activeOnly })`.
 
 ### Chưa có (cố ý)
@@ -86,17 +89,19 @@ Nhánh `feature/rebuild-foundation`: xây lại từ đầu theo bản yêu cầ
 | Mã | Mô tả | Module |
 |---|---|---|
 | ~~TD-01~~ | ✅ Dọn file chưa gắn owner > 24h – làm trong M5-T1 (mỗi lần upload dọn tối đa 20 file của quỹ) | M5 |
-| TD-04 | M1: gắn `<app-avatar [editable]="true">` vào A-04 và avatar trên header (header là file Foundation); `AuthController` không khai báo lại `/auth/me/avatar`, `/users/{id}/avatar` | M1 |
-| TD-05 | F-03 trên canvas có "Tài khoản nhận chuyển khoản" nhưng `Fund` chưa có cột – cần nhóm quyết định + migration nếu làm | M2 |
-| TD-06 | Thẻ quỹ của học sinh ở F-01: canvas có "Bạn cần đóng", "Số dư cá nhân" – bổ sung vào `FundSummaryDto` khi có M6/M10 | M6, M10 |
-| TD-03 | Migration `DropObsoleteEventSettlementColumns` (đổi `Event.ListLockedAt` → `CompletedAt`, xóa `Settlement.SupplementaryChargeId`) – đã duyệt và tạo 2026-11-18, **chưa áp Neon**: người áp tạo branch Neon dự phòng, báo nhóm trước/sau, rồi ghi tên ở mục 3 | M8-T0 |
-| TD-04 | Ảnh đại diện (FR-04, `PUT /auth/me/avatar`, `GET /users/{id}/avatar`) chưa làm: cần module M5 (`Attachment`) | M5 |
-| TD-05 | Đã đối chiếu A-01…A-04 với canvas "ClassFund UI Design" (2026-11-18). Chưa làm: ảnh đại diện (nút "Đổi ảnh đại diện" đang tắt, chờ M5 – TD-04); canvas dùng nút đen kiểu shadcn nên M1 đặt token `--cf-ink*` và chỉ áp cho màn A-01…A-04 (các màn khác vẫn nút xanh theo `design-system.md`) – nhóm quyết định có đổi toàn hệ thống không | M1 |
+| TD-03 | Migration `DropObsoleteEventSettlementColumns` (đổi `Event.ListLockedAt` → `CompletedAt`, xóa `Settlement.SupplementaryChargeId`) – đã duyệt và tạo 2026-11-18. Kiểm tra chỉ đọc ngày 2026-11-18 thấy Neon **đã có** cột `Event.CompletedAt` nhưng chưa ghi người áp: người áp ghi tên ở mục 3 | M8-T0 |
+| ~~TD-04~~ | ✅ API ảnh đại diện (`PUT /auth/me/avatar`, `GET /users/{id}/avatar`) đã làm trong M5; việc gắn vào giao diện chuyển sang TD-11 | M5 |
+| ~~TD-05~~ | ✅ Nút đen / kiểu canvas đã áp **toàn app** qua `styles.scss` (2026-11-18, `design-system.md` mục 6); phần ảnh đại diện ở A-04 chuyển sang TD-11 | M1 |
 | TD-06 | `e2e/full` tự đăng ký tài khoản nên ghi dữ liệu: chỉ chạy trên PostgreSQL tạm (xem `test-strategy.md`), không chạy với Neon dùng chung | – |
 | ~~TD-07~~ | ✅ 2026-11-18 – khung `AppShell` đã làm lại theo canvas S-01 (nhánh `feature/shell-canvas`): thẻ quỹ ở đầu sidebar, ba nhóm menu, thanh trên có breadcrumb + chuông + nhãn vai trò + ảnh đại diện. Chưa làm: chấm đỏ / số đếm trên chuông và menu (cần dữ liệu thông báo, M11) | Foundation |
-| TD-08 | F-01 thiếu số liệu trên thẻ quỹ (năm học, số thành viên, số dư quỹ chung, chờ xác nhận, "Đã tổng kết") và F-02 Tạo quỹ chưa làm – thuộc M2 (Dev B); F-01 tối thiểu đã có ở `features/funds/fund-list-page.ts`, M2 mở rộng thay vì viết lại | M2 |
+| ~~TD-08~~ | ✅ F-01 đã có số liệu thẻ quỹ (M2 mở rộng `fund-list-page.ts`), F-02 Tạo quỹ đã làm | M2 |
 | TD-09 | Kendo Grid cần license: chưa kích hoạt thì bảng hiện watermark "Invalid license" và toast (`npm run license` – không commit file license) | – |
 | TD-10 | Mời thành viên vào sự kiện `Open` khi thêm vào quỹ (M3-T1) chưa làm vì M8 chưa có: cần gọi `EventsService.InviteMember…` khi có | M8 |
+| TD-11 | Gắn `<app-avatar [editable]="true">` (M5, `features/attachments/avatar`) vào A-04 và avatar trên thanh trên / header (file Foundation); `AuthController` không khai báo lại `/auth/me/avatar`, `/users/{id}/avatar` | M1 |
+| TD-12 | F-03 trên canvas có "Tài khoản nhận chuyển khoản" nhưng `Fund` chưa có cột – cần nhóm quyết định + migration nếu làm | M2 |
+| TD-13 | Thẻ quỹ của học sinh ở F-01: canvas có "Bạn cần đóng", "Số dư cá nhân" – bổ sung vào `FundSummaryDto` khi có M6/M10 | M6, M10 |
+| TD-14 | U-01: nhãn tiếng Việt cho mã audit, tên trường và giá trị enum mới trong Before/After của module mới phải thêm vào `features/audit/audit-format.ts` (`AUDIT_ACTION_LABEL`, `AUDIT_FIELD_LABEL`, `AUDIT_VALUE_LABEL`; chưa có nhãn thì hiện nguyên mã); bổ sung API ghi mới vào checklist `AuditLogsApiTests.Every_write_api_of_merged_modules_records_audit_checklist` | M6–M14 |
+| TD-15 | U-01 theo canvas chỉ có bộ lọc ngày / người / phạm vi / tự ghi nhận; API đã hỗ trợ thêm `eventId` và `action` (FR-47) nhưng chưa có ô chọn – thêm khi M8 có danh sách sự kiện (nếu nhóm muốn, cần cập nhật canvas) | M8, M12 |
 | TD-02 | Tiến trình `ClassFund.Api.exe` cũ trên máy dev giữ khóa thư mục khi xóa code cũ – tắt trước khi build | – |
 
 ## 5. Sự cố

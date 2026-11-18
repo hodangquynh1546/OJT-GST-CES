@@ -167,9 +167,9 @@ Ký hiệu: **BE** backend, **FE** frontend, **T** test. Mỗi task kết thúc 
 
 | Task | Nội dung |
 |---|---|
-| M12-T1 BE | `AuditLogsService`: lọc theo thời gian, actor, scope, event, action, selfOnly; phân trang; hiển thị tên actor. |
-| M12-T2 FE | U-01: grid + bộ lọc, xem before/after dạng bảng, tag "Tự xác nhận". |
-| M12-T3 T | Học sinh → 403; lọc theo phạm vi đúng. Kiểm tra checklist: mọi API ghi của các module đã merge đều sinh audit. |
+| M12-T1 BE | ✅ (2026-11-18) `AuditLogsService`: lọc theo thời gian, actor, scope, event, action, selfOnly; phân trang; hiển thị tên actor. |
+| M12-T2 FE | ✅ U-01: grid + bộ lọc, xem before/after dạng bảng, tag "Tự xác nhận". |
+| M12-T3 T | ✅ Học sinh → 403; lọc theo phạm vi đúng. Kiểm tra checklist: mọi API ghi của các module đã merge đều sinh audit. |
 
 ### M13 – Báo cáo (FR-48 → FR-52, BR-02, BR-13)
 
