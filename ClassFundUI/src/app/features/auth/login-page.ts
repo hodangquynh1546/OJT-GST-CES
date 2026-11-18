@@ -74,13 +74,6 @@ import { emailFormatValidator } from './auth-validators';
     </div>
   `,
   styles: `
-    :host {
-      --kendo-color-primary: var(--cf-ink);
-      --kendo-color-primary-hover: var(--cf-ink-hover);
-      --kendo-color-primary-active: var(--cf-ink-hover);
-      --kendo-color-primary-emphasis: var(--cf-ink);
-      --kendo-border-radius-md: var(--cf-radius-lg);
-    }
     .split {
       display: flex;
       min-height: 100dvh;

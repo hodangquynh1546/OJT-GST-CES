@@ -85,6 +85,8 @@ Ký hiệu: **BE** backend, **FE** frontend, **T** test. Mỗi task kết thúc 
 
 ### M4 – Thủ quỹ (FR-12, FR-13, AZ-02, AZ-03)
 
+> ✅ **Đã làm 2026-11-18** (nhánh `feature/m4-treasurers`, chưa merge). Quyết định kỹ thuật: `implementation-status.md` nhật ký 2026-11-18.
+
 | Task | Nội dung |
 |---|---|
 | M4-T1 BE | `TreasurersService`: list; grant (FundMember Student Active → Treasurer); revoke (Treasurer → Student); Owner không tự thu hồi. Audit `treasurer.grant/revoke`. Đổi role làm thay đổi quyền ngay (không cần đăng nhập lại – AccessService đọc DB mỗi request). |

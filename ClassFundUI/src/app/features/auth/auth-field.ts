@@ -52,7 +52,6 @@ const DEFAULT_MESSAGES: Readonly<Record<string, string>> = {
   styles: `
     :host {
       display: block;
-      --kendo-border-radius-md: var(--cf-radius-lg);
     }
     .label-row {
       display: flex;

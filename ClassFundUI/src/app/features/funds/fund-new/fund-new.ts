@@ -15,7 +15,7 @@ import { applyServerErrors, serverError } from '../../../shared/forms/server-err
 import { FundsApi } from '../funds.api';
 import '../funds.errors';
 import { FUND_NAME_MAX, createFundForm, fundBody } from '../fund-form';
-import { DEFAULT_CATEGORIES, currentSchoolYear, displaySchoolYear, schoolYearOptions } from '../funds.models';
+import { currentSchoolYear, displaySchoolYear, schoolYearOptions } from '../funds.models';
 
 /** F-02 · Tạo quỹ (FR-05): người tạo là thủ quỹ chính, danh mục mặc định tạo sẵn. */
 @Component({
@@ -75,18 +75,6 @@ import { DEFAULT_CATEGORIES, currentSchoolYear, displaySchoolYear, schoolYearOpt
             <kendo-formerror>{{ serverError(form.controls.schoolYear) ?? 'Năm học có dạng 2026-2027.' }}</kendo-formerror>
           </kendo-formfield>
 
-          <div class="defaults">
-            <span class="k-label">Danh mục mặc định</span>
-            <div class="tags">
-              @for (category of defaults; track category.name) {
-                <span class="cf-tag" [class.cf-tag--success]="category.type === 'Income'" [class.cf-tag--danger]="category.type === 'Expense'">
-                  {{ category.name }}
-                </span>
-              }
-            </div>
-            <span class="k-form-hint">Sửa được sau ở mục Danh mục.</span>
-          </div>
-
           <div class="actions">
             <button kendoButton fillMode="outline" type="button" (click)="cancel()">Hủy</button>
             <button kendoButton themeColor="primary" type="submit" [disabled]="saving()">
@@ -94,10 +82,6 @@ import { DEFAULT_CATEGORIES, currentSchoolYear, displaySchoolYear, schoolYearOpt
             </button>
           </div>
         </form>
-
-        <div class="cf-alert">
-          Bước tiếp theo: thêm học sinh bằng email ở mục <b>&nbsp;Học sinh</b>, rồi tạo khoản thu chung đầu tiên.
-        </div>
       }
     </main>
   `,
@@ -143,16 +127,6 @@ import { DEFAULT_CATEGORIES, currentSchoolYear, displaySchoolYear, schoolYearOpt
     kendo-formfield {
       margin: 0;
     }
-    .defaults {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-    }
     .actions {
       display: flex;
       justify-content: flex-end;
@@ -169,7 +143,6 @@ export class FundNew {
   protected readonly nameMax = FUND_NAME_MAX;
   /** Giá trị gửi API "2026-2027", hiển thị "2026–2027" như canvas. */
   protected readonly years = schoolYearOptions().map((value) => ({ value, text: displaySchoolYear(value) }));
-  protected readonly defaults = DEFAULT_CATEGORIES;
   protected readonly serverError = serverError;
   protected readonly form = createFundForm({ name: '', schoolYear: currentSchoolYear() });
   protected readonly saving = signal(false);

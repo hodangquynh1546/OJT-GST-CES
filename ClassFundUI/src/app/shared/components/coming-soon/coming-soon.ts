@@ -9,12 +9,13 @@ import { PageHeader } from '../page-header/page-header';
   imports: [PageHeader],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-page-header [title]="title()" [subtitle]="'Màn hình ' + screenCode()" />
-    <p class="cf-card cf-muted">Màn hình này chưa được triển khai.</p>
+    <app-page-header [title]="title()" />
+    <p class="cf-card cf-muted">Chức năng này đang được phát triển.</p>
   `,
 })
 export class ComingSoon {
   readonly title = input.required<string>();
+  /** Mã màn hình trong tài liệu thiết kế (S-01, M-01…): chỉ để tra cứu, không hiển thị cho người dùng. */
   readonly screenCode = input.required<string>();
 }
 

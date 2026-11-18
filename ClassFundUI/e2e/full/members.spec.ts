@@ -31,6 +31,12 @@ async function openMembers(page: Page): Promise<void> {
 
 const rowOf = (page: Page, text: string) => page.getByRole('row', { name: new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) });
 
+/** Danh sách phân trang 20 dòng và DB tạm tích lũy theo số lần chạy: lọc theo email để hàng cần thao tác luôn ở trang 1. */
+async function rowFor(page: Page, email: string) {
+  await page.getByRole('searchbox', { name: 'Tìm thành viên' }).fill(email);
+  return rowOf(page, email);
+}
+
 async function addStudent(page: Page, email: string, name: string): Promise<string> {
   await page.getByLabel('Email học sinh').fill(email);
   await page.getByLabel('Họ tên').fill(name);
@@ -65,7 +71,7 @@ test('thủ quỹ thêm học sinh → học sinh vào bằng mật khẩu tạm
 
   await expect(rowOf(page, 'Thủ quỹ Demo')).toContainText('Thủ quỹ chính');
   const temporaryPassword = await addStudent(page, email, 'Trần Mới');
-  await expect(rowOf(page, email)).toContainText('Chưa đổi mật khẩu tạm');
+  await expect((await rowFor(page, email))).toContainText('Chưa đổi mật khẩu tạm');
   await expect(page.getByText('Tam')).toHaveCount(0); // mật khẩu không còn trên trang sau khi đóng hộp thoại
 
   const student = await activate(browser, email, temporaryPassword);
@@ -78,7 +84,7 @@ test('thủ quỹ thêm học sinh → học sinh vào bằng mật khẩu tạm
   await expect(student).toHaveURL(/\/forbidden$/);
 
   await page.reload();
-  await expect(rowOf(page, email)).toContainText('Hoạt động');
+  await expect((await rowFor(page, email))).toContainText('Hoạt động');
 });
 
 test('thêm nhiều email: kết quả từng dòng; mọi tài khoản mới đăng nhập được bằng mật khẩu tạm của nó', async ({ page, browser }) => {
@@ -113,7 +119,7 @@ test('cấp lại mật khẩu tạm: mật khẩu cũ và phiên cũ hết hi�
   const first = await addStudent(page, email, 'Lê Quên Mật Khẩu');
   const session = await activate(browser, email, first); // học sinh đang đăng nhập ở một thiết bị
 
-  await rowOf(page, email).getByRole('button', { name: 'Cấp mật khẩu tạm' }).click();
+  await (await rowFor(page, email)).getByRole('button', { name: 'Cấp mật khẩu tạm' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Cấp mật khẩu tạm' }).click();
   const second = (await page.getByRole('dialog').locator('code.secret').innerText()).trim();
   expect(second).not.toBe(first);
@@ -133,12 +139,12 @@ test('sửa họ tên được lưu vào database; tài khoản tự đăng ký 
   await openMembers(page);
   await addStudent(page, email, 'Tên Cũ');
 
-  await rowOf(page, email).getByRole('button', { name: 'Sửa tên' }).click();
+  await (await rowFor(page, email)).getByRole('button', { name: 'Sửa tên' }).click();
   await page.getByRole('dialog').getByLabel('Họ và tên').fill('Tên Đã Sửa');
   await page.getByRole('dialog').getByRole('button', { name: 'Lưu' }).click();
   await expect(page.getByText('Đã lưu họ tên.')).toBeVisible();
   await page.reload();
-  await expect(rowOf(page, email)).toContainText('Tên Đã Sửa');
+  await expect((await rowFor(page, email))).toContainText('Tên Đã Sửa');
 
   // Một người tự đăng ký tài khoản rồi được thêm vào quỹ: thủ quỹ không được sửa tên / cấp mật khẩu thay họ.
   const selfEmail = newEmail();
@@ -156,7 +162,7 @@ test('sửa họ tên được lưu vào database; tài khoản tự đăng ký 
   await page.getByLabel('Họ tên').fill('Tên bị bỏ qua');
   await page.getByRole('button', { name: 'Thêm vào lớp' }).click();
   await expect(page.getByText('Đã thêm vào lớp: Người Tự Đăng Ký.')).toBeVisible();
-  const row = rowOf(page, selfEmail);
+  const row = await rowFor(page, selfEmail);
   await expect(row.getByRole('button', { name: 'Cấp mật khẩu tạm' })).toBeDisabled();
   await expect(row.getByRole('button', { name: 'Sửa tên' })).toBeDisabled();
 });
@@ -168,18 +174,18 @@ test('ngừng thành viên: mất quyền truy cập quỹ nhưng tài khoản c
   const student = await activate(browser, email, temporaryPassword);
   await expect(student.getByRole('link', { name: `Mở quỹ ${FUND_NAME}` })).toBeVisible();
 
-  await rowOf(page, email).getByRole('button', { name: 'Ngừng' }).click();
+  await (await rowFor(page, email)).getByRole('button', { name: 'Ngừng' }).click();
   await expect(page.getByRole('dialog')).toContainText('dữ liệu lịch sử vẫn được giữ lại');
   await page.getByRole('dialog').getByRole('button', { name: 'Ngừng thành viên' }).click();
   await expect(page.getByText('Đã ngừng Phạm Sẽ Nghỉ.')).toBeVisible();
-  await expect(rowOf(page, email)).toHaveCount(0);
+  await expect((await rowFor(page, email))).toHaveCount(0);
 
   await student.reload();
   await expect(student.getByText('Bạn chưa thuộc quỹ nào')).toBeVisible(); // tài khoản vẫn đăng nhập được, quỹ thì không còn
 
   await page.getByRole('tab', { name: 'Đã ngừng' }).click();
-  await expect(rowOf(page, email)).toContainText('Đã ngừng');
-  await rowOf(page, email).getByRole('button', { name: 'Thêm lại' }).click();
+  await expect((await rowFor(page, email))).toContainText('Đã ngừng');
+  await (await rowFor(page, email)).getByRole('button', { name: 'Thêm lại' }).click();
   await expect(page.getByText('Đã kích hoạt lại: Phạm Sẽ Nghỉ.')).toBeVisible();
 
   await student.reload();
@@ -192,7 +198,7 @@ test('tìm kiếm theo tên và email trên dữ liệu thật; thủ quỹ chí
   await addStudent(page, email, 'Nguyễn Tìm Thấy');
 
   await page.getByRole('searchbox', { name: 'Tìm thành viên' }).fill('tìm thấy');
-  await expect(rowOf(page, email)).toBeVisible();
+  await expect((await rowFor(page, email))).toBeVisible();
   await expect(rowOf(page, 'Thủ quỹ Demo')).toHaveCount(0);
 
   await page.getByRole('searchbox', { name: 'Tìm thành viên' }).fill('khong-ton-tai-xyz');

@@ -53,6 +53,7 @@ Component **không** viết mã màu – chỉ dùng token. Token được ánh 
 - **Thu tự ghi nhận của thủ quỹ**: tag cảnh báo "Tự ghi nhận" + tooltip "Chưa đối chiếu với thủ quỹ khác".
 - Trạng thái thanh toán: Chờ xác nhận (warning), Đã xác nhận (success), Bị từ chối (danger, kèm lý do).
 - Số tiền thiếu/âm dùng `--cf-expense`; thừa dùng `--cf-income`.
+- **Không đưa ghi chú thiết kế lên giao diện**: mã màn hình (S-01, M-01…), mã FR/BR/AZ/OQ, câu hướng dẫn "Bước tiếp theo…", khối minh họa chỉ có ở canvas (ví dụ danh sách danh mục mặc định ở F-02). Canvas dùng chúng làm chú thích cho người đọc thiết kế, không phải nội dung cho người dùng.
 - Mật khẩu tạm hiển thị một lần trong dialog có nút "Sao chép" + cảnh báo "sẽ không hiển thị lại".
 - Mọi thông báo lỗi lấy theo `code` (`registerErrorMessages`); không hiện stack/chi tiết kỹ thuật.
 - **Form ghi chi** hiện mức chi tối đa (số dư phạm vi) dưới ô số tiền; vượt thì banner `--danger` và khóa nút lưu (BR-38).

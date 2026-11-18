@@ -99,7 +99,10 @@ test('F-02 creates a fund, refreshes session and opens it', async ({ page }) => 
   });
 
   await page.goto('/funds/new');
-  await expect(page.getByText('Đóng góp quỹ lớp')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Tạo quỹ' })).toBeVisible();
+  // Không đưa ghi chú thiết kế / hướng dẫn thừa lên giao diện.
+  await expect(page.getByText('Danh mục mặc định')).toHaveCount(0);
+  await expect(page.getByText('Bước tiếp theo')).toHaveCount(0);
   await page.screenshot({ path: 'test-results/F-02.png', fullPage: true });
 
   await page.getByRole('button', { name: 'Tạo quỹ' }).click();

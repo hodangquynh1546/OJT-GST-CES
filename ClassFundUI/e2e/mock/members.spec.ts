@@ -114,7 +114,8 @@ test.describe('Danh sách', () => {
     await expect(page.getByText('Chưa có thành viên nào bị ngừng.')).toBeVisible();
 
     await page.getByRole('tab', { name: 'Đang hoạt động' }).click();
-    await expect(page.getByText('Đã Nghỉ Học')).toBeVisible();
+    // Toast "Đã kích hoạt lại: Đã Nghỉ Học." chứa cùng tên nên phải khoanh vùng vào hàng của bảng.
+    await expect(rowOf(page, /Đã Nghỉ Học/)).toBeVisible();
     await expect(page.getByText('6 thành viên đang hoạt động.')).toBeVisible();
   });
 
@@ -338,7 +339,7 @@ test.describe('Cấp lại mật khẩu tạm, sửa tên, ngừng', () => {
     await dialog.getByRole('button', { name: 'Ngừng thành viên' }).click();
 
     await expect(page.getByText('Đã ngừng Phạm Đức Long.')).toBeVisible();
-    await expect(page.getByText('Phạm Đức Long')).toHaveCount(0);
+    await expect(rowOf(page, /Phạm Đức Long/)).toHaveCount(0); // không dùng getByText: toast cũng chứa tên
     await expect(page.getByText('4 thành viên đang hoạt động.')).toBeVisible();
     await page.getByRole('tab', { name: 'Đã ngừng' }).click();
     await expect(rowOf(page, /Phạm Đức Long/)).toContainText('Đã ngừng');

@@ -38,18 +38,6 @@ export interface FundBody {
   schoolYear: string;
 }
 
-/** Khớp `DefaultCategories` ở backend – chỉ để hiển thị trước ở F-02 (backend mới là nơi tạo). */
-export const DEFAULT_CATEGORIES: readonly { name: string; type: 'Income' | 'Expense' }[] = [
-  { name: 'Đóng góp quỹ lớp', type: 'Income' },
-  { name: 'Thu bổ sung', type: 'Income' },
-  { name: 'Thu khác', type: 'Income' },
-  { name: 'In ấn', type: 'Expense' },
-  { name: 'Văn phòng phẩm', type: 'Expense' },
-  { name: 'Bánh kẹo, tiếp khách', type: 'Expense' },
-  { name: 'Đồ dùng chung', type: 'Expense' },
-  { name: 'Chi khác', type: 'Expense' },
-];
-
 /** Năm học dạng `2026-2027` (khớp `SchoolYearFormat` ở backend). */
 export function isValidSchoolYear(value: string | null | undefined): boolean {
   const match = /^(\d{4})\s*[-–—]\s*(\d{4})$/.exec((value ?? '').trim());
