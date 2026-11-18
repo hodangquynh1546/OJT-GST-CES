@@ -59,9 +59,9 @@ Mã lỗi M1: `auth.invalid_credentials` (401, dùng chung cho email lạ và m�
 
 | Method | Path | Permission | FR | Trạng thái |
 |---|---|---|---|---|
-| GET | `/{f}/treasurers` | `Treasurer.Manage` | FR-12 | ⬜ |
-| POST | `/{f}/treasurers` `{ memberId }` | `Treasurer.Manage` | FR-12 | ⬜ |
-| POST | `/{f}/treasurers/{memberId}/revoke` | `Treasurer.Manage` | FR-12, FR-13 | ⬜ |
+| GET | `/{f}/treasurers` → `[{ memberId, userId, fullName, email, role (Owner/Treasurer), joinedAt, grantedAt? }]` (thủ quỹ chính trước; `grantedAt` lấy từ nhật ký, null với thủ quỹ chính) | `Treasurer.Manage` | FR-12 | ✅ |
+| POST | `/{f}/treasurers` `{ memberId }` → 201 TreasurerDto (404 không thuộc quỹ; 409 `treasurer.already_treasurer`; 422 `treasurer.member_not_active` / `fund.archived`) | `Treasurer.Manage` | FR-12 | ✅ |
+| POST | `/{f}/treasurers/{memberId}/revoke` → TreasurerDto (422 `treasurer.cannot_revoke_owner` – AZ-03; 409 `treasurer.not_treasurer`) | `Treasurer.Manage` | FR-12, FR-13 | ✅ |
 
 ## M5 – Danh mục & chứng từ
 

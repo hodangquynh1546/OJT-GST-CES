@@ -115,3 +115,12 @@ test('thẻ quỹ chuyển về Quỹ của tôi; ảnh đại diện sang Tài 
   await page.getByRole('banner').getByRole('link', { name: /Tài khoản của/ }).click();
   await expect(page).toHaveURL(/\/account$/);
 });
+
+test('trang chưa làm không lộ mã màn hình của tài liệu thiết kế (S-01, M-01…)', async ({ page }) => {
+  await open(page, 'Owner', '/funds/f1/ledger');
+
+  await expect(page.getByRole('heading', { name: 'Thu chi chung' })).toBeVisible();
+  await expect(page.getByText('Chức năng này đang được phát triển.')).toBeVisible();
+  await expect(page.getByText(/Màn hình/)).toHaveCount(0);
+  await expect(page.getByText(/\b[A-Z]-\d{2}\b/)).toHaveCount(0);
+});

@@ -116,11 +116,6 @@ import { TopBar } from './top-bar';
       display: block;
       min-height: 100dvh;
       background: var(--cf-background);
-      --kendo-color-primary: var(--cf-ink);
-      --kendo-color-primary-hover: var(--cf-ink-hover);
-      --kendo-color-primary-active: var(--cf-ink-hover);
-      --kendo-color-primary-emphasis: var(--cf-ink);
-      --kendo-border-radius-md: var(--cf-radius-lg);
     }
     .page {
       box-sizing: border-box;
