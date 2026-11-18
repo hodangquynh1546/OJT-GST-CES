@@ -1,8 +1,14 @@
 import { MemberRole } from '../auth/auth.models';
 import { Permission, Permissions } from '../auth/permissions';
 
+/** Nhóm menu theo canvas "ClassFund UI Design": học sinh chỉ có hai nhóm đầu, nhóm Quản lý chỉ có khi có quyền quản lý. */
+export type NavGroup = 'Quỹ chung' | 'Cá nhân' | 'Quản lý';
+
+export const NAV_GROUPS: readonly NavGroup[] = ['Quỹ chung', 'Cá nhân', 'Quản lý'];
+
 export interface NavItem {
   id: string;
+  group: NavGroup;
   label: string;
   link: string;
   /** Đường path của icon SVG 24x24. */
@@ -34,41 +40,37 @@ export interface NavContext {
 }
 
 /**
- * Menu sinh từ permission của quỹ đang mở. Quỹ chung và Sự kiện là hai mục tách biệt (yêu cầu mục 2).
- * Thứ tự: dùng chung → việc của học sinh → quản lý của thủ quỹ.
+ * Menu sinh từ permission của quỹ đang mở, chia ba nhóm (Quỹ chung · Cá nhân · Quản lý). Quỹ chung và Sự kiện là
+ * hai mục tách biệt (yêu cầu mục 2). Chuyển quỹ làm ở thẻ quỹ đầu sidebar, không phải một mục menu.
  */
 export function buildNavItems({ fundId, permissions }: NavContext): NavItem[] {
-  const items: NavItem[] = [
-    { id: 'funds', label: 'Quỹ của tôi', link: '/funds', icon: ICONS.funds, exact: true },
-  ];
-
   if (!fundId) {
-    return items;
+    return [];
   }
 
+  const items: NavItem[] = [];
   const base = `/funds/${fundId}`;
-  const can = (permission: Permission) => permissions.includes(permission);
-  const add = (permission: Permission, id: string, label: string, path: string, icon: string) => {
-    if (can(permission)) {
-      items.push({ id, label, link: base + path, icon, exact: path === '' });
+  const add = (permission: Permission, group: NavGroup, id: string, label: string, path: string, icon: string) => {
+    if (permissions.includes(permission)) {
+      items.push({ id, group, label, link: base + path, icon, exact: path === '' });
     }
   };
 
-  add(Permissions.FundView, 'overview', 'Tổng quan quỹ chung', '', ICONS.overview);
-  add(Permissions.FundView, 'ledger', 'Thu chi chung', '/ledger', ICONS.ledger);
-  add(Permissions.FundView, 'charges', 'Khoản thu chung', '/charges', ICONS.charges);
-  add(Permissions.EventParticipate, 'events', 'Sự kiện', '/events', ICONS.events);
-  add(Permissions.PaymentSubmit, 'my-payments', 'Khoản cần đóng của tôi', '/my-payments', ICONS.payments);
-  add(Permissions.BalanceViewOwn, 'balance', 'Số dư cá nhân', '/balance', ICONS.balance);
-  add(Permissions.FundView, 'notifications', 'Thông báo', '/notifications', ICONS.bell);
-  add(Permissions.PaymentConfirm, 'payments', 'Xác nhận thanh toán', '/payments', ICONS.payments);
-  add(Permissions.BalanceHandle, 'withdrawals', 'Yêu cầu rút tiền', '/withdrawals', ICONS.balance);
-  add(Permissions.ReportView, 'reports', 'Báo cáo', '/reports', ICONS.reports);
-  add(Permissions.MemberManage, 'members', 'Học sinh', '/members', ICONS.people);
-  add(Permissions.TreasurerManage, 'treasurers', 'Thủ quỹ', '/treasurers', ICONS.treasurers);
-  add(Permissions.CategoryManage, 'categories', 'Danh mục', '/categories', ICONS.categories);
-  add(Permissions.AuditView, 'audit', 'Nhật ký hoạt động', '/audit', ICONS.audit);
-  add(Permissions.FundManage, 'settings', 'Thông tin quỹ', '/settings', ICONS.settings);
+  add(Permissions.FundView, 'Quỹ chung', 'overview', 'Tổng quan', '', ICONS.overview);
+  add(Permissions.FundView, 'Quỹ chung', 'ledger', 'Thu chi chung', '/ledger', ICONS.ledger);
+  add(Permissions.FundView, 'Quỹ chung', 'charges', 'Khoản thu chung', '/charges', ICONS.charges);
+  add(Permissions.EventParticipate, 'Quỹ chung', 'events', 'Sự kiện', '/events', ICONS.events);
+  add(Permissions.PaymentSubmit, 'Cá nhân', 'my-payments', 'Khoản cần đóng', '/my-payments', ICONS.payments);
+  add(Permissions.BalanceViewOwn, 'Cá nhân', 'balance', 'Số dư cá nhân', '/balance', ICONS.balance);
+  add(Permissions.FundView, 'Cá nhân', 'notifications', 'Thông báo', '/notifications', ICONS.bell);
+  add(Permissions.PaymentConfirm, 'Quản lý', 'payments', 'Xác nhận thanh toán', '/payments', ICONS.payments);
+  add(Permissions.BalanceHandle, 'Quản lý', 'withdrawals', 'Yêu cầu rút tiền', '/withdrawals', ICONS.balance);
+  add(Permissions.ReportView, 'Quản lý', 'reports', 'Báo cáo', '/reports', ICONS.reports);
+  add(Permissions.MemberManage, 'Quản lý', 'members', 'Học sinh', '/members', ICONS.people);
+  add(Permissions.TreasurerManage, 'Quản lý', 'treasurers', 'Thủ quỹ', '/treasurers', ICONS.treasurers);
+  add(Permissions.CategoryManage, 'Quản lý', 'categories', 'Danh mục', '/categories', ICONS.categories);
+  add(Permissions.AuditView, 'Quản lý', 'audit', 'Nhật ký hoạt động', '/audit', ICONS.audit);
+  add(Permissions.FundManage, 'Quản lý', 'settings', 'Thông tin quỹ', '/settings', ICONS.settings);
 
   return items;
 }

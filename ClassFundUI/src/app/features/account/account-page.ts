@@ -14,7 +14,8 @@ import {
   passwordsMatchValidator,
 } from '../auth/auth-validators';
 import { PasswordRules } from '../auth/password-rules';
-import { TopBar, initialsOf } from './top-bar';
+import { initialsOf } from '../../shared/utils/initials';
+import { TopBar } from './top-bar';
 
 /**
  * A-04 Tài khoản của tôi (FR-04): thông tin cá nhân dùng chung cho mọi quỹ + đổi mật khẩu.

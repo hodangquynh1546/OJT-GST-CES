@@ -28,6 +28,9 @@ export class CurrentFund {
     { initialValue: { url: '', fundId: null, lastFundId: null } },
   );
 
+  /** Đường dẫn hiện tại (không có query / fragment), dùng để vẽ breadcrumb. */
+  readonly url = computed(() => this.location().url);
+
   /** Mã quỹ trên URL (`/funds/:fundId/…`); null khi trang không thuộc quỹ nào. */
   readonly fundId = computed(() => this.location().fundId);
 

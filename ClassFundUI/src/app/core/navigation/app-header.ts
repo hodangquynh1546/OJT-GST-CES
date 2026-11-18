@@ -1,180 +1,161 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 
+import { initialsOf } from '../../shared/utils/initials';
 import { AuthService } from '../auth/auth.service';
 import { CurrentFund } from '../services/current-fund.service';
+import { buildNavItems } from './nav-items';
 import { ROLE_DISPLAY } from './role-display';
 
+/**
+ * Thanh trên của khung quỹ (canvas S-01): breadcrumb "Quỹ / Trang hiện tại", chuông thông báo, nhãn vai trò trong quỹ
+ * và ảnh đại diện (sang Tài khoản – nơi có nút Đăng xuất).
+ */
 @Component({
   selector: 'app-header',
   imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <header class="header">
-      <a class="brand" [routerLink]="homeUrl()">
-        <span class="logo" aria-hidden="true">
-          <svg width="18" height="18" viewBox="0 0 24 24">
-            <path d="M4 7h16v12H4zM4 7l2-3h12l2 3M9 12h6" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </span>
-        <b>ClassFund</b>
-      </a>
-      @if (membership(); as fund) {
-        <span class="divider" aria-hidden="true">|</span>
-        @if (canSwitchFund()) {
-          <a class="fund" routerLink="/funds" title="Đổi quỹ">{{ fund.fundName }} <span class="switch">· Đổi quỹ ▾</span></a>
-        } @else {
-          <span class="fund">{{ fund.fundName }}</span>
+    <header class="top">
+      <nav class="crumbs" aria-label="Vị trí hiện tại">
+        @if (fund(); as current) {
+          <a class="fund" [routerLink]="['/funds', current.fundId]">{{ current.fundName }}</a>
+          @if (page(); as label) {
+            <span class="sep" aria-hidden="true">/</span>
+            <b class="page" aria-current="page">{{ label }}</b>
+          }
         }
-      }
-      @if (role(); as display) {
-        <span class="badge" [style.background]="display.tint" [style.color]="display.color">
-          {{ display.badge }}
-        </span>
-      }
-      <a class="user" routerLink="/account" [attr.aria-label]="'Tài khoản của ' + (user()?.fullName ?? '')">
-        <span class="avatar" aria-hidden="true" [style.background]="role()?.tint" [style.color]="role()?.color">{{ initial() }}</span>
-        <span class="user-text">
-          <b class="user-name">{{ user()?.fullName }}</b>
-          <span class="user-role">{{ subtitle() }}</span>
-        </span>
-        <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-        </svg>
-      </a>
-      <button type="button" class="logout" (click)="logout()">Đăng xuất</button>
+      </nav>
+      <div class="right">
+        @if (fund(); as current) {
+          <a class="bell" [routerLink]="['/funds', current.fundId, 'notifications']" aria-label="Thông báo">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8zM10 20a2 2 0 0 0 4 0" /></svg>
+          </a>
+          <span class="pill" [class]="'pill pill--' + current.role">{{ roleBadge() }}</span>
+        }
+        <a class="avatar" routerLink="/account" [attr.aria-label]="'Tài khoản của ' + (user()?.fullName ?? '')">{{ initials() }}</a>
+      </div>
     </header>
   `,
   styles: `
-    .header {
+    .top {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 12px;
       box-sizing: border-box;
       height: var(--cf-header-height);
-      padding: 0 16px;
+      padding: 0 24px;
       border-bottom: 1px solid var(--cf-border);
       background: var(--cf-surface);
     }
-    .brand {
+    .crumbs {
       display: flex;
       align-items: center;
       gap: 8px;
-      color: var(--cf-text);
-      font-size: 16px;
-      text-decoration: none;
-    }
-    .logo {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 30px;
-      height: 30px;
-      border-radius: 7px;
-      background: var(--cf-primary);
-      color: var(--cf-surface);
-    }
-    .divider {
-      color: var(--cf-border-strong);
+      min-width: 0;
     }
     .fund {
-      overflow: hidden;
-      min-width: 0;
-      color: var(--cf-text);
+      color: var(--cf-text-muted);
       text-decoration: none;
+      white-space: nowrap;
+    }
+    .fund:hover {
+      color: var(--cf-text);
+    }
+    .sep {
+      color: var(--cf-border-strong);
+    }
+    .page {
+      overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    .switch {
-      color: var(--cf-primary);
-      font-size: 13px;
-    }
-    .badge {
-      display: inline-flex;
+    .right {
+      display: flex;
       align-items: center;
-      height: 24px;
+      gap: 12px;
+    }
+    .bell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--cf-border);
+      border-radius: var(--cf-radius-lg);
+      color: var(--cf-text);
+    }
+    .bell:hover {
+      background: var(--cf-background);
+    }
+    .bell svg {
+      width: 18px;
+      height: 18px;
+      fill: none;
+      stroke: currentColor;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 2;
+    }
+    .pill {
       padding: 0 10px;
       border-radius: var(--cf-radius-pill);
       font-size: 12px;
       font-weight: 600;
+      line-height: 24px;
       white-space: nowrap;
     }
-    .user {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      min-height: 44px;
-      margin-left: auto;
+    .pill--Owner {
+      background: var(--cf-ink);
+      color: var(--cf-surface);
+    }
+    .pill--Treasurer {
+      background: var(--cf-role-treasurer-tint);
+      color: var(--cf-role-treasurer);
+    }
+    .pill--Student {
+      background: var(--cf-subtle);
       color: var(--cf-text);
-      text-decoration: none;
     }
     .avatar {
       display: flex;
       align-items: center;
       justify-content: center;
-      flex: none;
       width: 32px;
       height: 32px;
       border-radius: 16px;
-      background: var(--cf-primary-tint);
-      color: var(--cf-primary-dark);
-      font-weight: 700;
-    }
-    .user-text {
-      display: flex;
-      flex-direction: column;
-      line-height: 16px;
-    }
-    .user-name {
-      font-size: 13px;
-    }
-    .logout {
-      min-height: 32px;
-      padding: 0 12px;
-      border: 1px solid var(--cf-border-strong);
-      border-radius: var(--cf-radius-md);
-      background: var(--cf-surface);
-      color: var(--cf-text);
-      font: inherit;
-      font-size: 13px;
-      cursor: pointer;
-    }
-    .logout:hover {
       background: var(--cf-subtle);
-    }
-    .user-role,
-    .chevron {
-      color: var(--cf-text-muted);
+      color: var(--cf-text);
       font-size: 12px;
+      font-weight: 700;
+      text-decoration: none;
     }
   `,
 })
 export class AppHeader {
   private readonly auth = inject(AuthService);
   private readonly currentFund = inject(CurrentFund);
-  private readonly router = inject(Router);
 
   protected readonly user = this.auth.user;
-  protected readonly membership = this.currentFund.context;
-  protected readonly role = computed(() => {
-    const role = this.membership()?.role;
-    return role ? ROLE_DISPLAY[role] : null;
+  protected readonly fund = this.currentFund.context;
+  protected readonly initials = computed(() => initialsOf(this.user()?.fullName));
+  protected readonly roleBadge = computed(() => {
+    const role = this.fund()?.role;
+    return role ? ROLE_DISPLAY[role].badge : '';
   });
-  protected readonly canSwitchFund = computed(() => (this.user()?.memberships.length ?? 0) > 1 || this.auth.canCreateFund());
-  protected readonly homeUrl = computed(() => (this.user() ? this.auth.homeUrl() : '/'));
 
-  /** Dòng phụ dưới tên: vai trò trong quỹ đang hiển thị; ngoài quỹ thì hiện email. */
-  protected readonly subtitle = computed(() => {
-    const fund = this.membership();
-    return fund ? ROLE_DISPLAY[fund.role].subtitle : (this.user()?.email ?? '');
+  /** Tên trang hiện tại: mục menu có đường dẫn khớp dài nhất với URL ("/funds/x/events/y" → "Sự kiện"). */
+  protected readonly page = computed(() => {
+    const context = this.fund();
+    if (!context) {
+      return null;
+    }
+    const url = this.currentFund.url();
+    const items = buildNavItems({ fundId: context.fundId, role: context.role, permissions: context.permissions });
+    const match = items
+      .filter((item) => url === item.link || url.startsWith(item.link + '/'))
+      .sort((a, b) => b.link.length - a.link.length)[0];
+    return match?.label ?? null;
   });
-  protected readonly initial = computed(
-    () => this.user()?.fullName.trim().split(/\s+/).pop()?.charAt(0) ?? '',
-  );
-
-  protected async logout(): Promise<void> {
-    await this.auth.logout();
-    await this.router.navigateByUrl('/login');
-  }
 }
