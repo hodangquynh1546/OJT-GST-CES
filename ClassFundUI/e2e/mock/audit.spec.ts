@@ -96,7 +96,7 @@ test('U-01 lists audit entries like the canvas and filters by scope, actor, self
   const first = grid.getByRole('row').nth(1);
   await expect(first).toContainText('17/11 09:40');
   await expect(first).toContainText('Nguyễn Minh Anh');
-  await expect(first).toContainText('ledger.reverse'); // mã chưa có nhãn hiện nguyên mã
+  await expect(first).toContainText('Tạo bút toán đảo'); // nhãn M7 (TD-14)
   await expect(grid.getByRole('row', { name: /Phân quyền thủ quỹ/ })).toContainText('Học sinh → Thủ quỹ');
   await expect(grid.getByRole('row', { name: /payment\.confirm/ })).toContainText('Sự kiện: Dã ngoại Ba Vì');
   await expect(grid.getByText('Tự ghi nhận')).toHaveCount(2);

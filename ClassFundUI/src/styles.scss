@@ -128,6 +128,26 @@ a:hover {
   color: var(--cf-text);
 }
 
+// Liên kết trông như nút chính (canvas .btn-p trên thẻ <a>).
+.cf-primary-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: var(--cf-radius-lg);
+  background: var(--cf-ink);
+  color: var(--cf-surface);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.cf-primary-link:hover {
+  background: var(--cf-ink-hover);
+  color: var(--cf-surface);
+}
+
 .cf-muted {
   color: var(--cf-text-muted);
 }
@@ -180,6 +200,27 @@ a:hover {
   border-color: color-mix(in srgb, var(--cf-danger-fg) 22%, transparent);
   background: var(--cf-danger-bg);
   color: var(--cf-danger-fg);
+}
+
+// Canvas .b-ev: tag sự kiện / trạng thái "Đang mở" của sự kiện (nền xanh nhạt, viền xanh).
+.cf-tag--event {
+  border-color: color-mix(in srgb, var(--cf-primary) 30%, transparent);
+  background: var(--cf-primary-tint);
+  color: var(--cf-primary-dark);
+}
+
+// Canvas .r-owner: nhãn "Thủ quỹ chính" nền mực.
+.cf-tag--ink {
+  border-color: var(--cf-ink);
+  background: var(--cf-ink);
+  color: var(--cf-surface);
+}
+
+// Canvas .alert.a-info: thông báo trung tính màu xanh (ví dụ "Sự kiện đã kết thúc…").
+.cf-alert--info {
+  border-color: color-mix(in srgb, var(--cf-primary) 30%, transparent);
+  background: var(--cf-primary-tint);
+  color: var(--cf-primary-dark);
 }
 
 // Thông báo trong trang (banner): role="status" cho cảnh báo, role="alert" cho lỗi.

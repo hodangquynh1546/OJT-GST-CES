@@ -1,0 +1,358 @@
+// Theo canvas E-03 (Event.dc.html, StuEventDetail.dc.html + cf.css); màu dùng token --cf-*.
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: var(--cf-content-max);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.head-t {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.back {
+  color: var(--cf-text-muted);
+  font-size: 13px;
+  text-decoration: none;
+
+  &:hover {
+    color: var(--cf-ink);
+  }
+}
+
+h1 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+h2 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+}
+
+p {
+  margin: 0;
+}
+
+.small {
+  font-size: 13px;
+}
+
+.xs {
+  font-size: 12px;
+}
+
+.strong {
+  font-weight: 500;
+}
+
+.strong-600 {
+  font-weight: 600;
+}
+
+.title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+// Canvas .steps / .dot / .line.
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--cf-border-strong);
+  border-radius: 999px;
+  background: var(--cf-surface);
+  color: var(--cf-text-muted);
+  font-size: 12px;
+
+  &.done {
+    border-color: var(--cf-ink);
+    background: var(--cf-ink);
+    color: var(--cf-surface);
+  }
+
+  &.cur {
+    border: 2px solid var(--cf-ink);
+    color: var(--cf-ink);
+  }
+}
+
+.line {
+  width: 40px;
+  height: 1px;
+  background: var(--cf-border-strong);
+
+  &.done {
+    background: var(--cf-ink);
+  }
+}
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 20px;
+}
+
+.kpi-l {
+  color: var(--cf-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.kpi-v {
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.tabs-card {
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+// Canvas .utabs / .utab: tab gạch chân.
+.utabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--cf-border);
+}
+
+.utab {
+  height: 44px;
+  margin-bottom: -1px;
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--cf-text-muted);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+
+  &.on {
+    border-bottom-color: var(--cf-ink);
+    color: var(--cf-ink);
+  }
+}
+
+.card-h {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+}
+
+.card-f {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--cf-border);
+}
+
+.tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--cf-radius-lg);
+  background: var(--cf-subtle);
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--cf-radius-md);
+  background: transparent;
+  color: var(--cf-text-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+
+  &.on {
+    background: var(--cf-surface);
+    color: var(--cf-ink);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+
+.pad {
+  padding: 20px;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.stack-s {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stack-xs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.overview {
+  gap: 12px;
+}
+
+.between {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.split {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.grow {
+  flex: 999 1 560px;
+  min-width: 0;
+}
+
+.aside {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+// Thẻ khoản thu (tab Khoản thu sự kiện) và khoản của tôi (học sinh): thẻ phẳng không bóng.
+.charge,
+.mine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  box-shadow: none;
+}
+
+.row-main {
+  display: flex;
+  flex: 1 1 220px;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.block {
+  display: block;
+}
+
+.right {
+  display: flex;
+  justify-content: flex-end;
+}
+
+:host ::ng-deep .num-head .k-cell-inner,
+:host ::ng-deep .right-head .k-cell-inner {
+  justify-content: flex-end;
+}
+
+.small-btn {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.rowlink {
+  margin-right: 6px;
+  color: var(--cf-ink);
+  font-weight: 500;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.strike {
+  color: var(--cf-text-muted);
+  text-decoration: line-through;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}

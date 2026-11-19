@@ -20,8 +20,8 @@ Nhánh `feature/rebuild-foundation`: xây lại từ đầu theo bản yêu cầ
 | M5 Danh mục & chứng từ | ✅ 2026-11-18 – M5-T1/T2/T3: danh mục (C-01), upload/tải chứng từ (AZ-05), `AttachToAsync`, ảnh đại diện API + `<app-avatar>`; nhánh `feature/m2-m5-fund-category-files` | Dev B (Claude Code) | |
 | M6a Khoản thu chung & thanh toán | ✅ 2026-11-19 – nhánh `feature/m6a-charges-payments`, chưa mở PR (249 unit + 101 integration + 93 FE spec + e2e mock/full 119 xanh) | Dev A | |
 | M6b Khoản thu sự kiện | ⬜ | Dev A | |
-| M7 Thu chi | ⬜ | Dev B | |
-| M8 Sự kiện | ⬜ | Dev B | |
+| M7 Thu chi | ✅ 2026-11-19 – M7-T1/T2/T3: sổ thu chi theo phạm vi (chỉ ghi chi, chi ≤ số dư, chứng từ > 500k, bút toán đảo), L-01/L-02/L-03 theo canvas; nhánh `feature/m7-m8-events-transactions` | Dev B (Claude Code) | |
+| M8 Sự kiện | ✅ 2026-11-19 – M8-T1/T2/T3: tạo / sửa / hủy / trả lời / người tham gia / kết thúc (BR-19), E-01/E-02/E-03 theo canvas, mời thành viên mới vào sự kiện đang mở (TD-10); cùng nhánh M7 | Dev B (Claude Code) | |
 | M9 Quyết toán | ⬜ | Dev A | |
 | M10 Số dư cá nhân | ⬜ | Dev B | |
 | M11 Thông báo | ⬜ | Dev A | |
@@ -39,6 +39,7 @@ Nhánh `feature/rebuild-foundation`: xây lại từ đầu theo bản yêu cầ
 | 2026-11-17 | OQ-16: lưu file thực tế trên Neon Object Storage (hóa đơn, bill, ảnh đại diện, tài liệu) | `IEvidenceStorage` → `IFileStorage` + `StorageKeys` + `StorageOptions`; `FileRule` giới hạn theo loại; `AttachmentKind` thêm Avatar/Document; `Attachment.FundId` nullable; `User.AvatarAttachmentId`; task M5-T0 |
 | 2026-11-17 | OQ-17: thêm package `AWSSDK.S3` (ngoài training-doc) để gọi Neon Object Storage | Cài trong M5-T0, chỉ ở `ClassFund.Infrastructure` |
 | 2026-11-17 | M0-03 xong: áp `InitialSchema` + chạy `--seed` trên Neon; adapter Neon Object Storage chưa ghi nhận thử trên bucket thật | Bảng module, mục 3 |
+| 2026-11-19 | M7 + M8 làm xong (nhánh `feature/m7-m8-events-transactions`). Quyết định kỹ thuật (đề xuất, chờ nhóm xác nhận): (1) chỉ **đảo khoản chi ghi tay** (thu từ thanh toán sửa ở luồng M6); sự kiện đã quyết toán / hủy thì không đảo; (2) tổng thu / chi trừ bút toán đảo vào loại của dòng gốc (`LedgerBalances`), số dư = thu − chi; KPI L-01: số dư toàn thời gian, thu / chi trong khoảng ngày lọc; (3) học sinh chỉ thấy dòng `Source = Manual` của sổ (OQ-14), sổ sự kiện chỉ người đã nhận tham gia; (4) **nhóm chốt 2026-11-19:** kết thúc sự kiện loại mọi người `Accepted` **chưa đóng khoản thu nào** (kể cả khi chưa có khoản thu nào áp cho họ); đã đóng ít nhất một khoản (`Paid` hoặc thanh toán chờ / đã xác nhận) thì ở lại, đóng đủ hay chưa đều được vì quyết toán chia tiền thừa theo tỷ lệ số đã đóng; (5) **nhóm chốt 2026-11-19:** nhận tham gia muộn khi sự kiện còn mở thì được áp các khoản thu đang mở và đóng được; sau khi kết thúc không nhận tham gia nữa (`event.not_open`); đổi sang không tham gia thì hủy nghĩa vụ chưa đóng, đã nộp tiền thì không đổi được (`event.response_locked`); (6) hủy sự kiện cần lý do (lưu ở audit Note), khoản thu chưa ai đóng bị hủy theo; (7) ngày diễn ra bắt buộc như canvas; (8) đăng ký `Notifier` vào DI (Foundation thiếu – chưa module nào dùng). | M7, M8, `ServiceRegistration` |
 | 2026-11-18 | OQ-20: thêm nhiều email một lần khi thêm thành viên; làm rõ BR-37: quỹ `Archived` vẫn cho học sinh gửi yêu cầu rút và thủ quỹ xác nhận; đổi cảnh báo/banner "chỉ xem" của M14-T3 | FR-09, BR-37, `api-catalogue.md` (`POST /members/bulk`), M3-T1/T2/T3, M14-T2/T3/T4, TC-M3-02/03, TC-M14-05 (chỉ tài liệu, chưa có code) |
 | 2026-11-18 | M1 Auth làm xong (nhánh `feature/m1-auth`). Quyết định kỹ thuật: (1) đổi mật khẩu sai mật khẩu hiện tại trả **422** `auth.current_password_incorrect` (401 sẽ bị FE coi là hết phiên); (2) mật khẩu mới phải khác mật khẩu hiện tại (`auth.password_unchanged`); (3) `PUT /auth/me` bị chặn khi còn mật khẩu tạm (theo api-catalogue); (4) `auth.account_disabled` chỉ báo sau khi mật khẩu đúng; (5) sửa interceptor FE: 401 của `PUT /auth/me` là hết phiên (trước đây bị coi như `GET /auth/me`); (6) thêm nút Đăng xuất ở `app-header`, `AuthService.updateProfile` | `Features/Auth` (BE), `features/auth` + `features/account` (FE), `auth.service.ts`, `api-error.interceptor.ts`, `app-header.ts`, test case TC-M1-01…11 |
 | 2026-11-18 | M4 Thủ quỹ làm xong (nhánh `feature/m4-treasurers`). Quyết định kỹ thuật (**đã duyệt**: (1), (2), (3); còn lại là chi tiết cài đặt): (1) cấp quyền **chặn khi quỹ Archived** (BR-37), thu hồi vẫn được; (2) không phân quyền cho thành viên đã bị ngừng (422 `treasurer.member_not_active`); (3) `grantedAt` lấy từ nhật ký `treasurer.grant` gần nhất (FundMember không có cột riêng, không đổi schema); (4) service kiểm lại `Treasurer.Manage` ngoài controller (phòng thủ nhiều lớp); (5) chọn học sinh bằng ComboBox lọc phía server qua `GET /members?role=Student`, danh sách tự mở khi bấm vào ô. Sau review của Cường: sửa test M3 chập chờn (`getByText` trùng tên với toast, tái hiện 2/15 lần dưới tải) và xóa các ghi đè `--kendo-color-primary*` thừa ở M1 (auth-card, login-page, account-page), M3 (members-page) và `auth-field` vì `styles.scss` đã đặt nút chính đen toàn app | `Features/Treasurers` (BE), `features/treasurers` (FE), TC-M4-01…05 |
@@ -63,6 +64,8 @@ Nhánh `feature/rebuild-foundation`: xây lại từ đầu theo bản yêu cầ
 - Api: pipeline, cookie session, antiforgery, `RequirePermission`, filter mật khẩu tạm / validation / antiforgery, ProblemDetails, rate limit, Swagger, health, `--seed`.
 - `database/neon-roles.sql`, `.env.example`.
 - Test: 83 unit (kiến trúc, rule, permission, file storage, Neon adapter, AccessService, Audit, Notifier) – **xanh** (2026-11-18); 2 integration pipeline – **xanh**; 9 integration `InitialSchemaTests` (migration, trigger, CHECK, unique, xmin) – **xanh** (cần Docker Desktop đang chạy).
+- Sau rebase M7 + M8 lên M6a (2026-11-19): **289 unit** và **107 integration**; FE **99 spec**, **108 E2E mock** – **xanh**.
+- Sau M7 + M8 (2026-11-19): **252 unit** (thêm `LedgerServiceTests`, `EventsServiceTests`) và **90 integration** (thêm `Modules/EventsAndLedgerApiTests` – gồm ghi chi song song không vượt số dư; checklist audit thêm M8) – **xanh**.
 - Sau M12 (2026-11-18, đã gồm M1–M5): **215 unit** và **85 integration** – **xanh**; checklist audit M1–M5 trong `Modules/AuditLogsApiTests`.
 - Sau M2 + M5 (2026-11-18): **119 unit** (thêm `FundsServiceTests`, `CategoriesServiceTests`, `AttachmentsServiceTests`) và **24 integration** (thêm `Modules/FundsApiTests`, `Modules/CategoriesAndFilesApiTests`; `ApiTestHost` đăng nhập bằng endpoint chỉ có trong test `/__test/login/{userId}` vì M1 chưa có) – **xanh**.
 
@@ -72,6 +75,7 @@ Nhánh `feature/rebuild-foundation`: xây lại từ đầu theo bản yêu cầ
 - Shared: `app-state`, `page-header`, `coming-soon`, `scope-badge`, `*appHasPermission`, pipes, `LoadState`, `applyServerErrors`, `ConfirmDialog`, `AppNotifications`, nhãn enum (`shared/models/labels.ts`).
 - Route đầy đủ cho mọi màn hình (giữ chỗ `comingSoon`), sinh bởi `scripts/gen-routes.mjs`.
 - 36 spec – **xanh**; `ng build` OK.
+- Sau M7 + M8 (2026-11-19): **89 spec** và **98 E2E mock** (thêm `e2e/mock/ledger.spec.ts`, `events.spec.ts`, API giả `e2e/support/fake-money-api.ts`) – **xanh**; `ng build` OK.
 - Sau M12 (2026-11-18, đã gồm M1–M5): **83 spec** và **86 E2E mock** (thêm `e2e/mock/audit.spec.ts`) – **xanh**.
 - Sau M2 + M5 (2026-11-18): **48 spec** và **8 E2E mock** (thêm `e2e/mock/funds-categories.spec.ts`) – **xanh**; `ng build` không cảnh báo. Thành phần dùng chung cho module khác: `features/attachments/` (`<app-file-upload>`, `<app-avatar>`, `AttachmentsApi`), `CategoriesApi.list(fundId, { type, activeOnly })`.
 
@@ -97,12 +101,15 @@ Nhánh `feature/rebuild-foundation`: xây lại từ đầu theo bản yêu cầ
 | ~~TD-07~~ | ✅ 2026-11-18 – khung `AppShell` đã làm lại theo canvas S-01 (nhánh `feature/shell-canvas`): thẻ quỹ ở đầu sidebar, ba nhóm menu, thanh trên có breadcrumb + chuông + nhãn vai trò + ảnh đại diện. Chưa làm: chấm đỏ / số đếm trên chuông và menu (cần dữ liệu thông báo, M11) | Foundation |
 | ~~TD-08~~ | ✅ F-01 đã có số liệu thẻ quỹ (M2 mở rộng `fund-list-page.ts`), F-02 Tạo quỹ đã làm | M2 |
 | TD-09 | Kendo Grid cần license: chưa kích hoạt thì bảng hiện watermark "Invalid license" và toast (`npm run license` – không commit file license) | – |
-| TD-10 | Mời thành viên vào sự kiện `Open` khi thêm vào quỹ (M3-T1) chưa làm vì M8 chưa có: cần gọi `EventsService.InviteMember…` khi có | M8 |
+| ~~TD-10~~ | ✅ 2026-11-19 – `MembersService` gọi `IEventInvitationService.InviteToOpenEventsAsync` khi thêm / kích hoạt lại thành viên. Cũ: Mời thành viên vào sự kiện `Open` khi thêm vào quỹ (M3-T1) chưa làm vì M8 chưa có: cần gọi `EventsService.InviteMember…` khi có | M8 |
 | TD-11 | Gắn `<app-avatar [editable]="true">` (M5, `features/attachments/avatar`) vào A-04 và avatar trên thanh trên / header (file Foundation); `AuthController` không khai báo lại `/auth/me/avatar`, `/users/{id}/avatar` | M1 |
 | TD-12 | F-03 trên canvas có "Tài khoản nhận chuyển khoản" nhưng `Fund` chưa có cột – cần nhóm quyết định + migration nếu làm | M2 |
 | TD-13 | Thẻ quỹ của học sinh ở F-01: canvas có "Bạn cần đóng", "Số dư cá nhân" – bổ sung vào `FundSummaryDto` khi có M6/M10 | M6, M10 |
 | TD-14 | U-01: nhãn tiếng Việt cho mã audit, tên trường và giá trị enum mới trong Before/After của module mới phải thêm vào `features/audit/audit-format.ts` (`AUDIT_ACTION_LABEL`, `AUDIT_FIELD_LABEL`, `AUDIT_VALUE_LABEL`; chưa có nhãn thì hiện nguyên mã); bổ sung API ghi mới vào checklist `AuditLogsApiTests.Every_write_api_of_merged_modules_records_audit_checklist` | M6–M14 |
 | TD-15 | U-01 theo canvas chỉ có bộ lọc ngày / người / phạm vi / tự ghi nhận; API đã hỗ trợ thêm `eventId` và `action` (FR-47) nhưng chưa có ô chọn – thêm khi M8 có danh sách sự kiện (nếu nhóm muốn, cần cập nhật canvas) | M8, M12 |
+| TD-16 | L-02 chọn "Thu" dẫn sang H-02 (`…/charges/new`, M6a đã có) thay vì nhập form ngay trong hộp thoại; tab "Khoản thu sự kiện" ở E-03 mới hiện danh sách – form "Thêm khoản thu sự kiện" nối khi làm M6b | M6b |
+| TD-17 | E-02 trên canvas có "Hạn xác nhận tham gia" nhưng `Event` chưa có cột – cần nhóm quyết định + migration nếu làm | M8 |
+| TD-18 | Chưa làm theo canvas: nút "Xuất Excel" ở L-01 (M13 Báo cáo) và "Nhắc đóng" từng người ở E-03 (M11 nhắc hạn) | M11, M13 |
 | TD-02 | Tiến trình `ClassFund.Api.exe` cũ trên máy dev giữ khóa thư mục khi xóa code cũ – tắt trước khi build | – |
 
 ## 5. Sự cố

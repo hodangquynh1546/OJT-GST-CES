@@ -3,6 +3,7 @@ using ClassFund.Application.Common.Exceptions;
 using ClassFund.Application.Common.Paging;
 using ClassFund.Application.Common.Persistence;
 using ClassFund.Application.Common.Security;
+using ClassFund.Application.Features.Events;
 using ClassFund.Domain.Entities;
 using ClassFund.Domain.Enums;
 using ClassFund.Domain.Exceptions;
@@ -17,7 +18,8 @@ public sealed class MembersService(
     IAccessService accessService,
     ICurrentUser currentUser,
     AuditTrail audit,
-    TimeProvider clock) : IMembersService
+    TimeProvider clock,
+    IEventInvitationService invitations) : IMembersService
 {
     public async Task<PagedResult<MemberDto>> ListAsync(Guid fundId, MemberFilter filter, CancellationToken cancellationToken)
     {
@@ -290,6 +292,10 @@ public sealed class MembersService(
                     }
 
                     var charges = await AssignOpenChargesAsync(fundId, user.Id, token);
+
+                    // BR-17 / TD-10: thành viên mới hoặc quay lại được mời vào các sự kiện đang mở.
+                    await invitations.InviteToOpenEventsAsync(fundId, user.Id, actorId, token);
+
                     audit.Record(new AuditEntry(
                         action,
                         fundId,

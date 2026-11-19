@@ -1,6 +1,8 @@
 using ClassFund.Application.Common.Auditing;
 using ClassFund.Application.Common.Exceptions;
+using ClassFund.Application.Common.Notifications;
 using ClassFund.Application.Common.Security;
+using ClassFund.Application.Features.Events;
 using ClassFund.Application.Features.Members;
 using ClassFund.Domain.Entities;
 using ClassFund.Domain.Enums;
@@ -43,7 +45,9 @@ public class MembersServiceTests
     private MembersService CreateService()
     {
         var request = new Mock<IRequestInfo>();
-        return new MembersService(_db, _hasher.Object, new AccessService(_db), _currentUser.Object, new AuditTrail(_db, request.Object, new FixedClock()), new FixedClock());
+        var audit = new AuditTrail(_db, request.Object, new FixedClock());
+        var invitations = new EventInvitationService(_db, audit, new Notifier(_db, new FixedClock()));
+        return new MembersService(_db, _hasher.Object, new AccessService(_db), _currentUser.Object, audit, new FixedClock(), invitations);
     }
 
     private (User User, FundMember Member) SeedStudent(string email = "hs@x.com", string name = "Học Sinh", UserOrigin origin = UserOrigin.Provisioned, MemberStatus status = MemberStatus.Active, Fund? fund = null, bool passwordSet = false)

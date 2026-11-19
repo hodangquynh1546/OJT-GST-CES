@@ -111,7 +111,7 @@ public class AuditLogsApiTests(ApiTestHost host)
     }
 
     /// <summary>
-    /// Checklist M12-T3: mọi API ghi của các module đã merge (M1 → M5) đều sinh audit, đúng quỹ / phạm vi,
+    /// Checklist M12-T3: mọi API ghi của các module đã merge (M1 → M5, M8; M7 ở EventsAndLedgerApiTests) đều sinh audit, đúng quỹ / phạm vi,
     /// và không lộ mật khẩu. Module mới thêm API ghi thì bổ sung vào đây.
     /// </summary>
     [Fact]
@@ -149,6 +149,13 @@ public class AuditLogsApiTests(ApiTestHost host)
 
         await client.PostAsync($"/api/v1/funds/{fundId}/members/{memberId}/remove", null);
 
+        // M8 – sự kiện (tạo, sửa, trả lời, hủy). M7 ghi chi / đảo cần số dư nên kiểm ở EventsAndLedgerApiTests.
+        var fundEvent = await client.PostAsJsonAsync($"/api/v1/funds/{fundId}/events", new { name = "Văn nghệ", eventDate = "2026-11-19" });
+        var eventId = (await fundEvent.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        await client.PutAsJsonAsync($"/api/v1/funds/{fundId}/events/{eventId}", new { name = "Văn nghệ 20/11", eventDate = "2026-11-19" });
+        await client.PutAsJsonAsync($"/api/v1/funds/{fundId}/events/{eventId}/me/response", new { response = "Accepted" });
+        await client.PostAsJsonAsync($"/api/v1/funds/{fundId}/events/{eventId}/cancel", new { reason = "Đổi lịch" });
+
         // M1 / M5 cấp tài khoản (FundId null, phạm vi System).
         await client.PutAsJsonAsync("/api/v1/auth/me", new { fullName = "Thủ Quỹ Audit" });
         await client.PutAsync("/api/v1/auth/me/avatar", ApiTestHost.Multipart(ApiTestHost.Png, "a.png", "image/png"));
@@ -157,6 +164,7 @@ public class AuditLogsApiTests(ApiTestHost host)
         [
             "fund.create", "fund.update", "category.create", "category.update", "attachment.upload",
             "member.add", "member.update", "member.reset_password", "member.remove", "treasurer.grant", "treasurer.revoke",
+            "event.create", "event.update", "event.respond", "event.cancel",
         ];
         string[] expectedAccountActions = ["auth.update_profile", "user.avatar_update"];
 

@@ -96,24 +96,32 @@ M6a (✅) chỉ làm phạm vi **quỹ chung** (`EventId = null`); khoản thu s
 
 ## M7 – Thu chi
 
+> ✅ 2026-11-19 (nhánh `feature/m7-m8-events-transactions`). Một phạm vi mỗi lần: không có `eventId` = quỹ chung (không gồm giao dịch sự kiện, BR-01). Tổng: bút toán đảo trừ vào loại của dòng gốc nên "tổng chi" không tính khoản đã đảo (`LedgerBalances`).
+
 | Method | Path | Permission | FR | Trạng thái |
 |---|---|---|---|---|
-| GET | `/{f}/ledger-entries?scope=&eventId=&type=&categoryId=&from=&to=` | `Fund.View` | FR-28 | ⬜ |
-| POST | `/{f}/ledger-entries` `{ scope, eventId?, categoryId, title, purpose, amount, transactionDate, note?, attachmentIds[] }` – **chỉ ghi chi** (OQ-18): ghi thu = tạo khoản thu (`POST /{f}/charges`). 422 `ledger.exceeds_balance` khi chi vượt số dư phạm vi (BR-38). | `Ledger.Manage` | FR-26, FR-27, FR-16 | ⬜ |
-| GET | `/{f}/ledger-entries/{id}` | `Fund.View` | FR-27 | ⬜ |
-| POST | `/{f}/ledger-entries/{id}/reverse` `{ reason }` | `Ledger.Manage` | FR-29 | ⬜ |
+| GET | `/{f}/ledger-entries?eventId=&type=&categoryId=&from=&to=&page=&pageSize=` → `{ items, total, page, pageSize, summary: { balance, totalIncome, totalExpense } }`; `balance` toàn thời gian, tổng thu / chi trong khoảng ngày lọc. Học sinh: chỉ dòng `Source = Manual` (chi + bút toán đảo – không lộ ai đã đóng, OQ-14); sổ sự kiện chỉ người đã nhận tham gia (không thì 404) | `Fund.View` | FR-28 | ✅ |
+| POST | `/{f}/ledger-entries` `{ eventId?, categoryId, title, purpose?, amount, transactionDate, note?, attachmentIds[] }` → 201 chi tiết – **chỉ ghi chi** (OQ-18, BR-39). Khóa dòng Fund (+ Event) rồi kiểm: quỹ `Active`; sự kiện thuộc quỹ và `Open` (422 `ledger.event_closed`); danh mục chi đang dùng (422 `category.unusable`); ngày không ở tương lai giờ VN (422 `ledger.future_date`); chi ≤ số dư phạm vi (422 `ledger.exceeds_balance`); > 500.000đ phải có chứng từ (422 `evidence.required`); chứng từ do chính mình tải, chưa gắn (422 `attachment.unusable`). Audit `ledger.create` đúng Scope / EventId | `Ledger.Manage` | FR-26, FR-27, FR-16 | ✅ |
+| GET | `/{f}/ledger-entries/{id}` → `{ entry, purpose, note, performedByRole, attachments[], reversedBy?, reverses?, canReverse, history[] }` (`history` từ nhật ký, chỉ khi có `Audit.View`) | `Fund.View` | FR-27 | ✅ |
+| POST | `/{f}/ledger-entries/{id}/reverse` `{ reason }` → 201 dòng đảo (Thu cùng số tiền, cùng phạm vi, `ReversesEntryId`, lý do ở `note`). Chỉ khoản chi ghi tay chưa đảo (422 `ledger.not_reversible`); đã đảo → 409 `ledger.already_reversed`; sự kiện đã quyết toán / hủy → 422 `ledger.scope_locked`. Audit `ledger.reverse` | `Ledger.Manage` | FR-29 | ✅ |
 
 ## M8 – Sự kiện
 
+> ✅ 2026-11-19. Học sinh chỉ thấy sự kiện mình được mời (không thì 404). Khoản thu / thanh toán sự kiện (M6b) chỉ được đọc để tính tình trạng đóng tiền.
+
 | Method | Path | Permission | FR | Trạng thái |
 |---|---|---|---|---|
-| GET | `/{f}/events` | `Event.Participate` | FR-30 | ⬜ |
-| POST | `/{f}/events` | `Event.Manage` | FR-30 | ⬜ |
-| GET | `/{f}/events/{eventId}` | `Event.Participate` | FR-34 | ⬜ |
-| PUT | `/{f}/events/{eventId}` | `Event.Manage` | FR-30 | ⬜ |
-| POST | `/{f}/events/{eventId}/cancel` · `/complete` (kết thúc: loại người chưa đóng khoản nào, BR-19; bỏ `/lock-list`, OQ-18) | `Event.Manage` | FR-30, FR-33 | ⬜ |
-| GET | `/{f}/events/{eventId}/participants?paymentStatus=` | `Event.Participate` (thủ quỹ: chỉ người `Accepted` + đã đóng/phải đóng + tình trạng; học sinh: danh sách tên + trả lời) | FR-32, FR-34 | ⬜ |
-| PUT | `/{f}/events/{eventId}/me/response` `{ response }` | `Event.Participate` | FR-31 | ⬜ |
+| GET | `/{f}/events` → thẻ E-01: `invitedCount, participantCount, paidInFullCount, totalIncome, totalExpense, balance, myResponse` | `Event.Participate` | FR-30, FR-34 | ✅ |
+| POST | `/{f}/events` `{ name, description?, eventDate }` → 201; mời mọi thành viên `Active` (`Pending`), thông báo `EventCreated` cho người khác, audit `event.create` | `Event.Manage` | FR-30 | ✅ |
+| GET | `/{f}/events/{eventId}` → chi tiết + KPI + `me` + `myCharges` (của tôi) + `charges` (thủ quỹ: số đã đóng / chờ / chưa đóng) | `Event.Participate` | FR-34 | ✅ |
+| PUT | `/{f}/events/{eventId}` `{ name, description?, eventDate }` – không sửa khi `Settled` / `Cancelled` (422 `event.not_editable`) | `Event.Manage` | FR-30 | ✅ |
+| POST | `/{f}/events/{eventId}/cancel` `{ reason }` – chỉ `Open` và chưa có dòng sổ / thanh toán chưa bị từ chối (422 `event.has_money`); khoản thu + nghĩa vụ chưa đóng bị hủy theo | `Event.Manage` | FR-30, BR-16 | ✅ |
+| GET | `/{f}/events/{eventId}/completion-preview` → `{ excluded[], underpaid[{ fullName, missing }], pendingPaymentCount, remainingCount }` | `Event.Manage` | FR-33 | ✅ |
+| POST | `/{f}/events/{eventId}/complete` – BR-19: người `Accepted` chưa đóng khoản thu nào (không `Paid`, không thanh toán chờ / đã xác nhận – kể cả khi chưa có khoản nào áp cho họ) bị loại (`IsFinal = false`, nghĩa vụ `Unpaid` → `Excluded`, thông báo `EventParticipantExcluded`); người còn nghĩa vụ `Unpaid` được nhắc (`EventUnpaidReminder`). Đã đóng ít nhất một khoản thì ở lại dù chưa đủ. Sai trạng thái → 422 `event.invalid_transition` | `Event.Manage` | FR-33 | ✅ |
+| GET | `/{f}/events/{eventId}/participants?paymentStatus=` (`Paid` / `Pending` / `Unpaid` / `NoCharge`) – chỉ người `Accepted` (sau khi kết thúc: `IsFinal`); thủ quỹ có `paid / due / paymentStatus / hasSelfDeclared`; học sinh chỉ có tên | `Event.Participate` | FR-32, FR-34 | ✅ |
+| PUT | `/{f}/events/{eventId}/me/response` `{ response }` (`Accepted` / `Declined`) – chỉ khi `Open` (422 `event.not_open`); đã nộp tiền thì không đổi sang không tham gia (422 `event.response_locked`); nhận tham gia muộn được áp các khoản thu đang mở, không tham gia thì nghĩa vụ chưa đóng bị hủy | `Event.Participate` | FR-31, BR-17, BR-18 | ✅ |
+
+Nội bộ cho M3 (TD-10): `IEventInvitationService.InviteToOpenEventsAsync` – thêm / kích hoạt lại thành viên thì được mời vào các sự kiện `Open` (audit `event.invite`).
 
 ## M9 – Quyết toán
 

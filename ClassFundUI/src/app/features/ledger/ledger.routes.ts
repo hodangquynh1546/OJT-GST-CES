@@ -1,10 +1,26 @@
 import { Routes } from '@angular/router';
 
-import { comingSoon } from '../../shared/components/coming-soon/coming-soon';
+import { fundPermissionGuard } from '../../core/auth/auth.guards';
+import { Permissions } from '../../core/auth/permissions';
+import './ledger.errors';
 
-/** Màn hình giữ chỗ – module thay bằng màn hình thật (docs/ui-design/screen-specifications.md). */
+/** M7 – Thu chi chung (guard Fund.View ở app.routes.ts). L-02 là hộp thoại của L-01 nhưng vẫn mở thẳng được bằng `…/ledger/new`. */
 export const LEDGER_ROUTES: Routes = [
-  { path: '', ...comingSoon('L-01', 'Thu chi chung') },
-  { path: 'new', ...comingSoon('L-02', 'Ghi giao dịch') },
-  { path: ':entryId', ...comingSoon('L-03', 'Chi tiết giao dịch') },
+  {
+    path: '',
+    title: 'Thu chi chung · ClassFund',
+    loadComponent: () => import('./ledger-page/ledger-page').then((m) => m.LedgerPage),
+  },
+  {
+    path: 'new',
+    title: 'Ghi giao dịch · ClassFund',
+    canActivate: [fundPermissionGuard(Permissions.LedgerManage)],
+    data: { openNew: true },
+    loadComponent: () => import('./ledger-page/ledger-page').then((m) => m.LedgerPage),
+  },
+  {
+    path: ':entryId',
+    title: 'Chi tiết giao dịch · ClassFund',
+    loadComponent: () => import('./ledger-detail/ledger-detail').then((m) => m.LedgerDetail),
+  },
 ];

@@ -43,8 +43,8 @@ interface Lists {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page">
-      <header class="head">
-        <div class="text">
+      <header class="page-head">
+        <div class="head-t">
           <div class="title-row">
             <h1>Khoản thu chung</h1>
             <app-scope-badge scope="General" />
@@ -171,47 +171,57 @@ interface Lists {
     }
   `,
   styles: `
+    /* Theo canvas ChargeListBody (.page gap 24 px, .head, .tabs inline-flex ôm vừa nội dung). */
     .page {
-      max-width: 1200px;
-    }
-    .head {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-    .text {
       display: flex;
       flex-direction: column;
+      gap: 24px;
+      max-width: 1200px;
+    }
+    .page-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    /* Khối tiêu đề (canvas .head-t); không dùng tên .text vì trùng lớp ô nhập của form bên dưới. */
+    .head-t {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
       min-width: 0;
     }
     .title-row {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
     .title-row h1 {
       margin: 0;
+      font-weight: 600;
+      letter-spacing: -0.02em;
     }
     .tabs {
-      display: flex;
+      display: inline-flex;
+      flex-wrap: wrap;
+      align-self: flex-start;
       gap: 4px;
-      margin-bottom: 16px;
       padding: 4px;
       border-radius: var(--cf-radius-lg);
       background: var(--cf-subtle);
     }
     .tabs button {
-      min-height: 32px;
+      height: 28px;
       padding: 0 12px;
       border: 0;
       border-radius: var(--cf-radius-md);
       background: transparent;
       color: var(--cf-text-muted);
       font: inherit;
-      font-weight: 600;
+      font-size: 13px;
+      font-weight: 500;
       cursor: pointer;
     }
     .tabs button.active {
