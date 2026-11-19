@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormControl, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ButtonComponent } from '@progress/kendo-angular-buttons';
 import { DialogActionsComponent, DialogComponent } from '@progress/kendo-angular-dialog';
@@ -23,6 +23,9 @@ import { AttachmentGallery } from '../../ledger/attachment-gallery/attachment-ga
 import { ExpenseDialog } from '../../ledger/expense-dialog/expense-dialog';
 import { LedgerApi } from '../../ledger/ledger.api';
 import { LedgerEntry, LedgerEntryDetail, LedgerList, signedAmount } from '../../ledger/ledger.models';
+import { CategoriesApi } from '../../categories/categories.api';
+import { Category } from '../../categories/categories.models';
+import { CHARGE_STATUS_LABEL, ChargeStatus } from '../../charges/charges.models';
 import { EventFormDialog } from '../event-form-dialog/event-form-dialog';
 import { EventsApi } from '../events.api';
 import '../events.errors';
@@ -71,6 +74,7 @@ const ASSIGNMENT_TONE: Record<AssignmentStatus, Tone> = {
     EventFormDialog,
     ExpenseDialog,
     FormFieldComponent,
+    FormsModule,
     GridComponent,
     LabelComponent,
     NoRecordsTemplateDirective,
@@ -88,6 +92,7 @@ const ASSIGNMENT_TONE: Record<AssignmentStatus, Tone> = {
 export class EventDetail {
   private readonly api = inject(EventsApi);
   private readonly ledgerApi = inject(LedgerApi);
+  private readonly categoryApi = inject(CategoriesApi);
   private readonly route = inject(ActivatedRoute);
   private readonly notifications = inject(AppNotifications);
   private readonly currentFund = inject(CurrentFund);
@@ -113,10 +118,22 @@ export class EventDetail {
   protected readonly tab = signal<DetailTab>('people');
   protected readonly peopleFilter = signal<PeopleFilter>('all');
   protected readonly busy = signal(false);
-  protected readonly dialog = signal<'end' | 'cancel' | 'expense' | 'edit' | null>(null);
+  protected readonly dialog = signal<'end' | 'cancel' | 'expense' | 'edit' | 'charge' | null>(null);
   protected readonly preview = signal<CompletionPreview | null>(null);
   protected readonly proof = signal<LedgerEntryDetail | null>(null);
   protected readonly cancelReason = new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(CANCEL_REASON_MAX)] });
+
+  // ---- Tạo khoản thu sự kiện ----
+  protected readonly chargeTitle = signal('');
+  protected readonly chargePurpose = signal('');
+  protected readonly chargeAmount = signal(0);
+  protected readonly chargeAmountText = computed(() => (this.chargeAmount() > 0 ? this.chargeAmount().toLocaleString('vi-VN') : ''));
+  protected readonly chargeDueDate = signal('');
+  protected readonly chargeCategoryId = signal('');
+  protected readonly chargeCategories = signal<Category[]>([]);
+  protected readonly chargeErrors = signal<{ title?: string; category?: string; amount?: string; dueDate?: string }>({});
+  protected readonly chargeCreateError = signal<string | null>(null);
+  protected readonly today = new Date().toISOString().slice(0, 10);
 
   protected readonly fundId = toSignal(this.route.paramMap.pipe(map((params) => params.get('fundId') ?? '')), { initialValue: '' });
   protected readonly eventId = toSignal(this.route.paramMap.pipe(map((params) => params.get('eventId') ?? '')), { initialValue: '' });
@@ -297,6 +314,71 @@ export class EventDetail {
     } catch (error) {
       this.notifications.error(error instanceof ApiError ? error.message : 'Không tải được chứng từ.');
     }
+  }
+
+  // ---- Khoản thu sự kiện (M6b) ----
+
+  protected chargeStatusLabel(status: ChargeStatus): string {
+    return CHARGE_STATUS_LABEL[status];
+  }
+
+  protected setChargeAmount(text: string): void {
+    const digits = text.replace(/\D/g, '').slice(0, 12);
+    this.chargeAmount.set(digits ? Number(digits) : 0);
+  }
+
+  protected openCreateCharge(): void {
+    this.chargeTitle.set('');
+    this.chargePurpose.set('');
+    this.chargeAmount.set(0);
+    this.chargeDueDate.set('');
+    this.chargeCategoryId.set('');
+    this.chargeErrors.set({});
+    this.chargeCreateError.set(null);
+    this.dialog.set('charge');
+    void firstValueFrom(this.categoryApi.list(this.fundId(), { type: 'Income', activeOnly: true })).then((items) =>
+      this.chargeCategories.set(items),
+    );
+  }
+
+  protected async doCreateCharge(event: EventDetailModel): Promise<void> {
+    const errors: { title?: string; category?: string; amount?: string; dueDate?: string } = {};
+    if (!this.chargeTitle().trim()) errors.title = 'Vui lòng nhập tên khoản thu.';
+    if (!this.chargeCategoryId()) errors.category = 'Vui lòng chọn danh mục thu.';
+    if (this.chargeAmount() <= 0) errors.amount = 'Số tiền mỗi người phải lớn hơn 0.';
+    if (!this.chargeDueDate()) errors.dueDate = 'Vui lòng chọn hạn đóng.';
+    else if (this.chargeDueDate() < this.today) errors.dueDate = 'Hạn đóng không được trước ngày hôm nay.';
+    this.chargeErrors.set(errors);
+    this.chargeCreateError.set(null);
+    if (Object.keys(errors).length > 0 || this.busy()) return;
+
+    await this.run(async () => {
+      const charge = await firstValueFrom(
+        this.api.createCharge(this.fundId(), event.id, {
+          title: this.chargeTitle().trim(),
+          purpose: this.chargePurpose().trim() || null,
+          amountPerPerson: this.chargeAmount(),
+          dueDate: this.chargeDueDate(),
+          categoryId: this.chargeCategoryId(),
+        }),
+      );
+      this.dialog.set(null);
+      this.notifications.success(`Đã tạo khoản thu sự kiện "${charge.title}".`);
+    });
+  }
+
+  protected async doCloseCharge(event: EventDetailModel, chargeId: string): Promise<void> {
+    await this.run(async () => {
+      await firstValueFrom(this.api.closeCharge(this.fundId(), event.id, chargeId));
+      this.notifications.success('Đã đóng khoản thu sự kiện.');
+    });
+  }
+
+  protected async doCancelCharge(event: EventDetailModel, chargeId: string): Promise<void> {
+    await this.run(async () => {
+      await firstValueFrom(this.api.cancelCharge(this.fundId(), event.id, chargeId));
+      this.notifications.success('Đã hủy khoản thu sự kiện.');
+    });
   }
 
   private async run(work: () => Promise<void>): Promise<void> {

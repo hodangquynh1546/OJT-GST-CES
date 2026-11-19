@@ -79,6 +79,8 @@ export interface MyAssignmentItem {
   paymentStatus: PaymentStatus | null;
   rejectionReason: string | null;
   isSelfDeclared: boolean;
+  eventId: string | null;
+  eventName: string | null;
 }
 
 export interface SubmitPaymentRequest {

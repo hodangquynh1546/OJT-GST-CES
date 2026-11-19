@@ -17,7 +17,9 @@ public sealed record MyAssignmentItemDto(
     PaymentMethod? Method,
     PaymentStatus? PaymentStatus,
     string? RejectionReason,
-    bool IsSelfDeclared);
+    bool IsSelfDeclared,
+    Guid? EventId = null,
+    string? EventName = null);
 
 public sealed record SubmitPaymentInput(PaymentMethod Method, string? TransferCode, Guid? AttachmentId);
 

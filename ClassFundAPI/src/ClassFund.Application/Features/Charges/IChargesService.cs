@@ -1,5 +1,6 @@
 using ClassFund.Application.Common.Exceptions;
 using ClassFund.Application.Common.Paging;
+using ClassFund.Application.Features.Events;
 using ClassFund.Domain.Exceptions;
 
 namespace ClassFund.Application.Features.Charges;
@@ -39,4 +40,22 @@ public interface IChargesService
     /// <exception cref="ConflictException">Khoản thu không còn mở hoặc vừa nhắc (<c>charge.remind_too_soon</c>).</exception>
     /// <exception cref="BusinessRuleException">Không còn ai chưa đóng (<c>charge.nothing_to_remind</c>).</exception>
     Task<RemindResult> RemindAsync(Guid fundId, Guid chargeId, CancellationToken cancellationToken);
+
+    // ---- Khoản thu sự kiện (M6b) ----
+
+    /// <summary>
+    /// Tạo khoản thu sự kiện, chỉ gán cho người đã xác nhận tham gia (<c>Accepted</c>, BR-18);
+    /// gửi thông báo <c>EventChargeCreated</c> chỉ đến những người được gán.
+    /// </summary>
+    /// <exception cref="BusinessRuleException">Sự kiện không còn mở, danh mục không dùng được, hạn đóng đã qua.</exception>
+    Task<EventChargeDto> CreateEventChargeAsync(Guid fundId, Guid eventId, CreateChargeInput input, CancellationToken cancellationToken);
+
+    /// <summary>Ngừng nhận tiền cho khoản thu sự kiện.</summary>
+    Task<EventChargeDto> CloseEventChargeAsync(Guid fundId, Guid eventId, Guid chargeId, CancellationToken cancellationToken);
+
+    /// <summary>Hủy khoản thu sự kiện: chỉ khi chưa có ai nộp.</summary>
+    Task<EventChargeDto> CancelEventChargeAsync(Guid fundId, Guid eventId, Guid chargeId, CancellationToken cancellationToken);
+
+    /// <summary>Danh sách đã đóng / chưa đóng của một khoản thu sự kiện (tương tự general).</summary>
+    Task<PagedResult<AssignmentRowDto>> ListEventAssignmentsAsync(Guid fundId, Guid eventId, Guid chargeId, AssignmentFilter filter, CancellationToken cancellationToken);
 }

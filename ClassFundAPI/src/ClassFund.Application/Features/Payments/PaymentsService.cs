@@ -35,9 +35,18 @@ public sealed class PaymentsService(
             where assignment.UserId == userId
                 && assignment.Status != AssignmentStatus.Cancelled && assignment.Status != AssignmentStatus.Excluded
             join charge in db.Query<Charge>() on assignment.ChargeId equals charge.Id
-            where charge.FundId == fundId && charge.EventId == null
+            where charge.FundId == fundId
             select new { assignment, charge },
             cancellationToken);
+
+        // Với khoản thu sự kiện, cần tên sự kiện để hiển thị ở H-03
+        var eventIds = rows.Where(row => row.charge.EventId.HasValue).Select(row => row.charge.EventId!.Value).Distinct().ToArray();
+        var eventNames = eventIds.Length == 0
+            ? new Dictionary<Guid, string>()
+            : (await db.ToListAsync(
+                    db.Query<Event>().Where(e => eventIds.Contains(e.Id)).Select(e => new { e.Id, e.Name }),
+                    cancellationToken))
+                .ToDictionary(e => e.Id, e => e.Name);
 
         var assignmentIds = rows.Select(row => row.assignment.Id).ToArray();
         var latest = (await db.ToListAsync(
@@ -53,6 +62,7 @@ public sealed class PaymentsService(
             .Select(row =>
             {
                 latest.TryGetValue(row.assignment.Id, out var payment);
+                var eventId = row.charge.EventId;
                 return new MyAssignmentItemDto(
                     row.assignment.Id,
                     row.charge.Id,
@@ -66,7 +76,9 @@ public sealed class PaymentsService(
                     payment?.Method,
                     payment?.Status,
                     payment?.Status == PaymentStatus.Rejected ? payment.RejectionReason : null,
-                    payment?.ConfirmationMode == ConfirmationMode.SelfDeclared);
+                    payment?.ConfirmationMode == ConfirmationMode.SelfDeclared,
+                    eventId,
+                    eventId.HasValue ? eventNames.GetValueOrDefault(eventId.Value) : null);
             })
             .ToArray();
     }
@@ -121,6 +133,18 @@ public sealed class PaymentsService(
                         throw new ConflictException(PaymentsErrors.ChargeNotOpenCode, PaymentsErrors.ChargeNotOpenMessage);
                     }
 
+                    // Khoản thu sự kiện: sự kiện phải còn AcceptsPayments (Open hoặc Completed)
+                    if (charge.EventId is { } submitEventId)
+                    {
+                        var eventStatus = await db.FirstOrDefaultAsync(
+                            db.Query<Event>().Where(e => e.Id == submitEventId).Select(e => (EventStatus?)e.Status), token);
+                        if (eventStatus is null || !EventStatusRules.AcceptsPayments(eventStatus.Value))
+                        {
+                            throw new ConflictException(PaymentsErrors.ChargeNotOpenCode, PaymentsErrors.ChargeNotOpenMessage);
+                        }
+                    }
+
+                    var scope = charge.EventId.HasValue ? FinancialScope.Event : FinancialScope.General;
                     var now = clock.GetUtcNow();
                     var payment = new Payment(assignment.Id, userId, assignment.AmountDue, input.Method, now) { TransferCode = transferCode };
                     db.Add(payment);
@@ -136,7 +160,8 @@ public sealed class PaymentsService(
                         PaymentsAuditActions.Submit,
                         fundId,
                         userId,
-                        FinancialScope.General,
+                        scope,
+                        EventId: charge.EventId,
                         EntityType: nameof(Payment),
                         EntityId: payment.Id,
                         After: new
@@ -199,6 +224,18 @@ public sealed class PaymentsService(
                         throw new ConflictException(PaymentsErrors.ChargeNotOpenCode, PaymentsErrors.ChargeNotOpenMessage);
                     }
 
+                    // Khoản thu sự kiện: sự kiện phải còn AcceptsPayments
+                    if (charge.EventId is { } recordEventId)
+                    {
+                        var eventStatus = await db.FirstOrDefaultAsync(
+                            db.Query<Event>().Where(e => e.Id == recordEventId).Select(e => (EventStatus?)e.Status), token);
+                        if (eventStatus is null || !EventStatusRules.AcceptsPayments(eventStatus.Value))
+                        {
+                            throw new ConflictException(PaymentsErrors.ChargeNotOpenCode, PaymentsErrors.ChargeNotOpenMessage);
+                        }
+                    }
+
+                    var recordScope = charge.EventId.HasValue ? FinancialScope.Event : FinancialScope.General;
                     var payer = await db.FirstOrDefaultAsync(db.Query<User>().Where(user => user.Id == assignment.UserId), token)
                         ?? throw new NotFoundException();
                     var payment = new Payment(assignment.Id, payer.Id, assignment.AmountDue, PaymentMethod.Cash, clock.GetUtcNow());
@@ -207,7 +244,8 @@ public sealed class PaymentsService(
                         PaymentsAuditActions.Submit,
                         fundId,
                         actorId,
-                        FinancialScope.General,
+                        recordScope,
+                        EventId: charge.EventId,
                         EntityType: nameof(Payment),
                         EntityId: payment.Id,
                         After: new { chargeTitle = charge.Title, payerName = payer.FullName, amount = payment.Amount, method = nameof(PaymentMethod.Cash) },
@@ -283,11 +321,13 @@ public sealed class PaymentsService(
                 payment.RejectionReason = trimmed;
                 assignment.Status = AssignmentStatus.Unpaid;
 
+                var rejectScope = charge.EventId.HasValue ? FinancialScope.Event : FinancialScope.General;
                 audit.Record(new AuditEntry(
                     PaymentsAuditActions.Reject,
                     fundId,
                     actorId,
-                    FinancialScope.General,
+                    rejectScope,
+                    EventId: charge.EventId,
                     EntityType: nameof(Payment),
                     EntityId: payment.Id,
                     Before: new { status = nameof(PaymentStatus.Submitted) },
@@ -296,8 +336,8 @@ public sealed class PaymentsService(
                     [payment.PayerUserId],
                     new NotificationMessage(
                         fundId,
-                        FinancialScope.General,
-                        null,
+                        rejectScope,
+                        charge.EventId,
                         NotificationType.PaymentRejected,
                         $"{Notifier.GeneralPrefix} Thanh toán bị từ chối: {charge.Title}",
                         $"Lý do: {trimmed}. Bạn có thể nộp lại.",
@@ -336,9 +376,10 @@ public sealed class PaymentsService(
                 cancellationToken);
         }
 
+        var confirmScope = charge.EventId.HasValue ? FinancialScope.Event : FinancialScope.General;
         db.Add(new LedgerEntry(
             fundId,
-            null,
+            charge.EventId,
             LedgerType.Income,
             LedgerSource.Payment,
             categoryId,
@@ -358,7 +399,8 @@ public sealed class PaymentsService(
             PaymentsAuditActions.Confirm,
             fundId,
             actorId,
-            FinancialScope.General,
+            confirmScope,
+            EventId: charge.EventId,
             EntityType: nameof(Payment),
             EntityId: payment.Id,
             Before: new { status = nameof(PaymentStatus.Submitted) },
@@ -372,8 +414,8 @@ public sealed class PaymentsService(
                 [payment.PayerUserId],
                 new NotificationMessage(
                     fundId,
-                    FinancialScope.General,
-                    null,
+                    confirmScope,
+                    charge.EventId,
                     NotificationType.PaymentConfirmed,
                     $"{Notifier.GeneralPrefix} Đã xác nhận khoản đóng: {charge.Title}",
                     $"Thủ quỹ đã xác nhận bạn đóng {payment.Amount:N0}đ.",
@@ -402,7 +444,7 @@ public sealed class PaymentsService(
 
     private async Task<Charge> LoadChargeAsync(Guid chargeId, Guid fundId, CancellationToken cancellationToken) =>
         await db.FirstOrDefaultAsync(
-            db.Query<Charge>().Where(charge => charge.Id == chargeId && charge.FundId == fundId && charge.EventId == null),
+            db.Query<Charge>().Where(charge => charge.Id == chargeId && charge.FundId == fundId),
             cancellationToken) ?? throw new NotFoundException();
 
     private async Task EnsureFundActiveAsync(Guid fundId, CancellationToken cancellationToken)
@@ -427,7 +469,7 @@ public sealed class PaymentsService(
         from payment in db.Query<Payment>()
         join assignment in db.Query<ChargeAssignment>() on payment.AssignmentId equals assignment.Id
         join charge in db.Query<Charge>() on assignment.ChargeId equals charge.Id
-        where charge.FundId == fundId && charge.EventId == null
+        where charge.FundId == fundId
         join user in db.Query<User>() on payment.PayerUserId equals user.Id
         select new QueueRow { Payment = payment, Charge = charge, Payer = user };
 
