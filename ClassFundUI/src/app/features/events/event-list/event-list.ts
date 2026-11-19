@@ -92,8 +92,8 @@ interface CardLink {
                 <div class="rsvp">
                   <span class="cf-tag" [class]="'cf-tag--' + mine.tone">{{ mine.text }}</span>
                   <div class="actions">
-                    <button kendoButton fillMode="outline" size="small" type="button" [disabled]="busy()" (click)="respond(event, 'Declined')">Không tham gia</button>
-                    <button kendoButton themeColor="primary" size="small" type="button" [disabled]="busy()" (click)="respond(event, 'Accepted')">Tham gia</button>
+                    <button kendoButton fillMode="outline" size="small" type="button" [disabled]="busy() || event.myResponse === 'Declined'" (click)="respond(event, 'Declined')">Không tham gia</button>
+                    <button kendoButton themeColor="primary" size="small" type="button" [disabled]="busy() || event.myResponse === 'Accepted'" (click)="respond(event, 'Accepted')">Tham gia</button>
                   </div>
                 </div>
               }
@@ -281,9 +281,9 @@ export class EventList {
   }));
   protected readonly visible = computed(() => this.events().filter((event) => isActiveEvent(event.status) === (this.tab() === 'active')));
 
-  /** Học sinh (người được mời không quản lý) trả lời ngay trên thẻ khi sự kiện còn mở. */
+  /** Mọi người được mời – học sinh và thủ quỹ – trả lời ngay trên thẻ khi sự kiện còn mở (FR-31). */
   protected canRespond(event: EventSummary): boolean {
-    return !this.canManage() && event.status === 'Open' && event.myResponse !== null;
+    return event.status === 'Open' && event.myResponse !== null;
   }
 
   /** Nút bên phải thẻ như canvas: thủ quỹ Quản lý / Quyết toán / Xem báo cáo / Nhật ký; học sinh Chi tiết. */

@@ -143,3 +143,44 @@ test('E-03 student: my part, overview, public expenses', async ({ page }) => {
   expect(api.last('GET', '/ledger-entries')?.query.get('type')).toBe('Expense');
   await shot(page, 'app-event-student');
 });
+
+test('E-01 treasurer also answers; the chosen button is greyed out and not clickable', async ({ page }) => {
+  const api = await FakeMoneyApi.open(page, owner, EVENTS);
+  const picnic = page.getByRole('article', { name: 'Dã ngoại Ba Vì' });
+  const accept = picnic.getByRole('button', { name: 'Tham gia', exact: true });
+  const decline = picnic.getByRole('button', { name: 'Không tham gia' });
+  await expect(picnic.getByText('Bạn chưa trả lời')).toBeVisible();
+  await expect(accept).toBeEnabled();
+  await expect(decline).toBeEnabled();
+
+  await accept.click();
+  await expect(picnic.getByText('Bạn: Tham gia')).toBeVisible();
+  await expect(accept).toBeDisabled();
+  await expect(decline).toBeEnabled();
+  expect(api.last('PUT', '/events/e1/me/response')?.body).toEqual({ response: 'Accepted' });
+
+  await decline.click();
+  await expect(picnic.getByText('Bạn: Không tham gia')).toBeVisible();
+  await expect(decline).toBeDisabled();
+  await expect(accept).toBeEnabled();
+  // Sự kiện đã kết thúc không còn nút trả lời.
+  await expect(page.getByRole('article', { name: 'Liên hoan giữa kỳ' }).getByRole('button', { name: 'Tham gia', exact: true })).toHaveCount(0);
+});
+
+test('E-03 treasurer "Phần của bạn": join to pay like students, decline to only manage', async ({ page }) => {
+  await FakeMoneyApi.open(page, owner, `${EVENTS}/e1`);
+  const mine = page.getByRole('region', { name: 'Phần của bạn' });
+  await expect(mine.getByText('Bạn chưa trả lời', { exact: false }).first()).toBeVisible();
+
+  await mine.getByRole('button', { name: 'Tham gia', exact: true }).click();
+  await expect(mine.getByText('Phí dã ngoại · 350.000 đ')).toBeVisible();
+  await expect(mine.getByRole('link', { name: 'Nộp tiền' })).toBeVisible();
+  await expect(mine.getByRole('button', { name: 'Tham gia', exact: true })).toBeDisabled();
+
+  await mine.getByRole('button', { name: 'Không tham gia' }).click();
+  await expect(mine.getByText('chỉ quản lý và ghi thu chi', { exact: false })).toBeVisible();
+  await expect(mine.getByRole('button', { name: 'Không tham gia' })).toBeDisabled();
+  await expect(mine.getByRole('button', { name: 'Tham gia', exact: true })).toBeEnabled();
+  // Vẫn là người quản lý: nút Kết thúc / Hủy giữ nguyên.
+  await expect(page.getByRole('button', { name: 'Kết thúc sự kiện' })).toBeVisible();
+});

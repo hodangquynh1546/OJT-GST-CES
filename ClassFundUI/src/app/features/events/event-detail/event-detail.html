@@ -83,6 +83,64 @@
         </div>
       </div>
 
+      @if (event.me; as me) {
+        <!-- Thủ quỹ cũng là người được mời: tham gia thì đóng tiền như học sinh, không tham gia thì chỉ quản lý thu chi. -->
+        <section class="cf-card pad stack-s mine-card" aria-label="Phần của bạn">
+          <div class="between">
+            <div class="title-row">
+              <h2>Phần của bạn</h2>
+              @let myBadge = myResponseBadge[me.response];
+              <span class="cf-tag" [class]="'cf-tag--' + myBadge.tone">{{ myBadge.text }}</span>
+            </div>
+            @if (isOpen()) {
+              <div class="actions">
+                <button
+                  kendoButton
+                  fillMode="outline"
+                  size="small"
+                  type="button"
+                  [disabled]="busy() || me.response === 'Declined'"
+                  (click)="respond(event, 'Declined')"
+                >
+                  Không tham gia
+                </button>
+                <button
+                  kendoButton
+                  themeColor="primary"
+                  size="small"
+                  type="button"
+                  [disabled]="busy() || me.response === 'Accepted'"
+                  (click)="respond(event, 'Accepted')"
+                >
+                  Tham gia
+                </button>
+              </div>
+            }
+          </div>
+          @if (me.exclusionReason) {
+            <div class="cf-alert cf-alert--danger">Bạn không còn trong danh sách tham gia: {{ me.exclusionReason }}</div>
+          } @else if (me.response === 'Accepted') {
+            @for (charge of event.myCharges; track charge.chargeId) {
+              <div class="cf-card mine">
+                <div class="row-main">
+                  <span class="strong-600">{{ charge.title }} · {{ charge.amountDue | vndMoney }}</span>
+                  <span class="cf-muted small">Hạn {{ charge.dueDate | vnDate }}</span>
+                </div>
+                <span class="cf-tag" [class]="'cf-tag--' + assignmentTone[charge.status]">{{ assignmentLabel[charge.status] }}</span>
+                @if (charge.status === 'Unpaid') {
+                  <a class="cf-primary-link small-btn" [routerLink]="['/funds', fundId(), 'my-payments']">Nộp tiền</a>
+                }
+              </div>
+            } @empty {
+              <p class="cf-muted small">Bạn tham gia sự kiện này: khi có khoản thu sự kiện, bạn cũng phải đóng như mọi người tham gia (tự ghi nhận được ghi rõ trong nhật ký).</p>
+            }
+          } @else if (me.response === 'Declined') {
+            <p class="cf-muted small">Bạn không tham gia – không phải đóng khoản thu của sự kiện, chỉ quản lý và ghi thu chi.</p>
+          } @else {
+            <p class="cf-muted small">Bạn chưa trả lời. Tham gia thì bạn đóng tiền như học sinh; không tham gia thì chỉ quản lý và ghi thu chi.</p>
+          }
+        </section>
+      }
       <section class="cf-card tabs-card">
         <div class="utabs" role="tablist" aria-label="Chi tiết sự kiện">
           <button type="button" role="tab" class="utab" [class.on]="tab() === 'people'" [attr.aria-selected]="tab() === 'people'" (click)="tab.set('people')">
@@ -261,7 +319,7 @@
                   class="tab"
                   [class.on]="me.response === 'Accepted'"
                   [attr.aria-checked]="me.response === 'Accepted'"
-                  [disabled]="busy() || !isOpen()"
+                  [disabled]="busy() || !isOpen() || me.response === 'Accepted'"
                   (click)="respond(event, 'Accepted')"
                 >
                   Tham gia
@@ -272,7 +330,7 @@
                   class="tab"
                   [class.on]="me.response === 'Declined'"
                   [attr.aria-checked]="me.response === 'Declined'"
-                  [disabled]="busy() || !isOpen()"
+                  [disabled]="busy() || !isOpen() || me.response === 'Declined'"
                   (click)="respond(event, 'Declined')"
                 >
                   Không tham gia
