@@ -17,6 +17,8 @@ import { ASSIGNMENT_STATUS_LABEL, AssignmentStatus } from '../../shared/models/l
 import { VnDatePipe } from '../../shared/pipes/vn-date.pipe';
 import { VndMoneyPipe } from '../../shared/pipes/vnd-money.pipe';
 import { LOADING, LoadState, stateKind, toLoadState } from '../../shared/state/load-state';
+import { CategoriesApi } from '../categories/categories.api';
+import { Category } from '../categories/categories.models';
 import { MembersApi } from '../members/members.api';
 import { ChargesApi } from './charges.api';
 import { CHARGE_FIELD_FOR } from './charges.errors';
@@ -80,7 +82,7 @@ interface Lists {
                   }
                 </div>
                 <div class="cf-muted meta">
-                  {{ charge.amountPerPerson | vndMoney }}/người · hạn {{ charge.dueDate | vnDate }}@if (charge.purpose) { · {{ charge.purpose }} }
+                  {{ charge.amountPerPerson | vndMoney }}/người · hạn {{ charge.dueDate | vnDate }}@if (charge.categoryName) { · {{ charge.categoryName }} }@if (charge.purpose) { · {{ charge.purpose }} }
                 </div>
                 @if (charge.progress; as progress) {
                   <div class="progress">
@@ -124,6 +126,19 @@ interface Lists {
           <div class="field">
             <label for="charge-purpose">Mục đích</label>
             <textarea id="charge-purpose" class="text area" rows="3" maxlength="1000" [ngModel]="purpose()" (ngModelChange)="purpose.set($event)" name="purpose"></textarea>
+          </div>
+          <div class="field">
+            <label for="charge-category">Danh mục thu <span class="req" aria-hidden="true">*</span></label>
+            <select id="charge-category" class="text" [class.invalid]="errors().category" [ngModel]="categoryId()" (ngModelChange)="categoryId.set($event)" name="category">
+              <option value="">Chọn danh mục thu</option>
+              @for (category of categories(); track category.id) {
+                <option [value]="category.id">{{ category.name }}</option>
+              }
+            </select>
+            @if (errors().category; as message) { <span class="k-form-error" role="alert">{{ message }}</span> }
+            @if (categories().length === 0) {
+              <span class="cf-muted hint">Chưa có danh mục thu nào. Tạo ở mục Danh mục rồi quay lại.</span>
+            }
           </div>
           <div class="row">
             <div class="field">
@@ -325,6 +340,9 @@ interface Lists {
     .money {
       text-align: right;
     }
+    .hint {
+      font-size: 13px;
+    }
     .preview {
       margin: 0;
       padding: 12px;
@@ -338,6 +356,7 @@ interface Lists {
 export class ChargesPage {
   private readonly api = inject(ChargesApi);
   private readonly members = inject(MembersApi);
+  private readonly categoryApi = inject(CategoriesApi);
   private readonly fund = inject(CurrentFund);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -419,7 +438,9 @@ export class ChargesPage {
   protected readonly purpose = signal('');
   protected readonly amount = signal(0);
   protected readonly dueDate = signal('');
-  protected readonly errors = signal<{ title?: string; amount?: string; dueDate?: string }>({});
+  protected readonly categoryId = signal('');
+  protected readonly categories = signal<Category[]>([]);
+  protected readonly errors = signal<{ title?: string; category?: string; amount?: string; dueDate?: string }>({});
   protected readonly memberCount = signal(0);
   protected readonly total = computed(() => this.amount() * this.memberCount());
   protected readonly amountText = computed(() => (this.amount() > 0 ? this.amount().toLocaleString('vi-VN') : ''));
@@ -435,9 +456,11 @@ export class ChargesPage {
     this.purpose.set('');
     this.amount.set(0);
     this.dueDate.set('');
+    this.categoryId.set('');
     this.errors.set({});
     this.createError.set(null);
     this.creating.set(true);
+    void firstValueFrom(this.categoryApi.list(this.fundId(), { type: 'Income', activeOnly: true })).then((items) => this.categories.set(items));
     void firstValueFrom(this.members.list(this.fundId(), { status: 'Active', page: 1, pageSize: 1 })).then((page) => this.memberCount.set(page.total));
   }
 
@@ -454,9 +477,12 @@ export class ChargesPage {
   }
 
   protected async create(): Promise<void> {
-    const errors: { title?: string; amount?: string; dueDate?: string } = {};
+    const errors: { title?: string; category?: string; amount?: string; dueDate?: string } = {};
     if (!this.title().trim()) {
       errors.title = 'Vui lòng nhập tên khoản thu.';
+    }
+    if (!this.categoryId()) {
+      errors.category = 'Vui lòng chọn danh mục thu.';
     }
     if (this.amount() <= 0) {
       errors.amount = 'Số tiền mỗi người phải lớn hơn 0.';
@@ -480,6 +506,7 @@ export class ChargesPage {
           purpose: this.purpose().trim() || null,
           amountPerPerson: this.amount(),
           dueDate: this.dueDate(),
+          categoryId: this.categoryId(),
         }),
       );
       this.creating.set(false);
@@ -504,17 +531,20 @@ export class ChargesPage {
     if (error.code === 'fund.archived') {
       this.archived.set(true);
     }
-    const next: { title?: string; amount?: string; dueDate?: string } = {};
+    const next: { title?: string; category?: string; amount?: string; dueDate?: string } = {};
     const field = CHARGE_FIELD_FOR[error.code];
     if (field === 'dueDate') {
       next.dueDate = error.message;
     } else if (field === 'amountPerPerson') {
       next.amount = error.message;
+    } else if (field === 'categoryId') {
+      next.category = error.message;
     }
     for (const [name, messages] of Object.entries(error.fieldErrors)) {
       if (name === 'title') next.title = messages[0];
       if (name === 'amountPerPerson') next.amount = messages[0];
       if (name === 'dueDate') next.dueDate = messages[0];
+      if (name === 'categoryId') next.category = messages[0];
     }
     this.errors.set(next);
     this.createError.set(Object.keys(next).length > 0 ? null : error.message);

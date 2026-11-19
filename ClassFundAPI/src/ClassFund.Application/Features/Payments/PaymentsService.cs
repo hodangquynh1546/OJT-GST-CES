@@ -324,12 +324,17 @@ public sealed class PaymentsService(
         payment.ConfirmationMode = mode;
         assignment.Status = AssignmentStatus.Paid;
 
-        var incomeCategory = DefaultCategories.All.First(item => item.Type == LedgerType.Income).Name;
-        var categoryId = await db.FirstOrDefaultAsync(
-            db.Query<Category>()
-                .Where(category => category.FundId == fundId && category.Type == LedgerType.Income && category.Name == incomeCategory)
-                .Select(category => (Guid?)category.Id),
-            cancellationToken);
+        // Danh mục do thủ quỹ chọn khi tạo khoản thu; khoản thu cũ (chưa có danh mục) dùng danh mục mặc định nếu còn.
+        var categoryId = charge.CategoryId;
+        if (categoryId is null)
+        {
+            var legacyName = DefaultCategories.All.First(item => item.Type == LedgerType.Income).Name;
+            categoryId = await db.FirstOrDefaultAsync(
+                db.Query<Category>()
+                    .Where(category => category.FundId == fundId && category.Type == LedgerType.Income && category.Name == legacyName)
+                    .Select(category => (Guid?)category.Id),
+                cancellationToken);
+        }
 
         db.Add(new LedgerEntry(
             fundId,

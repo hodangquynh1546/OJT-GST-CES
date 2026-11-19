@@ -21,6 +21,9 @@ public sealed class Charge(Guid fundId, Guid? eventId, string title, string? pur
 
     public ChargeKind Kind { get; init; } = kind;
 
+    /// <summary>Danh mục thu do thủ quỹ chọn khi tạo; bút toán thu sinh từ khoản này mang danh mục đó. Null ở khoản thu tạo trước khi có cột này.</summary>
+    public Guid? CategoryId { get; set; }
+
     public ChargeStatus Status { get; set; } = ChargeStatus.Open;
 
     public Guid CreatedByUserId { get; init; } = createdByUserId;

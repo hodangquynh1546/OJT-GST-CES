@@ -19,7 +19,7 @@ public sealed record AssignmentListRequest : PageRequest
     public string? Search { get; init; }
 }
 
-public sealed record CreateChargeRequest(string Title, string? Purpose, long AmountPerPerson, DateOnly? DueDate);
+public sealed record CreateChargeRequest(string Title, string? Purpose, long AmountPerPerson, DateOnly? DueDate, Guid? CategoryId);
 
 public sealed class ChargeListRequestValidator : AbstractValidator<ChargeListRequest>
 {
@@ -46,5 +46,6 @@ public sealed class CreateChargeRequestValidator : AbstractValidator<CreateCharg
             .WithMessage("Mục đích tối đa 1000 ký tự.");
         RuleFor(request => request.AmountPerPerson).GreaterThan(0).WithMessage("Số tiền mỗi người phải lớn hơn 0.");
         RuleFor(request => request.DueDate).NotNull().WithMessage("Vui lòng chọn hạn đóng.");
+        RuleFor(request => request.CategoryId).NotNull().WithMessage("Vui lòng chọn danh mục thu.");
     }
 }

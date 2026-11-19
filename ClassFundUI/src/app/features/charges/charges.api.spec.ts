@@ -26,7 +26,7 @@ describe('ChargesApi', () => {
   });
 
   it('tạo khoản thu và nộp tiền đúng đường dẫn', () => {
-    api.create('f1', { title: 'A', purpose: null, amountPerPerson: 1000, dueDate: '2026-12-01' }).subscribe();
+    api.create('f1', { title: 'A', purpose: null, amountPerPerson: 1000, dueDate: '2026-12-01', categoryId: 'cat1' }).subscribe();
     const create = http.expectOne((r) => r.url.endsWith('/funds/f1/charges'));
     expect(create.request.method).toBe('POST');
     expect(create.request.body.amountPerPerson).toBe(1000);

@@ -19,7 +19,7 @@ public interface IChargesService
     /// <summary>
     /// Tạo khoản thu và nghĩa vụ cho MỌI thành viên đang hoạt động (gồm thủ quỹ); gửi thông báo <c>GeneralChargeCreated</c>.
     /// </summary>
-    /// <exception cref="BusinessRuleException">Quỹ đã tổng kết, số tiền sai, hạn đóng đã qua.</exception>
+    /// <exception cref="BusinessRuleException">Quỹ đã tổng kết, số tiền sai, hạn đóng đã qua, danh mục không dùng được (<c>category.unusable</c>: không tồn tại, đã ngừng hoặc không phải loại Thu).</exception>
     Task<ChargeDto> CreateAsync(Guid fundId, CreateChargeInput input, CancellationToken cancellationToken);
 
     /// <summary>Danh sách đã đóng / chưa đóng của một khoản thu.</summary>

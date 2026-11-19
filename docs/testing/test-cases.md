@@ -49,6 +49,7 @@
 | TC-M6a-10 | Minh chứng thanh toán | FR-17, AZ-05 | Thủ quỹ xem được ảnh trong hàng chờ; học sinh khác không tải được (404); file của người khác tải lên không dùng được (422 `attachment.unusable`) | `PaymentsServiceTests.Someone_elses_proof…`, `ChargesPaymentsApiTests.Bank_transfer_needs_proof…`, e2e full |
 | TC-M6a-11 | Thủ quỹ ghi nhận tiền mặt thay học sinh | FR-21 | Confirmed + `Verified`, bút toán thu không "tự ghi nhận", thông báo cho học sinh; học sinh gọi → 403; ghi hai lần → 409 | `PaymentsServiceTests.A_treasurer_records_cash…`, `ChargesPaymentsApiTests.The_treasurer_records_cash…`, e2e full |
 | TC-M6a-12 | Gửi nhắc người chưa đóng | – | Chỉ người `Unpaid` nhận `ChargeDueSoon`; lần hai trong 1 giờ → 409 `charge.remind_too_soon`; không ai chưa đóng → 422; khoản đã đóng → 409; học sinh → 403 | `ChargesServiceTests.Remind_*`, `ChargesPaymentsApiTests.The_treasurer_records_cash…`, e2e full |
+| TC-M6a-13 | Chọn danh mục khi tạo khoản thu chung | FR-14, FR-18 | `categoryId` bắt buộc (400); danh mục chi / đã ngừng / không có → 422 `category.unusable`; bút toán thu khi xác nhận mang danh mục đó; danh sách trả `categoryName` | `ChargesServiceTests.Create_*category*`, `ChargesPaymentsApiTests.Create_needs_a_usable_income_category…`, e2e mock/full |
 | TC-M7-01 | Ghi chi 600.000đ không chứng từ | BR-06 | 422 `evidence.required` | |
 | TC-M7-02 | Ghi chi 500.000đ không chứng từ | BR-06 | 201 | |
 | TC-M7-03 | Tổng quan quỹ chung khi có giao dịch sự kiện | BR-02 | Không cộng giao dịch sự kiện | |

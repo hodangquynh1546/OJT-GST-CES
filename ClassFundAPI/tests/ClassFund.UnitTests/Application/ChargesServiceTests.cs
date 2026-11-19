@@ -1,5 +1,6 @@
 using ClassFund.Application.Common.Exceptions;
 using ClassFund.Application.Common.Notifications;
+using ClassFund.Application.Features.Categories;
 using ClassFund.Application.Features.Charges;
 using ClassFund.Domain.Entities;
 using ClassFund.Domain.Enums;
@@ -14,10 +15,21 @@ public class ChargesServiceTests
 
     private readonly ServiceTestContext _ctx = new();
 
-    private ChargesService CreateService() =>
-        new(_ctx.Db, _ctx.CurrentUser, _ctx.Access, _ctx.Audit, new Notifier(_ctx.Db, _ctx.Clock), _ctx.Clock);
+    private readonly Category _income;
+    private readonly Category _expense;
 
-    private static CreateChargeInput Input(long amount = 50_000, DateOnly? due = null) => new("Quỹ lớp tháng 12", "Đóng quỹ", amount, due ?? Due);
+    public ChargesServiceTests()
+    {
+        _income = new Category(_ctx.Fund.Id, "Quỹ lớp", LedgerType.Income, false);
+        _expense = new Category(_ctx.Fund.Id, "In ấn", LedgerType.Expense, false);
+        _ctx.Db.Seed(_income, _expense);
+    }
+
+    private ChargesService CreateService() =>
+        new(_ctx.Db, _ctx.CurrentUser, _ctx.Access, new CategoriesService(_ctx.Db, _ctx.CurrentUser, _ctx.Audit), _ctx.Audit, new Notifier(_ctx.Db, _ctx.Clock), _ctx.Clock);
+
+    private CreateChargeInput Input(long amount = 50_000, DateOnly? due = null, Guid? categoryId = null) =>
+        new("Quỹ lớp tháng 12", "Đóng quỹ", amount, due ?? Due, categoryId ?? _income.Id);
 
     [Fact]
     public async Task Create_assigns_every_active_member_including_treasurers_and_notifies_them()
@@ -189,5 +201,29 @@ public class ChargesServiceTests
 
         await CreateService().CloseAsync(_ctx.Fund.Id, charge.Id, default);
         await Assert.ThrowsAsync<ConflictException>(() => CreateService().RemindAsync(_ctx.Fund.Id, charge.Id, default));
+    }
+
+    [Fact]
+    public async Task Create_stores_the_chosen_income_category_and_returns_its_name()
+    {
+        var charge = await CreateService().CreateAsync(_ctx.Fund.Id, Input(), default);
+
+        Assert.Equal((_income.Id, "Quỹ lớp"), (charge.CategoryId, charge.CategoryName));
+        Assert.Equal(_income.Id, _ctx.Db.Query<Charge>().Single().CategoryId);
+    }
+
+    [Fact]
+    public async Task Create_rejects_an_expense_inactive_or_unknown_category()
+    {
+        var inactive = new Category(_ctx.Fund.Id, "Cũ", LedgerType.Income, false) { IsActive = false };
+        _ctx.Db.Seed(inactive);
+
+        foreach (var id in new[] { _expense.Id, inactive.Id, Guid.NewGuid() })
+        {
+            var error = await Assert.ThrowsAsync<BusinessRuleException>(() => CreateService().CreateAsync(_ctx.Fund.Id, Input(categoryId: id), default));
+            Assert.Equal(CategoriesErrors.Unusable, error.Code);
+        }
+
+        Assert.Empty(_ctx.Db.Query<Charge>());
     }
 }

@@ -4,6 +4,7 @@ using ClassFund.Application.Common.Notifications;
 using ClassFund.Application.Common.Paging;
 using ClassFund.Application.Common.Persistence;
 using ClassFund.Application.Common.Security;
+using ClassFund.Application.Features.Categories;
 using ClassFund.Domain.Authorization;
 using ClassFund.Domain.Entities;
 using ClassFund.Domain.Enums;
@@ -17,6 +18,7 @@ public sealed class ChargesService(
     IAppDb db,
     ICurrentUser currentUser,
     IAccessService accessService,
+    ICategoriesService categories,
     AuditTrail audit,
     Notifier notifier,
     TimeProvider clock) : IChargesService
@@ -71,6 +73,7 @@ public sealed class ChargesService(
             {
                 var fund = await db.LockAsync<Fund>(fundId, token) ?? throw new NotFoundException();
                 YearEndRule.EnsureFundActive(fund.Status);
+                await categories.EnsureUsableAsync(fundId, input.CategoryId, LedgerType.Income, token);
 
                 var memberIds = await db.ToListAsync(
                     db.Query<FundMember>()
@@ -78,7 +81,7 @@ public sealed class ChargesService(
                         .Select(member => member.UserId),
                     token);
 
-                var created = new Charge(fundId, null, title, purpose, input.AmountPerPerson, input.DueDate, ChargeKind.Regular, actorId, clock.GetUtcNow());
+                var created = new Charge(fundId, null, title, purpose, input.AmountPerPerson, input.DueDate, ChargeKind.Regular, actorId, clock.GetUtcNow()) { CategoryId = input.CategoryId };
                 db.Add(created);
                 foreach (var memberId in memberIds)
                 {
@@ -92,7 +95,7 @@ public sealed class ChargesService(
                     FinancialScope.General,
                     EntityType: nameof(Charge),
                     EntityId: created.Id,
-                    After: new { title, amountPerPerson = input.AmountPerPerson, dueDate = input.DueDate.ToString("yyyy-MM-dd"), count = memberIds.Count }));
+                    After: new { title, categoryId = input.CategoryId, amountPerPerson = input.AmountPerPerson, dueDate = input.DueDate.ToString("yyyy-MM-dd"), count = memberIds.Count }));
                 notifier.Send(
                     memberIds,
                     new NotificationMessage(
@@ -358,6 +361,12 @@ public sealed class ChargesService(
             db.Query<ChargeAssignment>().Where(item => ids.Contains(item.ChargeId) && item.UserId == userId && item.Status != AssignmentStatus.Cancelled),
             cancellationToken)).ToDictionary(item => item.ChargeId);
 
+        var categoryIds = charges.Where(charge => charge.CategoryId != null).Select(charge => charge.CategoryId!.Value).Distinct().ToArray();
+        var categoryNames = (await db.ToListAsync(
+                db.Query<Category>().Where(category => categoryIds.Contains(category.Id)).Select(category => new { category.Id, category.Name }),
+                cancellationToken))
+            .ToDictionary(item => item.Id, item => item.Name);
+
         return charges
             .Select(charge => new ChargeDto(
                 charge.Id,
@@ -367,6 +376,8 @@ public sealed class ChargesService(
                 charge.DueDate,
                 charge.Status,
                 charge.CreatedAt,
+                charge.CategoryId,
+                charge.CategoryId is { } categoryId ? categoryNames.GetValueOrDefault(categoryId) : null,
                 progress.GetValueOrDefault(charge.Id) ?? (canManage ? new ChargeProgressDto(0, 0, 0, 0) : null),
                 mine.TryGetValue(charge.Id, out var assignment) ? new MyAssignmentDto(assignment.Id, assignment.Status, assignment.AmountDue) : null))
             .ToArray();

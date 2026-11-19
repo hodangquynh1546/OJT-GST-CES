@@ -7,6 +7,7 @@ registerErrorMessages({
   'charge.has_payments': 'Khoản thu đã có người nộp tiền nên không thể hủy. Hãy đóng khoản thu thay vì hủy.',
   'charge.nothing_to_remind': 'Không còn ai chưa đóng để nhắc.',
   'charge.remind_too_soon': 'Vừa nhắc xong. Vui lòng chờ ít nhất 1 giờ rồi nhắc lại.',
+  'category.unusable': 'Danh mục không tồn tại, đã ngừng dùng hoặc không phải danh mục thu. Vui lòng chọn lại.',
   'money.invalid': 'Số tiền phải lớn hơn 0.',
   'payment.proof_required': 'Chuyển khoản cần kèm ảnh minh chứng.',
   'payment.method_unavailable': 'Chưa hỗ trợ đóng bằng số dư cá nhân.',
@@ -22,4 +23,5 @@ registerErrorMessages({
 export const CHARGE_FIELD_FOR: Readonly<Record<string, string>> = {
   'charge.due_date_in_past': 'dueDate',
   'money.invalid': 'amountPerPerson',
+  'category.unusable': 'categoryId',
 };

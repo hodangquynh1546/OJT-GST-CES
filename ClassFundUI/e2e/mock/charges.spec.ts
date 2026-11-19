@@ -35,6 +35,8 @@ const charge = (partial: Partial<FakeCharge> & Pick<FakeCharge, 'id' | 'title'>)
   dueDate: '2026-12-30',
   status: 'Open',
   createdAt: '2026-11-10T01:00:00Z',
+  categoryId: 'cat1',
+  categoryName: 'Quỹ lớp',
   progress: { assignedCount: 32, paidCount: 26, awaitingCount: 2, collectedAmount: 5200000 },
   mine: null,
   ...partial,
@@ -126,11 +128,13 @@ test.describe('H-01 Khoản thu chung', () => {
     const dialog = page.getByRole('dialog');
     await dialog.getByRole('button', { name: 'Tạo khoản thu' }).click();
     await expect(dialog.getByText('Vui lòng nhập tên khoản thu.')).toBeVisible();
+    await expect(dialog.getByText('Vui lòng chọn danh mục thu.')).toBeVisible();
     await expect(dialog.getByText('Số tiền mỗi người phải lớn hơn 0.')).toBeVisible();
     await expect(dialog.getByText('Vui lòng chọn hạn đóng.')).toBeVisible();
     expect(api.count('POST', '/charges')).toBe(0);
 
     await dialog.getByLabel(/Tên khoản thu/).fill('Quỹ vệ sinh lớp HK1');
+    await dialog.getByLabel(/Danh mục thu/).selectOption({ label: 'Quỹ lớp' });
     await dialog.getByLabel(/Số tiền mỗi người/).fill('20000');
     await dialog.getByLabel(/Hạn đóng/).fill('2099-12-10');
     await expect(dialog).toContainText('Áp cho 32 thành viên → tổng phải thu 640.000 đ');
@@ -138,7 +142,7 @@ test.describe('H-01 Khoản thu chung', () => {
 
     await expect(page.getByText('Đã tạo khoản thu “Quỹ vệ sinh lớp HK1”.')).toBeVisible();
     await expect(page.getByRole('article').filter({ hasText: 'Quỹ vệ sinh lớp HK1' })).toBeVisible();
-    expect(api.last('POST', '/charges')?.body).toEqual({ title: 'Quỹ vệ sinh lớp HK1', purpose: null, amountPerPerson: 20000, dueDate: '2099-12-10' });
+    expect(api.last('POST', '/charges')?.body).toEqual({ title: 'Quỹ vệ sinh lớp HK1', purpose: null, amountPerPerson: 20000, dueDate: '2099-12-10', categoryId: 'cat1' });
   });
 });
 

@@ -17,10 +17,12 @@ public sealed record ChargeDto(
     DateOnly DueDate,
     ChargeStatus Status,
     DateTimeOffset CreatedAt,
+    Guid? CategoryId,
+    string? CategoryName,
     ChargeProgressDto? Progress,
     MyAssignmentDto? Mine);
 
-public sealed record CreateChargeInput(string Title, string? Purpose, long AmountPerPerson, DateOnly DueDate);
+public sealed record CreateChargeInput(string Title, string? Purpose, long AmountPerPerson, DateOnly DueDate, Guid CategoryId);
 
 public sealed record ChargeFilter(ChargeStatus? Status, int Page, int PageSize);
 

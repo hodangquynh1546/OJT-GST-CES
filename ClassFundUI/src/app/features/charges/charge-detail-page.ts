@@ -65,7 +65,7 @@ const FILTERS: readonly { value: Filter; label: string }[] = [
               <span class="cf-tag" [class.cf-tag--success]="c.status === 'Open'">{{ chargeStatus(c) }}</span>
             </div>
             <p class="cf-muted sub">
-              {{ c.amountPerPerson | vndMoney }}/người · Hạn {{ c.dueDate | vnDate }}@if (c.purpose) { · {{ c.purpose }} }
+              {{ c.amountPerPerson | vndMoney }}/người · Hạn {{ c.dueDate | vnDate }}@if (c.categoryName) { · Danh mục: {{ c.categoryName }} }@if (c.purpose) { · {{ c.purpose }} }
             </p>
           </div>
           <div class="actions">
