@@ -68,6 +68,7 @@ async function createCharge(page: Page, title: string, amount: string): Promise<
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel(/Tên khoản thu/).fill(title);
   await dialog.getByLabel('Mục đích').fill('Kiểm thử tự động');
+  await dialog.getByLabel(/Danh mục thu/).selectOption({ index: 1 });
   await dialog.getByLabel(/Số tiền mỗi người/).fill(amount);
   await dialog.getByLabel(/Hạn đóng/).fill(dueInDays(30));
   await dialog.getByRole('button', { name: 'Tạo khoản thu' }).click();
@@ -177,6 +178,7 @@ test('hạn đóng trong quá khứ bị chặn ngay ở hộp thoại tạo kho
   await expect(dialog.getByText('Vui lòng nhập tên khoản thu.')).toBeVisible();
   await expect(dialog.getByText('Số tiền mỗi người phải lớn hơn 0.')).toBeVisible();
   await expect(dialog.getByText('Vui lòng chọn hạn đóng.')).toBeVisible();
+  await expect(dialog.getByText('Vui lòng chọn danh mục thu.')).toBeVisible();
 });
 
 test('thủ quỹ nhắc người chưa đóng và ghi nhận tiền mặt thay học sinh; học sinh vào quỹ sau vẫn có nghĩa vụ', async ({ page, browser }) => {

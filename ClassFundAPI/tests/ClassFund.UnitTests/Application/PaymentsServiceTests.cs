@@ -13,6 +13,7 @@ public class PaymentsServiceTests
 {
     private readonly ServiceTestContext _ctx = new();
     private readonly Charge _charge;
+    private readonly Category _custom;
 
     public PaymentsServiceTests()
     {
@@ -24,6 +25,9 @@ public class PaymentsServiceTests
         }
 
         _ctx.Db.Seed(new Category(_ctx.Fund.Id, "Đóng góp quỹ lớp", LedgerType.Income, true));
+        _custom = new Category(_ctx.Fund.Id, "Quỹ vệ sinh", LedgerType.Income, false);
+        _ctx.Db.Seed(_custom);
+        _charge.CategoryId = _custom.Id;
         _ctx.ActAs(_ctx.StudentA);
     }
 
@@ -181,7 +185,7 @@ public class PaymentsServiceTests
         Assert.Equal(AssignmentStatus.Paid, AssignmentOf(_ctx.StudentA).Status);
         var entry = Assert.Single(_ctx.Db.Query<LedgerEntry>());
         Assert.Equal((LedgerSource.Payment, false, _ctx.Treasurer.Id), (entry.Source, entry.IsSelfDeclared, entry.PerformedByUserId));
-        Assert.NotNull(entry.CategoryId);
+        Assert.Equal(_custom.Id, entry.CategoryId); // danh mục do thủ quỹ chọn khi tạo khoản thu, không phải danh mục mặc định
         var note = Assert.Single(_ctx.Db.Query<Notification>(), item => item.Type == NotificationType.PaymentConfirmed);
         Assert.Equal(_ctx.StudentA.Id, note.UserId);
         Assert.Contains(_ctx.AuditLogs, log => log.Action == PaymentsAuditActions.Confirm && !log.IsSelfAction);

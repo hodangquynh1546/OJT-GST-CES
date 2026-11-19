@@ -236,6 +236,9 @@ namespace ClassFund.Infrastructure.Persistence.Migrations
                     b.Property<long>("AmountPerPerson")
                         .HasColumnType("bigint");
 
+                    b.Property<Guid?>("CategoryId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -271,6 +274,8 @@ namespace ClassFund.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(150)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
 
                     b.HasIndex("EventId");
 
@@ -948,6 +953,11 @@ namespace ClassFund.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("ClassFund.Domain.Entities.Charge", b =>
                 {
+                    b.HasOne("ClassFund.Domain.Entities.Category", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ClassFund.Domain.Entities.Event", null)
                         .WithMany()
                         .HasForeignKey("EventId")

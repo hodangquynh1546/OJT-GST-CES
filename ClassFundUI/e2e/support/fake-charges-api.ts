@@ -10,6 +10,8 @@ export interface FakeCharge {
   dueDate: string;
   status: 'Open' | 'Closed' | 'Cancelled';
   createdAt: string;
+  categoryId: string | null;
+  categoryName: string | null;
   progress: { assignedCount: number; paidCount: number; awaitingCount: number; collectedAmount: number } | null;
   mine: { assignmentId: string; status: string; amountDue: number } | null;
 }
@@ -70,7 +72,7 @@ export class FakeChargesApi {
   ) {}
 
   async install(): Promise<void> {
-    await this.page.route(new RegExp(`/api/v1/funds/${FUND_ID}/(charges|me/assignments|payments|members)`), (route) => this.handle(route));
+    await this.page.route(new RegExp(`/api/v1/funds/${FUND_ID}/(charges|me/assignments|payments|members|categories)`), (route) => this.handle(route));
   }
 
   last(method: string, path: string): Recorded | undefined {
@@ -97,6 +99,9 @@ export class FakeChargesApi {
     const body = request.postData() ? JSON.parse(request.postData() as string) : null;
     this.requests.push({ method, path, body });
 
+    if (method === 'GET' && path === '/categories') {
+      return this.json(route, [{ id: 'cat1', name: 'Quỹ lớp', type: 'Income', isSystem: false, isActive: true }]);
+    }
     if (method === 'GET' && path === '/members') {
       return this.json(route, { items: [], total: this.memberTotal, page: 1, pageSize: 1 });
     }
@@ -114,6 +119,8 @@ export class FakeChargesApi {
         dueDate: body.dueDate,
         status: 'Open',
         createdAt: '2026-11-19T01:00:00Z',
+        categoryId: body.categoryId,
+        categoryName: 'Quỹ lớp',
         progress: { assignedCount: this.memberTotal, paidCount: 0, awaitingCount: 0, collectedAmount: 0 },
         mine: null,
       };

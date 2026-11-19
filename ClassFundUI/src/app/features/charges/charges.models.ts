@@ -33,6 +33,8 @@ export interface Charge {
   dueDate: string;
   status: ChargeStatus;
   createdAt: string;
+  categoryId: string | null;
+  categoryName: string | null;
   progress: ChargeProgress | null;
   mine: MyAssignment | null;
 }
@@ -42,6 +44,7 @@ export interface CreateChargeRequest {
   purpose: string | null;
   amountPerPerson: number;
   dueDate: string;
+  categoryId: string;
 }
 
 /** Một dòng đã/chưa đóng (khớp `AssignmentRowDto`). */

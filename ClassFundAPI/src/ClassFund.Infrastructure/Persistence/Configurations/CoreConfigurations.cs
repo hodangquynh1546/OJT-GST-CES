@@ -105,6 +105,7 @@ public sealed class ChargeConfiguration : IEntityTypeConfiguration<Charge>
         builder.Property(item => item.Purpose).HasMaxLength(1000);
         builder.HasOne<Fund>().WithMany().HasForeignKey(item => item.FundId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Event>().WithMany().HasForeignKey(item => item.EventId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Category>().WithMany().HasForeignKey(item => item.CategoryId).OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(item => new { item.FundId, item.EventId, item.Status }).HasDatabaseName("IX_Charge_Fund_Event_Status");
     }
 }

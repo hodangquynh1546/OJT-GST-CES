@@ -19,15 +19,16 @@ public class ChargesPaymentsApiTests(ApiTestHost host)
     private static async Task<string?> CodeOfAsync(HttpResponseMessage response) =>
         (await ReadAsync(response)).GetProperty("code").GetString();
 
-    private static object NewCharge(long amount = 50_000) => new
+    private static object NewCharge(Guid categoryId, long amount = 50_000) => new
     {
+        categoryId,
         title = "Quỹ lớp tháng 12",
         purpose = "Đóng quỹ",
         amountPerPerson = amount,
         dueDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(30)).ToString("yyyy-MM-dd"),
     };
 
-    private sealed record Setup(Guid FundId, User Owner, User Treasurer, User Student, User Other, HttpClient OwnerClient, HttpClient TreasurerClient, HttpClient StudentClient, HttpClient OtherClient);
+    private sealed record Setup(Guid FundId, Guid CategoryId, User Owner, User Treasurer, User Student, User Other, HttpClient OwnerClient, HttpClient TreasurerClient, HttpClient StudentClient, HttpClient OtherClient);
 
     private async Task<Setup> SetupAsync()
     {
@@ -39,13 +40,17 @@ public class ChargesPaymentsApiTests(ApiTestHost host)
         await host.AddMemberAsync(fund, treasurer, MemberRole.Treasurer);
         await host.AddMemberAsync(fund, student);
         await host.AddMemberAsync(fund, other);
-        return new Setup(fund.Id, owner, treasurer, student, other,
-            await host.LoginAsync(owner), await host.LoginAsync(treasurer), await host.LoginAsync(student), await host.LoginAsync(other));
+        var ownerClient = await host.LoginAsync(owner);
+        var category = await ownerClient.PostAsJsonAsync($"{Base(fund.Id)}/categories", new { name = "Quỹ lớp", type = "Income" });
+        Assert.Equal(HttpStatusCode.Created, category.StatusCode);
+        var categoryId = (await ReadAsync(category)).GetProperty("id").GetGuid();
+        return new Setup(fund.Id, categoryId, owner, treasurer, student, other,
+            ownerClient, await host.LoginAsync(treasurer), await host.LoginAsync(student), await host.LoginAsync(other));
     }
 
     private async Task<Guid> CreateChargeAsync(Setup s)
     {
-        var response = await s.OwnerClient.PostAsJsonAsync($"{Base(s.FundId)}/charges", NewCharge());
+        var response = await s.OwnerClient.PostAsJsonAsync($"{Base(s.FundId)}/charges", NewCharge(s.CategoryId));
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return (await ReadAsync(response)).GetProperty("id").GetGuid();
     }
@@ -83,7 +88,7 @@ public class ChargesPaymentsApiTests(ApiTestHost host)
 
         var responses = new[]
         {
-            await s.OtherClient.PostAsJsonAsync($"{Base(s.FundId)}/charges", NewCharge()),
+            await s.OtherClient.PostAsJsonAsync($"{Base(s.FundId)}/charges", NewCharge(s.CategoryId)),
             await s.OtherClient.PostAsync($"{Base(s.FundId)}/charges/{chargeId}/close", null),
             await s.OtherClient.PostAsync($"{Base(s.FundId)}/charges/{chargeId}/cancel", null),
             await s.OtherClient.GetAsync($"{Base(s.FundId)}/charges/{chargeId}/assignments"),
@@ -115,11 +120,31 @@ public class ChargesPaymentsApiTests(ApiTestHost host)
     }
 
     [Fact]
+    public async Task Create_needs_a_usable_income_category_and_the_confirmed_payment_carries_it()
+    {
+        var s = await SetupAsync();
+        var missing = await s.OwnerClient.PostAsJsonAsync($"{Base(s.FundId)}/charges", new { title = "A", amountPerPerson = 1000, dueDate = "2099-01-01" });
+        Assert.Equal(HttpStatusCode.BadRequest, missing.StatusCode);
+        var unknown = await s.OwnerClient.PostAsJsonAsync($"{Base(s.FundId)}/charges", NewCharge(Guid.NewGuid()));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, unknown.StatusCode);
+        Assert.Equal("category.unusable", await CodeOfAsync(unknown));
+
+        await CreateChargeAsync(s);
+        var paymentId = await SubmitAsync(s.StudentClient, s.FundId);
+        await s.TreasurerClient.PostAsync($"{Base(s.FundId)}/payments/{paymentId}/confirm", null);
+
+        await using var db = host.CreateDbContext();
+        Assert.Equal(s.CategoryId, (await db.LedgerEntries.SingleAsync(item => item.PaymentId == paymentId)).CategoryId);
+        var list = (await ReadAsync(await s.StudentClient.GetAsync($"{Base(s.FundId)}/charges"))).GetProperty("items")[0];
+        Assert.Equal("Quỹ lớp", list.GetProperty("categoryName").GetString());
+    }
+
+    [Fact]
     public async Task Create_with_a_past_due_date_is_422()
     {
         var s = await SetupAsync();
 
-        var response = await s.OwnerClient.PostAsJsonAsync($"{Base(s.FundId)}/charges", new { title = "A", amountPerPerson = 1000, dueDate = "2020-01-01" });
+        var response = await s.OwnerClient.PostAsJsonAsync($"{Base(s.FundId)}/charges", new { title = "A", amountPerPerson = 1000, dueDate = "2020-01-01", categoryId = s.CategoryId });
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
         Assert.Equal("charge.due_date_in_past", await CodeOfAsync(response));
