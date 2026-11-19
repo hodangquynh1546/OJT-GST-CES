@@ -1,18 +1,31 @@
 import { isValidEmail } from '../auth/auth-validators';
 
-/** Tách danh sách email từ ô dán: phân cách bằng xuống dòng, dấu phẩy, chấm phẩy hoặc khoảng trắng. */
-export function parseEmails(text: string): string[] {
-  return text
-    .split(/[\s,;]+/)
-    .map((item) => item.trim())
-    .filter((item) => item.length > 0);
+/** Một dòng khi thêm nhiều học sinh: email ở đầu dòng, phần còn lại là họ tên (có thể trống). */
+export interface StudentLine {
+  email: string;
+  fullName: string;
 }
 
-/** Bỏ email trùng (không phân biệt hoa thường), giữ thứ tự xuất hiện đầu tiên. */
-export function uniqueEmails(emails: readonly string[]): string[] {
+/**
+ * Tách ô dán thành từng học sinh: mỗi dòng "email Họ tên" (ngăn cách bằng khoảng trắng, tab, dấu phẩy hoặc chấm phẩy).
+ * Ví dụ `hodangquynh2k4@gmail.com Hồ Đăng Quỳnh`. Dòng trống bị bỏ.
+ */
+export function parseStudentLines(text: string): StudentLine[] {
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((line) => {
+      const match = /^([^\s,;]+)[\s,;]*(.*)$/.exec(line);
+      return { email: match?.[1] ?? line, fullName: (match?.[2] ?? '').trim() };
+    });
+}
+
+/** Bỏ dòng trùng email (không phân biệt hoa thường), giữ dòng xuất hiện đầu tiên. */
+export function uniqueStudents(lines: readonly StudentLine[]): StudentLine[] {
   const seen = new Set<string>();
-  return emails.filter((email) => {
-    const key = email.trim().toLowerCase();
+  return lines.filter((line) => {
+    const key = line.email.trim().toLowerCase();
     if (seen.has(key)) {
       return false;
     }
@@ -21,8 +34,8 @@ export function uniqueEmails(emails: readonly string[]): string[] {
   });
 }
 
-export function countInvalidEmails(emails: readonly string[]): number {
-  return emails.filter((email) => !isValidEmail(email)).length;
+export function countInvalidStudents(lines: readonly StudentLine[]): number {
+  return lines.filter((line) => !isValidEmail(line.email)).length;
 }
 
 /** Nội dung sao chép cho thủ quỹ gửi học sinh: mỗi dòng "email<TAB>mật khẩu". */

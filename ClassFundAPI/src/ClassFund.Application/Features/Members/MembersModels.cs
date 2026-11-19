@@ -4,7 +4,8 @@ namespace ClassFund.Application.Features.Members;
 
 /// <summary>
 /// Một thành viên của quỹ (hàng trong M-01). <see cref="Id"/> là mã <c>FundMember</c>, không phải mã người dùng.
-/// <see cref="CanManageAccount"/>: được sửa họ tên / cấp lại mật khẩu (AZ-07: tài khoản do thủ quỹ cấp và chỉ ở quỹ này).
+/// <see cref="CanManageAccount"/>: được sửa họ tên / cấp lại mật khẩu tạm (AZ-07: tài khoản do thủ quỹ cấp, chỉ ở quỹ này
+/// và học sinh CHƯA tự đặt mật khẩu – đã đổi mật khẩu thì tài khoản thuộc về học sinh).
 /// </summary>
 public sealed record MemberDto(
     Guid Id,
@@ -17,6 +18,9 @@ public sealed record MemberDto(
     DateTimeOffset JoinedAt,
     DateTimeOffset? RemovedAt,
     bool CanManageAccount);
+
+/// <summary>Một dòng khi thêm nhiều học sinh: email bắt buộc, họ tên tùy chọn (trống thì lấy phần trước @).</summary>
+public sealed record BulkMemberInput(string Email, string? FullName);
 
 /// <summary>Bộ lọc danh sách; <see cref="Status"/> mặc định <c>Active</c>.</summary>
 public sealed record MemberFilter(string? Search, MemberRole? Role, MemberStatus? Status, int Page, int PageSize);

@@ -177,6 +177,17 @@ test.describe('Thêm một email', () => {
     await expect(row.getByRole('button', { name: 'Ngừng' })).toBeEnabled();
   });
 
+  test('học sinh đã đăng nhập và tự đặt mật khẩu: khóa cả Sửa tên và Cấp mật khẩu tạm, vẫn ngừng được', async ({ page }) => {
+    await open(page, 'Owner', [...BASE(), member({ fullName: 'Đã Tự Đặt Mật Khẩu', email: 'tu.dat@truong.edu.vn', canManageAccount: false })]);
+
+    const row = rowOf(page, /Đã Tự Đặt Mật Khẩu/);
+    await expect(row.getByRole('button', { name: 'Cấp mật khẩu tạm' })).toBeDisabled();
+    await expect(row.getByRole('button', { name: 'Cấp mật khẩu tạm' })).toHaveAttribute('title', /tự đặt mật khẩu/);
+    await expect(row.getByRole('button', { name: 'Sửa tên' })).toBeDisabled();
+    await expect(row.getByRole('button', { name: 'Ngừng' })).toBeEnabled();
+    await expect(rowOf(page, /Lê Thu Hà/).getByRole('button', { name: 'Cấp mật khẩu tạm' })).toBeEnabled();
+  });
+
   test('đã là thành viên: lỗi 409 hiện ngay ở ô Email', async ({ page }) => {
     await open(page);
 
@@ -214,24 +225,31 @@ test.describe('Thêm một email', () => {
   });
 });
 
-test.describe('Thêm nhiều email (OQ-20)', () => {
+test.describe('Thêm nhiều học sinh (OQ-20)', () => {
   test('dán danh sách: đếm email, báo số không hợp lệ, bỏ trùng; gửi rồi hiện kết quả từng dòng và mật khẩu tạm', async ({ page }) => {
     const api = await open(page);
 
-    await page.getByRole('button', { name: 'Thêm nhiều email' }).click();
+    await page.getByRole('button', { name: 'Thêm nhiều học sinh' }).click();
     const dialog = page.getByRole('dialog');
-    await dialog.getByLabel(/Dán danh sách email/).fill(
-      'a@truong.edu.vn\nb@truong.edu.vn, co-tai-khoan@truong.edu.vn;  ha.le@truong.edu.vn\nkhong-hop-le\nA@truong.edu.vn',
+    await dialog.getByLabel(/Dán danh sách học sinh/).fill(
+      'a@truong.edu.vn Nguyễn Văn An\nb@truong.edu.vn, Lê Thị Bình\nco-tai-khoan@truong.edu.vn\nha.le@truong.edu.vn\nkhong-hop-le\nA@truong.edu.vn Trùng',
     );
-    await expect(dialog.locator('.bulk-count')).toContainText('5 email');
+    await expect(dialog.locator('.bulk-count')).toContainText('5 học sinh');
     await expect(dialog.locator('.bulk-count')).toContainText('1 không hợp lệ');
-    await dialog.getByRole('button', { name: 'Thêm 5 email' }).click();
+    await dialog.getByRole('button', { name: 'Thêm 5 học sinh' }).click();
 
     await expect(dialog.getByText('Mật khẩu tạm chỉ hiện lúc này')).toBeVisible();
     expect(api.last('POST', '/bulk')?.body).toEqual({
-      emails: ['a@truong.edu.vn', 'b@truong.edu.vn', 'co-tai-khoan@truong.edu.vn', 'ha.le@truong.edu.vn', 'khong-hop-le'],
+      members: [
+        { email: 'a@truong.edu.vn', fullName: 'Nguyễn Văn An' },
+        { email: 'b@truong.edu.vn', fullName: 'Lê Thị Bình' },
+        { email: 'co-tai-khoan@truong.edu.vn', fullName: '' },
+        { email: 'ha.le@truong.edu.vn', fullName: '' },
+        { email: 'khong-hop-le', fullName: '' },
+      ],
     });
     const rows = dialog.getByRole('row');
+    await expect(rows.filter({ hasText: 'a@truong.edu.vn' })).toContainText('Nguyễn Văn An');
     await expect(rows.filter({ hasText: 'a@truong.edu.vn' })).toContainText('Đã tạo tài khoản');
     await expect(rows.filter({ hasText: 'a@truong.edu.vn' })).toContainText('Tam-0001-abcd');
     await expect(rows.filter({ hasText: 'b@truong.edu.vn' })).toContainText('Tam-0002-abcd');
@@ -249,10 +267,10 @@ test.describe('Thêm nhiều email (OQ-20)', () => {
   test('Sao chép tất cả mật khẩu chỉ gồm tài khoản mới tạo', async ({ page, context }) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     await open(page);
-    await page.getByRole('button', { name: 'Thêm nhiều email' }).click();
+    await page.getByRole('button', { name: 'Thêm nhiều học sinh' }).click();
     const dialog = page.getByRole('dialog');
-    await dialog.getByLabel(/Dán danh sách email/).fill('a@truong.edu.vn\nco-tai-khoan@truong.edu.vn\nb@truong.edu.vn');
-    await dialog.getByRole('button', { name: 'Thêm 3 email' }).click();
+    await dialog.getByLabel(/Dán danh sách học sinh/).fill('a@truong.edu.vn\nco-tai-khoan@truong.edu.vn\nb@truong.edu.vn');
+    await dialog.getByRole('button', { name: 'Thêm 3 học sinh' }).click();
 
     await dialog.getByRole('button', { name: 'Sao chép tất cả mật khẩu' }).click();
 
@@ -263,22 +281,22 @@ test.describe('Thêm nhiều email (OQ-20)', () => {
 
   test('quá 50 email: báo lỗi và không gọi API', async ({ page }) => {
     const api = await open(page);
-    await page.getByRole('button', { name: 'Thêm nhiều email' }).click();
+    await page.getByRole('button', { name: 'Thêm nhiều học sinh' }).click();
     const dialog = page.getByRole('dialog');
 
-    await dialog.getByLabel(/Dán danh sách email/).fill(Array.from({ length: 51 }, (_, i) => `u${i}@truong.edu.vn`).join('\n'));
-    await dialog.getByRole('button', { name: 'Thêm 51 email' }).click();
+    await dialog.getByLabel(/Dán danh sách học sinh/).fill(Array.from({ length: 51 }, (_, i) => `u${i}@truong.edu.vn`).join('\n'));
+    await dialog.getByRole('button', { name: 'Thêm 51 học sinh' }).click();
 
-    await expect(dialog.getByText('Mỗi lần chỉ thêm tối đa 50 email. Bạn đang có 51.')).toBeVisible();
+    await expect(dialog.getByText('Mỗi lần chỉ thêm tối đa 50 học sinh. Bạn đang có 51.')).toBeVisible();
     expect(api.last('POST', '/bulk')).toBeUndefined();
   });
 
   test('chưa nhập gì thì nút Thêm bị khóa; Hủy bỏ đóng hộp thoại', async ({ page }) => {
     await open(page);
-    await page.getByRole('button', { name: 'Thêm nhiều email' }).click();
+    await page.getByRole('button', { name: 'Thêm nhiều học sinh' }).click();
     const dialog = page.getByRole('dialog');
 
-    await expect(dialog.getByRole('button', { name: 'Thêm 0 email' })).toBeDisabled();
+    await expect(dialog.getByRole('button', { name: 'Thêm 0 học sinh' })).toBeDisabled();
     await dialog.getByRole('button', { name: 'Hủy bỏ' }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
   });

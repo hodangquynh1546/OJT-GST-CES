@@ -46,14 +46,18 @@ public class MembersServiceTests
         return new MembersService(_db, _hasher.Object, new AccessService(_db), _currentUser.Object, new AuditTrail(_db, request.Object, new FixedClock()), new FixedClock());
     }
 
-    private (User User, FundMember Member) SeedStudent(string email = "hs@x.com", string name = "Học Sinh", UserOrigin origin = UserOrigin.Provisioned, MemberStatus status = MemberStatus.Active, Fund? fund = null)
+    private (User User, FundMember Member) SeedStudent(string email = "hs@x.com", string name = "Học Sinh", UserOrigin origin = UserOrigin.Provisioned, MemberStatus status = MemberStatus.Active, Fund? fund = null, bool passwordSet = false)
     {
-        var user = new User(email, name, "h:old", origin, mustChangePassword: false, Now);
+        // Học sinh do thủ quỹ cấp: chưa đăng nhập lần đầu nên còn phải đổi mật khẩu tạm (passwordSet = đã tự đặt mật khẩu).
+        var user = new User(email, name, "h:old", origin, mustChangePassword: !passwordSet, Now);
         var member = new FundMember((fund ?? _fund).Id, user.Id, MemberRole.Student, Now) { Status = status };
         _db.Seed(user);
         _db.Seed(member);
         return (user, member);
     }
+
+    private static BulkMemberInput[] Rows(params string[] lines) =>
+        lines.Select(line => line.Split('|') is [var email, var name] ? new BulkMemberInput(email, name) : new BulkMemberInput(line, null)).ToArray();
 
     private static MemberFilter Filter(string? search = null, MemberRole? role = null, MemberStatus? status = null, int page = 1, int pageSize = 20) =>
         new(search, role, status, page, pageSize);
@@ -241,7 +245,7 @@ public class MembersServiceTests
 
         var result = await CreateService().AddManyAsync(
             _fund.Id,
-            ["moi@x.com", "CO@x.com", "active@x.com", "cu@x.com", "khong-hop-le", "MOI@x.com", "  ", "moi2@x.com"],
+            Rows("moi@x.com", "CO@x.com", "active@x.com", "cu@x.com", "khong-hop-le", "MOI@x.com", "  ", "moi2@x.com"),
             default);
 
         var byEmail = result.Results.ToDictionary(item => item.Email);
@@ -262,7 +266,7 @@ public class MembersServiceTests
     {
         _db.Seed(new User("co@x.com", "Đã Có", "h", UserOrigin.SelfRegistered, false, Now));
 
-        var result = await CreateService().AddManyAsync(_fund.Id, ["moi@x.com", "co@x.com"], default);
+        var result = await CreateService().AddManyAsync(_fund.Id, Rows("moi@x.com", "co@x.com"), default);
 
         var created = result.Results.Single(item => item.Outcome == AddMemberOutcome.Created);
         Assert.False(string.IsNullOrEmpty(created.TemporaryPassword));
@@ -275,7 +279,7 @@ public class MembersServiceTests
     [Fact]
     public async Task AddMany_derives_a_provisional_name_from_the_email_local_part()
     {
-        await CreateService().AddManyAsync(_fund.Id, ["tran.an@x.com"], default);
+        await CreateService().AddManyAsync(_fund.Id, Rows("tran.an@x.com"), default);
 
         Assert.Equal("tran.an", Assert.Single(_db.Query<User>(), item => item.Email == "tran.an@x.com").FullName);
     }
@@ -286,24 +290,86 @@ public class MembersServiceTests
         var empty = await Assert.ThrowsAsync<BusinessRuleException>(() => CreateService().AddManyAsync(_fund.Id, [], default));
         Assert.Equal(MembersErrors.NoEmailsCode, empty.Code);
 
-        var blanks = await Assert.ThrowsAsync<BusinessRuleException>(() => CreateService().AddManyAsync(_fund.Id, ["  ", ""], default));
+        var blanks = await Assert.ThrowsAsync<BusinessRuleException>(() => CreateService().AddManyAsync(_fund.Id, Rows("  ", ""), default));
         Assert.Equal(MembersErrors.NoEmailsCode, blanks.Code);
 
         var tooMany = await Assert.ThrowsAsync<BusinessRuleException>(() =>
-            CreateService().AddManyAsync(_fund.Id, Enumerable.Range(1, 51).Select(i => $"u{i}@x.com").ToArray(), default));
+            CreateService().AddManyAsync(_fund.Id, Rows(Enumerable.Range(1, 51).Select(i => $"u{i}@x.com").ToArray()), default));
         Assert.Equal(MembersErrors.TooManyEmailsCode, tooMany.Code);
 
         _fund.Status = FundStatus.Archived;
-        var archived = await Assert.ThrowsAsync<BusinessRuleException>(() => CreateService().AddManyAsync(_fund.Id, ["a@x.com"], default));
+        var archived = await Assert.ThrowsAsync<BusinessRuleException>(() => CreateService().AddManyAsync(_fund.Id, Rows("a@x.com"), default));
         Assert.Equal("fund.archived", archived.Code);
     }
 
     [Fact]
     public async Task AddMany_accepts_exactly_50_emails()
     {
-        var result = await CreateService().AddManyAsync(_fund.Id, Enumerable.Range(1, 50).Select(i => $"u{i}@x.com").ToArray(), default);
+        var result = await CreateService().AddManyAsync(_fund.Id, Rows(Enumerable.Range(1, 50).Select(i => $"u{i}@x.com").ToArray()), default);
 
         Assert.Equal(50, result.Results.Count(item => item.Outcome == AddMemberOutcome.Created));
+    }
+
+    [Fact]
+    public async Task AddMany_uses_the_name_typed_next_to_each_email_and_reports_a_too_long_name_per_row()
+    {
+        var result = await CreateService().AddManyAsync(
+            _fund.Id,
+            [new("a@x.com", "  Hồ Đăng Quỳnh "), new("b@x.com", null), new("c@x.com", new string('x', 101))],
+            default);
+
+        Assert.Equal("Hồ Đăng Quỳnh", _db.Query<User>().Single(item => item.Email == "a@x.com").FullName);
+        Assert.Equal("b", _db.Query<User>().Single(item => item.Email == "b@x.com").FullName);
+        var bad = result.Results.Single(item => item.Email == "c@x.com");
+        Assert.Equal((AddMemberOutcome.Invalid, MembersErrors.InvalidNameMessage), (bad.Outcome, bad.Message));
+        Assert.DoesNotContain(_db.Query<User>(), item => item.Email == "c@x.com");
+    }
+
+    [Fact]
+    public async Task A_new_or_reactivated_member_still_owes_the_open_general_charges()
+    {
+        var open = new Charge(_fund.Id, null, "Quỹ HK1", null, 200_000, new DateOnly(2026, 12, 30), ChargeKind.Regular, _owner.Id, Now);
+        var closed = new Charge(_fund.Id, null, "Quỹ cũ", null, 100_000, new DateOnly(2026, 10, 30), ChargeKind.Regular, _owner.Id, Now) { Status = ChargeStatus.Closed };
+        _db.Seed(open, closed);
+        var (user, _) = SeedStudent("cu@x.com", status: MemberStatus.Removed);
+        _db.Seed(new ChargeAssignment(open.Id, user.Id, 200_000) { Status = AssignmentStatus.Cancelled });
+
+        await CreateService().AddAsync(_fund.Id, "moi@x.com", "Mới", default);
+        await CreateService().AddAsync(_fund.Id, "cu@x.com", "Cũ", default);
+
+        var fresh = _db.Query<User>().Single(item => item.Email == "moi@x.com");
+        var freshOwed = Assert.Single(_db.Query<ChargeAssignment>(), item => item.UserId == fresh.Id);
+        Assert.Equal((open.Id, 200_000L, AssignmentStatus.Unpaid), (freshOwed.ChargeId, freshOwed.AmountDue, freshOwed.Status));
+        var restored = Assert.Single(_db.Query<ChargeAssignment>(), item => item.UserId == user.Id);
+        Assert.Equal(AssignmentStatus.Unpaid, restored.Status); // khôi phục, không tạo trùng
+    }
+
+    // ---------- Cấp lại mật khẩu tạm: chỉ khi học sinh chưa tự đặt mật khẩu ----------
+
+    [Fact]
+    public async Task Reset_password_and_rename_are_blocked_once_the_student_has_set_their_own_password()
+    {
+        var (_, member) = SeedStudent("da-dang-nhap@x.com", "Đã đăng nhập", passwordSet: true);
+
+        var reset = await Assert.ThrowsAsync<BusinessRuleException>(() => CreateService().ResetPasswordAsync(_fund.Id, member.Id, default));
+        var rename = await Assert.ThrowsAsync<BusinessRuleException>(() => CreateService().UpdateAsync(_fund.Id, member.Id, "Tên mới", default));
+
+        Assert.Equal(MembersErrors.PasswordAlreadySetCode, reset.Code);
+        Assert.Equal(MembersErrors.PasswordAlreadySetCode, rename.Code);
+        Assert.Equal("Đã đăng nhập", _db.Query<User>().Single(item => item.Email == "da-dang-nhap@x.com").FullName);
+    }
+
+    [Fact]
+    public async Task List_flags_can_manage_only_for_students_who_never_set_a_password()
+    {
+        SeedStudent("moi@x.com", "Chưa đổi");
+        SeedStudent("da-doi@x.com", "Đã đổi", passwordSet: true);
+
+        var page = await CreateService().ListAsync(_fund.Id, Filter(role: MemberRole.Student), default);
+
+        var flags = page.Items.ToDictionary(item => item.FullName, item => item.CanManageAccount);
+        Assert.True(flags["Chưa đổi"]);
+        Assert.False(flags["Đã đổi"]);
     }
 
     // ---------- Sửa họ tên ----------
@@ -361,6 +427,7 @@ public class MembersServiceTests
     [Fact]
     public async Task Owner_can_manage_a_provisioned_treasurer()
     {
+        _treasurer.MustChangePassword = true; // chưa tự đặt mật khẩu
         var dto = await CreateService().UpdateAsync(_fund.Id, _treasurerMember.Id, "Thủ quỹ đổi tên", default);
         Assert.Equal("Thủ quỹ đổi tên", dto.FullName);
     }

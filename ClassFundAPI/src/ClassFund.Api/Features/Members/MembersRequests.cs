@@ -18,7 +18,9 @@ public sealed record MemberListRequest : PageRequest
 
 public sealed record AddMemberRequest(string Email, string FullName);
 
-public sealed record AddMembersRequest(IReadOnlyList<string> Emails);
+public sealed record BulkMemberRequest(string Email, string? FullName);
+
+public sealed record AddMembersRequest(IReadOnlyList<BulkMemberRequest> Members);
 
 public sealed record UpdateMemberRequest(string FullName);
 
@@ -47,9 +49,9 @@ public sealed class AddMembersRequestValidator : AbstractValidator<AddMembersReq
     public AddMembersRequestValidator()
     {
         // Email sai định dạng không làm hỏng cả yêu cầu: được báo riêng từng dòng (Invalid) trong kết quả.
-        RuleFor(request => request.Emails).NotNull().WithMessage(MembersErrors.NoEmailsMessage)
-            .Must(emails => emails is { Count: > 0 }).WithMessage(MembersErrors.NoEmailsMessage)
-            .Must(emails => emails is null || emails.Count <= MembersErrors.MaxBulkEmails).WithMessage(MembersErrors.TooManyEmailsMessage);
+        RuleFor(request => request.Members).NotNull().WithMessage(MembersErrors.NoEmailsMessage)
+            .Must(members => members is { Count: > 0 }).WithMessage(MembersErrors.NoEmailsMessage)
+            .Must(members => members is null || members.Count <= MembersErrors.MaxBulkEmails).WithMessage(MembersErrors.TooManyEmailsMessage);
     }
 }
 

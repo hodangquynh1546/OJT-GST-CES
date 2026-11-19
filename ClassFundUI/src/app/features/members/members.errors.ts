@@ -9,6 +9,8 @@ registerErrorMessages({
   'member.no_emails': 'Vui lòng nhập ít nhất một email.',
   'member.account_not_managed':
     'Tài khoản này do chính người dùng quản lý (tự đăng ký hoặc đang ở quỹ khác). Họ tự đổi họ tên và mật khẩu ở trang Tài khoản.',
+  'member.password_already_set':
+    'Học sinh đã đăng nhập và tự đặt mật khẩu nên không thể sửa họ tên hay cấp lại mật khẩu tạm. Học sinh tự quản lý ở trang Tài khoản.',
   'member.cannot_act_on_self': 'Bạn không thể thao tác này trên chính mình ở đây. Hãy dùng trang Tài khoản.',
   'member.cannot_remove_owner': 'Không thể ngừng thủ quỹ chính của quỹ.',
   'member.already_removed': 'Thành viên này đã bị ngừng.',

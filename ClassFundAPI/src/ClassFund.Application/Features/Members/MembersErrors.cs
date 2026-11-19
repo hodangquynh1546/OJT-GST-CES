@@ -27,6 +27,11 @@ public static class MembersErrors
     public const string AccountNotManagedMessage =
         "Tài khoản này do chính người dùng quản lý (tự đăng ký hoặc đang ở quỹ khác). Họ tự đổi họ tên và mật khẩu ở trang Tài khoản.";
 
+    /// <summary>Học sinh đã đăng nhập và tự đặt mật khẩu: tài khoản thuộc về họ, thủ quỹ không cấp lại mật khẩu tạm nữa.</summary>
+    public const string PasswordAlreadySetCode = "member.password_already_set";
+    public const string PasswordAlreadySetMessage =
+        "Học sinh đã đăng nhập và tự đặt mật khẩu nên không thể sửa họ tên hay cấp lại mật khẩu tạm. Học sinh tự quản lý ở trang Tài khoản.";
+
     public const string CannotActOnSelfCode = "member.cannot_act_on_self";
     public const string CannotActOnSelfMessage = "Bạn không thể thao tác này trên chính mình ở đây. Hãy dùng trang Tài khoản.";
 

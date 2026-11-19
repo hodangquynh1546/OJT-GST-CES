@@ -20,7 +20,7 @@
 | `…/categories` | C-01 | Danh mục thu chi | `Category.Manage` | M5 |
 | `…/charges` | H-01 | Khoản thu chung: danh sách Đang mở / Đã đóng (học sinh: kèm tình trạng của mình) | `Fund.View` | M6 |
 | `…/charges/new` | H-02 | Tạo khoản thu chung (bản thiết kế: hộp thoại mở từ H-01) | `Charge.Manage` | M6 |
-| `…/charges/:chargeId` | H-01b | Theo dõi một khoản thu: lọc đã/chưa đóng, ghi nhận tiền mặt, nhắc, đóng khoản (route thêm khi làm M6) | `Charge.Manage` | M6 |
+| `…/charges/:chargeId` | H-01b | Theo dõi một khoản thu: lọc đã/chưa đóng, xác nhận nhanh, đóng / hủy khoản (✅ M6a, gồm ghi nhận tiền mặt thay học sinh và gửi nhắc) | `Charge.Manage` | M6 |
 | `…/my-payments` | H-03 | Khoản cần đóng của tôi (chung + sự kiện), nộp tiền, trạng thái | `Payment.Submit` | M6 |
 | `…/payments` | H-04 | Xác nhận thanh toán (hàng chờ, xem minh chứng, xác nhận/từ chối) | `Payment.Confirm` | M6 |
 | `…/ledger` | L-01 | Thu chi chung (lịch sử, lọc) | `Fund.View` | M7 |
