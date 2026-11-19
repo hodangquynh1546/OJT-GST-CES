@@ -25,6 +25,16 @@ export const AUDIT_ACTION_LABEL: Readonly<Record<string, string>> = {
   'attachment.upload': 'Tải lên chứng từ',
   'attachment.cleanup': 'Dọn file chưa dùng',
   'user.avatar_update': 'Đổi ảnh đại diện',
+  // M7 – Thu chi
+  'ledger.create': 'Ghi khoản chi',
+  'ledger.reverse': 'Tạo bút toán đảo',
+  // M8 – Sự kiện
+  'event.create': 'Tạo sự kiện',
+  'event.update': 'Sửa sự kiện',
+  'event.cancel': 'Hủy sự kiện',
+  'event.complete': 'Kết thúc sự kiện',
+  'event.respond': 'Trả lời tham gia sự kiện',
+  'event.invite': 'Mời vào sự kiện',
 };
 
 export function actionLabel(action: string): string {
@@ -90,6 +100,20 @@ export const AUDIT_FIELD_LABEL: Readonly<Record<string, string>> = {
   reversedby: 'Bút toán đảo',
   duedate: 'Hạn đóng',
   note: 'Ghi chú',
+  // M7 – Thu chi
+  category: 'Danh mục',
+  purpose: 'Mục đích',
+  transactiondate: 'Ngày giao dịch',
+  attachmentcount: 'Số chứng từ',
+  // M8 – Sự kiện
+  eventdate: 'Ngày diễn ra',
+  description: 'Mô tả',
+  invitedcount: 'Số người được mời',
+  participantcount: 'Số người tham gia',
+  excludedcount: 'Số người bị loại',
+  remindedcount: 'Số người được nhắc đóng',
+  excluded: 'Người bị loại',
+  cancelledcharges: 'Khoản thu đã hủy',
 };
 
 /** Giá trị enum từ backend → tiếng Việt. */
@@ -137,6 +161,8 @@ const CONTENT_TYPE_LABEL: Readonly<Record<string, string>> = {
   'application/pdf': 'PDF',
 };
 const vnNumber = new Intl.NumberFormat('vi-VN');
+/** Ngày nghiệp vụ `yyyy-MM-dd` (ngày diễn ra, ngày giao dịch, hạn đóng) → `dd/MM/yyyy`. */
+const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 /** Một dòng của bảng "Trước / sau". */
 export interface AuditChange {
@@ -235,6 +261,10 @@ function formatField(key: string, value: unknown, side: 'before' | 'after', chan
     return value ? 'Có' : 'Không';
   }
   if (typeof value === 'string') {
+    const date = ISO_DATE.exec(value);
+    if (date && key.endsWith('date')) {
+      return `${date[3]}/${date[2]}/${date[1]}`;
+    }
     return AUDIT_VALUE_LABEL[value] ?? value;
   }
   if (Array.isArray(value)) {

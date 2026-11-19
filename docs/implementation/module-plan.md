@@ -115,6 +115,8 @@ Ký hiệu: **BE** backend, **FE** frontend, **T** test. Mỗi task kết thúc 
 
 ### M7 – Thu chi (FR-26 → FR-29, BR-01, BR-05, BR-06, BR-08, BR-09)
 
+> ✅ **Đã làm 2026-11-19** (nhánh `feature/m7-m8-events-transactions`, chưa merge). Ngoài phạm vi: form "Thu" của L-02 (tạo khoản thu – M6a, TD-16), "Xuất Excel" (M13, TD-18). Quyết định kỹ thuật: `implementation-status.md` nhật ký 2026-11-19.
+
 | Task | Nội dung |
 |---|---|
 | M7-T1 BE | `LedgerService`: list theo phạm vi + lọc + phân trang + tổng thu/chi/số dư phạm vi; create **chỉ khoản chi** (OQ-18, BR-39: thu đi qua khoản thu M6) – scope bắt buộc; Event phải thuộc quỹ và đang `Open`; danh mục đúng loại; `EvidenceRule.EnsureProvided`; **chi ≤ số dư phạm vi (BR-38)**, khóa theo phạm vi trong transaction; gắn chứng từ; detail; reverse (bút toán đảo + lý do, một lần). Audit `ledger.create/reverse` với Scope. Học sinh: chỉ đọc (OQ-14). |
@@ -122,6 +124,8 @@ Ký hiệu: **BE** backend, **FE** frontend, **T** test. Mỗi task kết thúc 
 | M7-T3 T | > 500k không chứng từ → 422; chi vượt số dư phạm vi → 422 `ledger.exceeds_balance`; ghi vào sự kiện đã kết thúc/quyết toán → 422; tổng quỹ chung không gồm giao dịch sự kiện. |
 
 ### M8 – Sự kiện (FR-30 → FR-34, BR-16 → BR-20, OQ-18)
+
+> ✅ **Đã làm 2026-11-19** (cùng nhánh M7). Ngoài phạm vi: thêm khoản thu sự kiện trong E-03 (M6b, TD-16), "Hạn xác nhận tham gia" (chưa có cột, TD-17), "Nhắc đóng" từng người (M11, TD-18). TD-10 đã nối.
 
 | Task | Nội dung |
 |---|---|
