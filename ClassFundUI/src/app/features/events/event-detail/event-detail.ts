@@ -33,6 +33,7 @@ import {
   EventDetail as EventDetailModel,
   EventParticipant,
   EventParticipants,
+  MY_RESPONSE_BADGE,
   PAYMENT_STATUS_BADGE,
   ParticipantPaymentStatus,
   ParticipationResponse,
@@ -94,6 +95,7 @@ export class EventDetail {
 
   protected readonly statusBadge = EVENT_STATUS_BADGE;
   protected readonly paymentBadge = PAYMENT_STATUS_BADGE;
+  protected readonly myResponseBadge = MY_RESPONSE_BADGE;
   protected readonly assignmentLabel = ASSIGNMENT_STATUS_LABEL;
   protected readonly assignmentTone = ASSIGNMENT_TONE;
   protected readonly signed = signedAmount;
