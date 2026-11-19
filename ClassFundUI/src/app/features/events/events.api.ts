@@ -3,9 +3,13 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { fundApiUrl } from '../../core/config/api.config';
+import { AssignmentStatus } from '../../shared/models/labels';
+import { PagedResult } from '../../shared/models/paged-result';
 import { toHttpParams } from '../../shared/utils/http-params';
+import { AssignmentRow, CreateChargeRequest } from '../charges/charges.models';
 import {
   CompletionPreview,
+  EventCharge,
   EventDetail,
   EventParticipants,
   EventSummary,
@@ -55,7 +59,36 @@ export class EventsApi {
     return this.http.put<EventDetail>(this.url(fundId, eventId, '/me/response'), { response });
   }
 
+  // ---- Khoản thu sự kiện (M6b) ----
+
+  createCharge(fundId: string, eventId: string, body: CreateChargeRequest): Observable<EventCharge> {
+    return this.http.post<EventCharge>(this.url(fundId, eventId, '/charges'), body);
+  }
+
+  closeCharge(fundId: string, eventId: string, chargeId: string): Observable<EventCharge> {
+    return this.http.post<EventCharge>(this.chargeUrl(fundId, eventId, chargeId, '/close'), {});
+  }
+
+  cancelCharge(fundId: string, eventId: string, chargeId: string): Observable<EventCharge> {
+    return this.http.post<EventCharge>(this.chargeUrl(fundId, eventId, chargeId, '/cancel'), {});
+  }
+
+  chargeAssignments(
+    fundId: string,
+    eventId: string,
+    chargeId: string,
+    query: { status?: AssignmentStatus; search?: string; page?: number; pageSize?: number } = {},
+  ): Observable<PagedResult<AssignmentRow>> {
+    return this.http.get<PagedResult<AssignmentRow>>(this.chargeUrl(fundId, eventId, chargeId, '/assignments'), {
+      params: toHttpParams({ ...query }),
+    });
+  }
+
   private url(fundId: string, eventId: string, rest = ''): string {
     return fundApiUrl(fundId, `/events/${encodeURIComponent(eventId)}${rest}`);
+  }
+
+  private chargeUrl(fundId: string, eventId: string, chargeId: string, rest = ''): string {
+    return this.url(fundId, eventId, `/charges/${encodeURIComponent(chargeId)}${rest}`);
   }
 }

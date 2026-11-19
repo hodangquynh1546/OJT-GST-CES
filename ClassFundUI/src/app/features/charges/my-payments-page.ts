@@ -42,7 +42,7 @@ import { PayDialog, PayTarget } from './pay-dialog';
               <div class="main">
                 <div class="head">
                   <b>{{ item.title }}</b>
-                  <app-scope-badge scope="General" />
+                  <app-scope-badge [scope]="item.eventId ? 'Event' : 'General'" [eventName]="item.eventName" />
                 </div>
                 <span class="cf-muted note">{{ note(item) }}</span>
               </div>
@@ -64,7 +64,7 @@ import { PayDialog, PayTarget } from './pay-dialog';
               <div class="main">
                 <div class="head">
                   <b>{{ item.title }}</b>
-                  <app-scope-badge scope="General" />
+                  <app-scope-badge [scope]="item.eventId ? 'Event' : 'General'" [eventName]="item.eventName" />
                 </div>
                 <span class="cf-muted note">{{ note(item) }}</span>
               </div>
@@ -202,7 +202,7 @@ export class MyPaymentsPage {
 
   protected note(item: MyAssignmentItem): string {
     if (this.rejected(item)) {
-      return `Bị từ chối: “${item.rejectionReason ?? ''}” – vui lòng gửi lại`;
+      return `Bị từ chối: "${item.rejectionReason ?? ''}" – vui lòng gửi lại`;
     }
     if (item.status === 'Paid') {
       const method = item.method ? ` · ${PAYMENT_METHOD_LABEL[item.method]}` : '';

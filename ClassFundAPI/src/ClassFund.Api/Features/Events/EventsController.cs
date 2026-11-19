@@ -2,6 +2,10 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using ClassFund.Api.Authorization;
 using ClassFund.Api.Common;
+using ClassFund.Api.ErrorHandling;
+using ClassFund.Api.Features.Charges;
+using ClassFund.Application.Common.Paging;
+using ClassFund.Application.Features.Charges;
 using ClassFund.Application.Features.Events;
 using ClassFund.Domain.Authorization;
 
@@ -10,7 +14,7 @@ namespace ClassFund.Api.Features.Events;
 /// <summary>M8 – Sự kiện (FR-30 → FR-34). Học sinh chỉ thấy sự kiện được mời (không thì 404).</summary>
 [ApiVersion(1)]
 [Route(ApiRoutes.Fund + "/events")]
-public sealed class EventsController(IEventsService service) : ApiControllerBase
+public sealed class EventsController(IEventsService service, IChargesService charges) : ApiControllerBase
 {
     [HttpGet]
     [RequirePermission(Permissions.EventParticipate)]
@@ -70,4 +74,41 @@ public sealed class EventsController(IEventsService service) : ApiControllerBase
     [ProducesResponseType<EventDetailDto>(StatusCodes.Status200OK)]
     public Task<EventDetailDto> Respond(Guid fundId, Guid eventId, RespondEventRequest request, CancellationToken ct) =>
         service.RespondAsync(fundId, eventId, request.Response!.Value, ct);
+
+    // ---- Khoản thu sự kiện (M6b) ----
+
+    /// <summary>Tạo khoản thu sự kiện, chỉ gán cho người đã xác nhận tham gia (BR-18).</summary>
+    [HttpPost("{eventId:guid}/charges")]
+    [RequirePermission(Permissions.ChargeManage)]
+    [ProducesResponseType<EventChargeDto>(StatusCodes.Status201Created)]
+    public async Task<IActionResult> CreateEventCharge(Guid fundId, Guid eventId, CreateChargeRequest request, CancellationToken ct)
+    {
+        var result = await charges.CreateEventChargeAsync(
+            fundId, eventId,
+            new CreateChargeInput(request.Title, request.Purpose, request.AmountPerPerson, request.DueDate!.Value, request.CategoryId!.Value),
+            ct);
+        return StatusCode(StatusCodes.Status201Created, result);
+    }
+
+    [HttpPost("{eventId:guid}/charges/{chargeId:guid}/close")]
+    [RequirePermission(Permissions.ChargeManage)]
+    [ProducesResponseType<EventChargeDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, ApiProblems.ContentType)]
+    public Task<EventChargeDto> CloseEventCharge(Guid fundId, Guid eventId, Guid chargeId, CancellationToken ct) =>
+        charges.CloseEventChargeAsync(fundId, eventId, chargeId, ct);
+
+    [HttpPost("{eventId:guid}/charges/{chargeId:guid}/cancel")]
+    [RequirePermission(Permissions.ChargeManage)]
+    [ProducesResponseType<EventChargeDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, ApiProblems.ContentType)]
+    public Task<EventChargeDto> CancelEventCharge(Guid fundId, Guid eventId, Guid chargeId, CancellationToken ct) =>
+        charges.CancelEventChargeAsync(fundId, eventId, chargeId, ct);
+
+    /// <summary>Danh sách đã đóng / chưa đóng của một khoản thu sự kiện.</summary>
+    [HttpGet("{eventId:guid}/charges/{chargeId:guid}/assignments")]
+    [RequirePermission(Permissions.ChargeManage)]
+    [ProducesResponseType<PagedResult<AssignmentRowDto>>(StatusCodes.Status200OK)]
+    public Task<PagedResult<AssignmentRowDto>> EventChargeAssignments(
+        Guid fundId, Guid eventId, Guid chargeId, [FromQuery] AssignmentListRequest request, CancellationToken ct) =>
+        charges.ListEventAssignmentsAsync(fundId, eventId, chargeId, new AssignmentFilter(request.Status, request.Search, request.Page, request.PageSize), ct);
 }

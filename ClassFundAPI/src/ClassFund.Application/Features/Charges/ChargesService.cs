@@ -5,6 +5,7 @@ using ClassFund.Application.Common.Paging;
 using ClassFund.Application.Common.Persistence;
 using ClassFund.Application.Common.Security;
 using ClassFund.Application.Features.Categories;
+using ClassFund.Application.Features.Events;
 using ClassFund.Domain.Authorization;
 using ClassFund.Domain.Entities;
 using ClassFund.Domain.Enums;
@@ -263,6 +264,166 @@ public sealed class ChargesService(
             },
             cancellationToken);
     }
+
+    // ---- Khoản thu sự kiện (M6b) ----
+
+    public async Task<EventChargeDto> CreateEventChargeAsync(Guid fundId, Guid eventId, CreateChargeInput input, CancellationToken cancellationToken)
+    {
+        var actorId = await EnsureManagerAsync(fundId, cancellationToken);
+        MoneyRule.EnsureValid(input.AmountPerPerson);
+        var title = input.Title.Trim();
+        var purpose = string.IsNullOrWhiteSpace(input.Purpose) ? null : input.Purpose.Trim();
+        if (input.DueDate < VietnamTime.DateOf(clock.GetUtcNow()))
+        {
+            throw new BusinessRuleException(ChargesErrors.DueDateInPastCode, ChargesErrors.DueDateInPastMessage);
+        }
+
+        return await db.InTransactionAsync(
+            async token =>
+            {
+                var fund = await db.LockAsync<Fund>(fundId, token) ?? throw new NotFoundException();
+                YearEndRule.EnsureFundActive(fund.Status);
+                await categories.EnsureUsableAsync(fundId, input.CategoryId, LedgerType.Income, token);
+
+                var fundEvent = await db.FirstOrDefaultAsync(
+                    db.Query<Event>().Where(e => e.Id == eventId && e.FundId == fundId), token)
+                    ?? throw new NotFoundException();
+                if (!EventStatusRules.AcceptsNewChargesAndExpenses(fundEvent.Status))
+                {
+                    throw new BusinessRuleException(EventsErrors.NotOpen, EventsErrors.NotOpenMessage);
+                }
+
+                // BR-18: chỉ gán cho người đã xác nhận tham gia
+                var acceptedIds = await db.ToListAsync(
+                    db.Query<EventParticipant>()
+                        .Where(p => p.EventId == eventId && p.Response == ParticipationResponse.Accepted)
+                        .Select(p => p.UserId),
+                    token);
+
+                var created = new Charge(fundId, eventId, title, purpose, input.AmountPerPerson, input.DueDate, ChargeKind.Regular, actorId, clock.GetUtcNow()) { CategoryId = input.CategoryId };
+                db.Add(created);
+                foreach (var memberId in acceptedIds)
+                {
+                    db.Add(new ChargeAssignment(created.Id, memberId, input.AmountPerPerson));
+                }
+
+                audit.Record(new AuditEntry(
+                    ChargesAuditActions.EventCreate,
+                    fundId,
+                    actorId,
+                    FinancialScope.Event,
+                    EventId: eventId,
+                    EntityType: nameof(Charge),
+                    EntityId: created.Id,
+                    After: new { title, categoryId = input.CategoryId, amountPerPerson = input.AmountPerPerson, dueDate = input.DueDate.ToString("yyyy-MM-dd"), count = acceptedIds.Count }));
+                notifier.Send(
+                    acceptedIds,
+                    new NotificationMessage(
+                        fundId,
+                        FinancialScope.Event,
+                        eventId,
+                        NotificationType.EventChargeCreated,
+                        $"{Notifier.ScopePrefix(FinancialScope.Event, fundEvent.Name)} Khoản thu mới: {title}",
+                        $"Mỗi người đóng {input.AmountPerPerson:N0}đ, hạn đóng {input.DueDate:dd/MM/yyyy}.",
+                        nameof(Charge),
+                        created.Id));
+                await db.SaveChangesAsync(token);
+                return ToEventChargeDto(created, acceptedIds.Count, 0, 0);
+            },
+            cancellationToken);
+    }
+
+    public Task<EventChargeDto> CloseEventChargeAsync(Guid fundId, Guid eventId, Guid chargeId, CancellationToken cancellationToken) =>
+        ChangeEventChargeStatusAsync(fundId, eventId, chargeId, ChargeStatus.Closed, ChargesAuditActions.EventClose, cancellationToken);
+
+    public Task<EventChargeDto> CancelEventChargeAsync(Guid fundId, Guid eventId, Guid chargeId, CancellationToken cancellationToken) =>
+        ChangeEventChargeStatusAsync(fundId, eventId, chargeId, ChargeStatus.Cancelled, ChargesAuditActions.EventCancel, cancellationToken);
+
+    public async Task<PagedResult<AssignmentRowDto>> ListEventAssignmentsAsync(
+        Guid fundId, Guid eventId, Guid chargeId, AssignmentFilter filter, CancellationToken cancellationToken)
+    {
+        await EnsureManagerAsync(fundId, cancellationToken);
+        // kiểm tra khoản thu thuộc sự kiện thuộc quỹ
+        if (!await db.AnyAsync(db.Query<Charge>().Where(c => c.Id == chargeId && c.FundId == fundId && c.EventId == eventId), cancellationToken))
+        {
+            throw new NotFoundException();
+        }
+
+        // dùng lại cùng logic với khoản thu chung
+        return await ListAssignmentsAsync(fundId, chargeId, filter, cancellationToken);
+    }
+
+    private async Task<EventChargeDto> ChangeEventChargeStatusAsync(
+        Guid fundId, Guid eventId, Guid chargeId, ChargeStatus target, string action, CancellationToken cancellationToken)
+    {
+        var actorId = await EnsureManagerAsync(fundId, cancellationToken);
+
+        return await db.InTransactionAsync(
+            async token =>
+            {
+                var fund = await db.LockAsync<Fund>(fundId, token) ?? throw new NotFoundException();
+                YearEndRule.EnsureFundActive(fund.Status);
+
+                var locked = await db.LockAsync<Charge>(chargeId, token);
+                if (locked is null || locked.FundId != fundId || locked.EventId != eventId)
+                {
+                    throw new NotFoundException();
+                }
+
+                var allowed = target == ChargeStatus.Closed
+                    ? locked.Status == ChargeStatus.Open
+                    : locked.Status is ChargeStatus.Open or ChargeStatus.Closed;
+                if (!allowed)
+                {
+                    throw new ConflictException(ChargesErrors.InvalidStatusCode, ChargesErrors.InvalidStatusMessage);
+                }
+
+                var before = locked.Status;
+                if (target == ChargeStatus.Cancelled)
+                {
+                    var assignments = await db.ToListAsync(db.Query<ChargeAssignment>().Where(item => item.ChargeId == chargeId), token);
+                    var assignmentIds = assignments.Select(item => item.Id).ToArray();
+                    var hasPayments = await db.AnyAsync(
+                        db.Query<Payment>().Where(payment => assignmentIds.Contains(payment.AssignmentId) && payment.Status != PaymentStatus.Rejected),
+                        token);
+                    if (hasPayments)
+                    {
+                        throw new BusinessRuleException(ChargesErrors.HasPaymentsCode, ChargesErrors.HasPaymentsMessage);
+                    }
+
+                    foreach (var assignment in assignments)
+                    {
+                        assignment.Status = AssignmentStatus.Cancelled;
+                    }
+                }
+
+                locked.Status = target;
+                audit.Record(new AuditEntry(
+                    action,
+                    fundId,
+                    actorId,
+                    FinancialScope.Event,
+                    EventId: eventId,
+                    EntityType: nameof(Charge),
+                    EntityId: locked.Id,
+                    Before: new { status = before.ToString() },
+                    After: new { title = locked.Title, status = target.ToString() }));
+                await db.SaveChangesAsync(token);
+
+                // tính lại counts để trả về EventChargeDto
+                var allAssignments = await db.ToListAsync(
+                    db.Query<ChargeAssignment>().Where(item => item.ChargeId == chargeId && item.Status != AssignmentStatus.Cancelled),
+                    token);
+                return ToEventChargeDto(locked, allAssignments.Count,
+                    allAssignments.Count(a => a.Status == AssignmentStatus.Paid),
+                    allAssignments.Count(a => a.Status == AssignmentStatus.AwaitingConfirmation));
+            },
+            cancellationToken);
+    }
+
+    private static EventChargeDto ToEventChargeDto(Charge charge, int assigned, int paid, int pending) =>
+        new(charge.Id, charge.Title, charge.Purpose, charge.AmountPerPerson, charge.DueDate, charge.Status,
+            paid, pending, assigned - paid - pending);
 
     private async Task<ChargeDto> ChangeStatusAsync(Guid fundId, Guid chargeId, ChargeStatus target, string action, CancellationToken cancellationToken)
     {

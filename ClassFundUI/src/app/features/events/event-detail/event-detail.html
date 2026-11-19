@@ -233,25 +233,32 @@
           @case ('charges') {
             <div class="pad stack">
               @for (charge of event.charges; track charge.id) {
-                <div class="cf-card charge">
-                  <div class="stack-xs">
+                <div class="cf-card charge-ev">
+                  <div class="charge-ev-info">
                     <span class="strong-600">{{ charge.title }}</span>
                     <span class="cf-muted small">
                       {{ charge.amountPerPerson | vndMoney }}/người · hạn {{ charge.dueDate | vnDate }}@if (charge.purpose) { · {{ charge.purpose }}}
                     </span>
                   </div>
-                  <div class="actions">
+                  <div class="charge-ev-stats">
                     <span class="cf-tag cf-tag--success">{{ charge.paidCount }} đã đóng</span>
                     <span class="cf-tag cf-tag--warning">{{ charge.pendingCount }} chờ</span>
                     <span class="cf-tag cf-tag--danger">{{ charge.unpaidCount }} chưa đóng</span>
+                  </div>
+                  <div class="charge-ev-actions">
+                    <span class="cf-tag" [class.cf-tag--success]="charge.status === 'Open'">{{ chargeStatusLabel(charge.status) }}</span>
+                    @if (charge.status === 'Open') {
+                      <button kendoButton size="small" fillMode="outline" type="button" [disabled]="busy()" (click)="doCloseCharge(event, charge.id)">Đóng</button>
+                      <button kendoButton size="small" fillMode="outline" themeColor="error" type="button" [disabled]="busy()" (click)="doCancelCharge(event, charge.id)">Hủy</button>
+                    }
                   </div>
                 </div>
               } @empty {
                 <p class="cf-muted">Sự kiện chưa có khoản thu nào.</p>
               }
-              <p class="cf-muted small">Khoản thu sự kiện chỉ gán cho người đã xác nhận tham gia và chỉ họ nhận thông báo (FR-19, FR-43).</p>
+              <p class="cf-muted small">Khoản thu sự kiện chỉ gán cho người đã xác nhận tham gia ({{ event.acceptedCount }} người) và chỉ họ nhận thông báo.</p>
               @if (isOpen()) {
-                <div class="cf-alert">Thêm khoản thu sự kiện làm ở bước “Khoản thu sự kiện” (M6b) – chưa có trong bản này.</div>
+                <button kendoButton themeColor="primary" type="button" [disabled]="busy()" (click)="openCreateCharge()">+ Tạo khoản thu sự kiện</button>
               } @else {
                 <p class="cf-muted small">Đã kết thúc – không tạo khoản thu mới.</p>
               }
@@ -295,7 +302,7 @@
                 </ng-template>
               </kendo-grid-column>
               <ng-template kendoGridNoRecordsTemplate>
-                <app-state kind="empty" title="Chưa có giao dịch" message="Thu vào sổ khi thanh toán được xác nhận; chi ghi bằng nút “Ghi chi sự kiện”." />
+                <app-state kind="empty" title="Chưa có giao dịch" message="Thu vào sổ khi thanh toán được xác nhận; chi ghi bằng nút Ghi chi sự kiện." />
               </ng-template>
             </kendo-grid>
             <div class="card-f">
@@ -365,7 +372,7 @@
             } @else if (me.response === 'Declined') {
               <div class="cf-alert">Bạn không tham gia – không phải đóng khoản thu của sự kiện này và không nhận thông báo thu tiền của nó.</div>
             } @else {
-              <div class="cf-alert cf-alert--warning">Bạn chưa trả lời. Chọn “Tham gia” hoặc “Không tham gia”.</div>
+              <div class="cf-alert cf-alert--warning">Bạn chưa trả lời. Chọn "Tham gia" hoặc "Không tham gia".</div>
             }
             <p class="cf-muted xs">Đổi được trả lời khi sự kiện còn mở.</p>
           }
@@ -494,6 +501,54 @@
     }
     @case ('edit') {
       <app-event-form-dialog [fundId]="fundId()" [event]="event" (closed)="dialog.set(null)" (saved)="onChanged()" />
+    }
+    @case ('charge') {
+      <kendo-dialog title="Tạo khoản thu sự kiện" [width]="520" [maxWidth]="'calc(100vw - 32px)'" (close)="dialog.set(null)">
+        <p class="cf-muted small" style="margin:0 0 12px">Chỉ gán cho người đã xác nhận tham gia ({{ event.acceptedCount }} người).</p>
+        <form class="stack-s" novalidate (submit)="$event.preventDefault()">
+          <div class="field">
+            <label for="ev-charge-title">Tên khoản thu <span class="req" aria-hidden="true">*</span></label>
+            <input id="ev-charge-title" class="ev-text" maxlength="150" [class.invalid]="chargeErrors().title" [ngModel]="chargeTitle()" (ngModelChange)="chargeTitle.set($event)" name="ev-charge-title" />
+            @if (chargeErrors().title; as message) { <span class="k-form-error" role="alert">{{ message }}</span> }
+          </div>
+          <div class="field">
+            <label for="ev-charge-purpose">Mục đích</label>
+            <textarea id="ev-charge-purpose" class="ev-text ev-area" rows="2" maxlength="1000" [ngModel]="chargePurpose()" (ngModelChange)="chargePurpose.set($event)" name="ev-charge-purpose"></textarea>
+          </div>
+          <div class="field">
+            <label for="ev-charge-category">Danh mục thu <span class="req" aria-hidden="true">*</span></label>
+            <select id="ev-charge-category" class="ev-text" [class.invalid]="chargeErrors().category" [ngModel]="chargeCategoryId()" (ngModelChange)="chargeCategoryId.set($event)" name="ev-charge-category">
+              <option value="">Chọn danh mục thu</option>
+              @for (cat of chargeCategories(); track cat.id) {
+                <option [value]="cat.id">{{ cat.name }}</option>
+              }
+            </select>
+            @if (chargeErrors().category; as message) { <span class="k-form-error" role="alert">{{ message }}</span> }
+            @if (chargeCategories().length === 0) {
+              <span class="cf-muted small">Chưa có danh mục thu nào. Tạo ở mục Danh mục rồi quay lại.</span>
+            }
+          </div>
+          <div class="ev-row">
+            <div class="field">
+              <label for="ev-charge-amount">Số tiền mỗi người (đ) <span class="req" aria-hidden="true">*</span></label>
+              <input id="ev-charge-amount" class="ev-text ev-money" inputmode="numeric" autocomplete="off" [class.invalid]="chargeErrors().amount" [ngModel]="chargeAmountText()" (ngModelChange)="setChargeAmount($event)" name="ev-charge-amount" />
+              @if (chargeErrors().amount; as message) { <span class="k-form-error" role="alert">{{ message }}</span> }
+            </div>
+            <div class="field">
+              <label for="ev-charge-due">Hạn đóng <span class="req" aria-hidden="true">*</span></label>
+              <input id="ev-charge-due" type="date" class="ev-text" [min]="today" [class.invalid]="chargeErrors().dueDate" [ngModel]="chargeDueDate()" (ngModelChange)="chargeDueDate.set($event)" name="ev-charge-due" />
+              @if (chargeErrors().dueDate; as message) { <span class="k-form-error" role="alert">{{ message }}</span> }
+            </div>
+          </div>
+          @if (chargeCreateError(); as message) {
+            <p class="cf-alert cf-alert--danger" role="alert">{{ message }}</p>
+          }
+        </form>
+        <kendo-dialog-actions layout="end">
+          <button kendoButton type="button" fillMode="outline" [disabled]="busy()" (click)="dialog.set(null)">Hủy</button>
+          <button kendoButton type="button" themeColor="primary" [disabled]="busy()" (click)="doCreateCharge(event)">{{ busy() ? 'Đang tạo…' : 'Tạo khoản thu' }}</button>
+        </kendo-dialog-actions>
+      </kendo-dialog>
     }
   }
 

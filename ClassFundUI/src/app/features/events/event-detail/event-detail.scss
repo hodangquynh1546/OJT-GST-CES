@@ -356,3 +356,33 @@ p {
   gap: 8px;
   margin: 0;
 }
+
+// ---- Khoản thu sự kiện (M6b) ----
+.charge-ev {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 16px;
+
+  &-info { display: flex; flex: 1; flex-direction: column; gap: 4px; min-width: 0 }
+  &-stats { display: flex; flex-wrap: wrap; gap: 6px }
+  &-actions { display: flex; align-items: center; gap: 6px }
+}
+
+// Form tạo khoản thu sự kiện (dùng chung .field và .stack-s từ trên)
+.ev-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px }
+.req { color: var(--cf-expense) }
+
+.ev-text {
+  box-sizing: border-box;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--cf-border-strong);
+  border-radius: var(--cf-radius-lg);
+  font: inherit;
+
+  &.invalid { border-color: var(--cf-expense) }
+  &.ev-area { padding: 8px 12px; resize: vertical }
+  &.ev-money { text-align: right }
+}
