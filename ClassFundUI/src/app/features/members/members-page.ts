@@ -29,10 +29,10 @@ import {
   OUTCOME_LABELS,
   RemovalPreview,
 } from './members.models';
-import { countInvalidEmails, credentialsText, parseEmails, uniqueEmails } from './members.utils';
+import { countInvalidStudents, credentialsText, parseStudentLines, uniqueStudents } from './members.utils';
 
 const PAGE_SIZE = 20;
-const NOT_MANAGED_HINT = 'Tài khoản này do chính họ quản lý (tự đăng ký hoặc đang ở quỹ khác).';
+const NOT_MANAGED_HINT = 'Tài khoản này do chính học sinh quản lý (đã tự đặt mật khẩu, tự đăng ký hoặc đang ở quỹ khác).';
 
 interface CredentialRow {
   email: string;
@@ -78,7 +78,7 @@ interface CredentialRow {
               <button kendoButton type="submit" themeColor="primary" [disabled]="adding()">
                 {{ adding() ? 'Đang thêm…' : 'Thêm vào lớp' }}
               </button>
-              <button kendoButton type="button" fillMode="outline" (click)="openBulk()">Thêm nhiều email</button>
+              <button kendoButton type="button" fillMode="outline" (click)="openBulk()">Thêm nhiều học sinh</button>
             </div>
           </form>
           @if (addError(); as message) {
@@ -187,19 +187,19 @@ interface CredentialRow {
       </kendo-dialog>
     }
 
-    <!-- Thêm nhiều email (OQ-20) -->
+    <!-- Thêm nhiều học sinh (OQ-20) -->
     @if (bulk(); as dialog) {
-      <kendo-dialog title="Thêm nhiều email" [width]="640" (close)="closeBulk()">
+      <kendo-dialog title="Thêm nhiều học sinh" [width]="720" (close)="closeBulk()">
         <div class="dialog-body">
           @if (dialog.results === null) {
-            <label class="bulk-label" for="bulk-emails">Dán danh sách email (mỗi dòng một email, tối đa {{ maxBulk }})</label>
-            <textarea id="bulk-emails" rows="8" class="bulk-input" [formControl]="bulkControl" placeholder="hs1@truong.edu.vn&#10;hs2@truong.edu.vn"></textarea>
+            <label class="bulk-label" for="bulk-students">Dán danh sách học sinh: mỗi dòng gồm email rồi họ tên (tối đa {{ maxBulk }} dòng)</label>
+            <textarea id="bulk-students" rows="8" class="bulk-input" [formControl]="bulkControl" placeholder="hs1@truong.edu.vn Nguyễn Văn An&#10;hs2@truong.edu.vn Lê Thị Bình"></textarea>
             <p class="cf-muted bulk-count" aria-live="polite">
-              {{ bulkEmails().length }} email@if (bulkInvalid() > 0) {
+              {{ bulkLines().length }} học sinh@if (bulkInvalid() > 0) {
                 · <span class="invalid">{{ bulkInvalid() }} không hợp lệ</span>
               }
             </p>
-            <p class="cf-muted">Email chưa có tài khoản sẽ được tạo kèm mật khẩu tạm; tên tạm lấy từ phần trước @, thủ quỹ sửa lại sau.</p>
+            <p class="cf-muted">Email chưa có tài khoản sẽ được tạo kèm mật khẩu tạm và dùng họ tên bạn nhập (bỏ trống thì lấy phần trước @, sửa lại sau). Email đã có tài khoản giữ nguyên họ tên của chính họ.</p>
             @if (bulkError(); as message) {
               <p class="cf-alert cf-alert--danger" role="alert">{{ message }}</p>
             }
@@ -207,12 +207,13 @@ interface CredentialRow {
             <p class="cf-alert cf-alert--warning" role="status">Mật khẩu tạm chỉ hiện lúc này. Hãy sao chép trước khi đóng.</p>
             <table class="results">
               <thead>
-                <tr><th scope="col">Email</th><th scope="col">Kết quả</th><th scope="col">Mật khẩu tạm</th></tr>
+                <tr><th scope="col">Email</th><th scope="col">Họ tên</th><th scope="col">Kết quả</th><th scope="col">Mật khẩu tạm</th></tr>
               </thead>
               <tbody>
                 @for (row of dialog.results; track row.email) {
                   <tr>
                     <td>{{ row.email }}</td>
+                    <td>{{ row.member?.fullName }}</td>
                     <td>{{ outcomeLabel(row) }}</td>
                     <td>@if (row.temporaryPassword) { <code class="secret">{{ row.temporaryPassword }}</code> }</td>
                   </tr>
@@ -224,8 +225,8 @@ interface CredentialRow {
         <kendo-dialog-actions>
           @if (dialog.results === null) {
             <button kendoButton type="button" fillMode="outline" (click)="closeBulk()">Hủy bỏ</button>
-            <button kendoButton type="button" themeColor="primary" [disabled]="bulkBusy() || bulkEmails().length === 0" (click)="submitBulk()">
-              {{ bulkBusy() ? 'Đang thêm…' : 'Thêm ' + bulkEmails().length + ' email' }}
+            <button kendoButton type="button" themeColor="primary" [disabled]="bulkBusy() || bulkLines().length === 0" (click)="submitBulk()">
+              {{ bulkBusy() ? 'Đang thêm…' : 'Thêm ' + bulkLines().length + ' học sinh' }}
             </button>
           } @else {
             @if (bulkCredentials().length > 0) {
@@ -612,12 +613,12 @@ export class MembersPage {
     }
   }
 
-  // ---------- Thêm nhiều email ----------
+  // ---------- Thêm nhiều học sinh ----------
 
   protected readonly bulkControl = new FormControl('', { nonNullable: true });
   private readonly bulkText = toSignal(this.bulkControl.valueChanges, { initialValue: '' });
-  protected readonly bulkEmails = computed(() => uniqueEmails(parseEmails(this.bulkText())));
-  protected readonly bulkInvalid = computed(() => countInvalidEmails(this.bulkEmails()));
+  protected readonly bulkLines = computed(() => uniqueStudents(parseStudentLines(this.bulkText())));
+  protected readonly bulkInvalid = computed(() => countInvalidStudents(this.bulkLines()));
   protected readonly bulk = signal<{ results: AddMemberResult[] | null } | null>(null);
   protected readonly bulkBusy = signal(false);
   protected readonly bulkError = signal<string | null>(null);
@@ -639,19 +640,19 @@ export class MembersPage {
   }
 
   protected async submitBulk(): Promise<void> {
-    const emails = this.bulkEmails();
-    if (emails.length === 0 || this.bulkBusy()) {
+    const lines = this.bulkLines();
+    if (lines.length === 0 || this.bulkBusy()) {
       return;
     }
-    if (emails.length > MAX_BULK_EMAILS) {
-      this.bulkError.set(`Mỗi lần chỉ thêm tối đa ${MAX_BULK_EMAILS} email. Bạn đang có ${emails.length}.`);
+    if (lines.length > MAX_BULK_EMAILS) {
+      this.bulkError.set(`Mỗi lần chỉ thêm tối đa ${MAX_BULK_EMAILS} học sinh. Bạn đang có ${lines.length}.`);
       return;
     }
 
     this.bulkBusy.set(true);
     this.bulkError.set(null);
     try {
-      const response = await firstValueFrom(this.api.addMany(this.fundId(), emails));
+      const response = await firstValueFrom(this.api.addMany(this.fundId(), lines));
       this.bulk.set({ results: response.results });
       this.reload();
     } catch (error) {

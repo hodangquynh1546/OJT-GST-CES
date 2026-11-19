@@ -91,11 +91,11 @@ test('thêm nhiều email: kết quả từng dòng; mọi tài khoản mới đ
   const [a, b] = [newEmail(), newEmail()];
   await openMembers(page);
 
-  await page.getByRole('button', { name: 'Thêm nhiều email' }).click();
+  await page.getByRole('button', { name: 'Thêm nhiều học sinh' }).click();
   const dialog = page.getByRole('dialog');
-  await dialog.getByLabel(/Dán danh sách email/).fill(`${a}\n${b}\n${OWNER}\nkhong-hop-le\n${a.toUpperCase()}`);
-  await expect(dialog.locator('.bulk-count')).toContainText('4 email');
-  await dialog.getByRole('button', { name: 'Thêm 4 email' }).click();
+  await dialog.getByLabel(/Dán danh sách học sinh/).fill(`${a}\n${b}\n${OWNER}\nkhong-hop-le\n${a.toUpperCase()}`);
+  await expect(dialog.locator('.bulk-count')).toContainText('4 học sinh');
+  await dialog.getByRole('button', { name: 'Thêm 4 học sinh' }).click();
 
   await expect(dialog.getByText('Mật khẩu tạm chỉ hiện lúc này')).toBeVisible();
   const rows = dialog.getByRole('row');
@@ -117,7 +117,9 @@ test('cấp lại mật khẩu tạm: mật khẩu cũ và phiên cũ hết hi�
   const email = newEmail();
   await openMembers(page);
   const first = await addStudent(page, email, 'Lê Quên Mật Khẩu');
-  const session = await activate(browser, email, first); // học sinh đang đăng nhập ở một thiết bị
+  const session = await newSession(browser); // học sinh đã vào bằng mật khẩu tạm nhưng CHƯA đổi mật khẩu
+  await loginAs(session, email, first);
+  await expect(session).toHaveURL(/\/change-password$/);
 
   await (await rowFor(page, email)).getByRole('button', { name: 'Cấp mật khẩu tạm' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Cấp mật khẩu tạm' }).click();
@@ -128,10 +130,21 @@ test('cấp lại mật khẩu tạm: mật khẩu cũ và phiên cũ hết hi�
   expect((await session.request.get('/api/v1/auth/me')).status()).toBe(401); // BR-29: phiên cũ bị đăng xuất
 
   const fresh = await newSession(browser);
-  await loginAs(fresh, email, NEW_PASSWORD); // mật khẩu đã đổi trước đó không còn dùng được
+  await loginAs(fresh, email, first); // mật khẩu tạm cũ không còn dùng được
   await expect(fresh.getByRole('alert').filter({ hasText: 'Email hoặc mật khẩu không đúng.' })).toBeVisible();
   await loginAs(fresh, email, second);
   await expect(fresh).toHaveURL(/\/change-password$/);
+
+  // Khi học sinh đã tự đặt mật khẩu thì thủ quỹ không cấp lại mật khẩu tạm / sửa tên nữa.
+  await fresh.getByLabel('Mật khẩu tạm', { exact: true }).fill(second);
+  await fresh.getByLabel('Mật khẩu mới', { exact: true }).fill(NEW_PASSWORD);
+  await fresh.getByLabel('Nhập lại mật khẩu mới', { exact: true }).fill(NEW_PASSWORD);
+  await fresh.getByRole('button', { name: 'Lưu và vào lớp' }).click();
+  await expect(fresh.getByRole('link', { name: `Mở quỹ ${FUND_NAME}` })).toBeVisible();
+  await page.reload();
+  const row = await rowFor(page, email);
+  await expect(row.getByRole('button', { name: 'Cấp mật khẩu tạm' })).toBeDisabled();
+  await expect(row.getByRole('button', { name: 'Sửa tên' })).toBeDisabled();
 });
 
 test('sửa họ tên được lưu vào database; tài khoản tự đăng ký (AZ-07) bị khóa nút sửa và cấp mật khẩu', async ({ page, browser }) => {

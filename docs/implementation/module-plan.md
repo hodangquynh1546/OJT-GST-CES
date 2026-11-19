@@ -104,6 +104,8 @@ Ký hiệu: **BE** backend, **FE** frontend, **T** test. Mỗi task kết thúc 
 
 ### M6a – Khoản thu chung & thanh toán (FR-18, FR-20 → FR-24, BR-10 → BR-14, AZ-01, AZ-04)
 
+> ✅ **Đã làm 2026-11-19** (nhánh `feature/m6a-charges-payments`, chưa merge). Phạm vi quỹ chung; đóng bằng số dư cá nhân và khoản thu sự kiện thuộc M6b. Quyết định kỹ thuật: `implementation-status.md` nhật ký 2026-11-19.
+
 | Task | Nội dung |
 |---|---|
 | M6a-T1 BE | `ChargesService` phạm vi General: create (ChargeAssignment cho mọi thành viên Active gồm thủ quỹ; thông báo `GeneralChargeCreated`), list, assignments (đã/chưa đóng), close/cancel. |

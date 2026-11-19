@@ -131,11 +131,11 @@ export class FakeMembersApi {
 
     if (method === 'POST' && path === '/bulk') {
       const seen = new Set<string>();
-      const emails = (body.emails as string[]).filter((email) => {
-        const key = email.trim().toLowerCase();
+      const rows = (body.members as { email: string; fullName: string }[]).filter((row) => {
+        const key = row.email.trim().toLowerCase();
         return key && !seen.has(key) && seen.add(key);
       });
-      return route.fulfill({ json: { results: emails.map((email) => this.addOne(email, null)) } });
+      return route.fulfill({ json: { results: rows.map((row) => this.addOne(row.email, row.fullName || null)) } });
     }
 
     const memberMatch = /^\/([^/]+)(\/[a-z-]+)?$/.exec(path);
@@ -157,6 +157,7 @@ export class FakeMembersApi {
       if (!target.canManageAccount) {
         return this.problem(route, 422, 'member.account_not_managed', 'Tài khoản này do chính người dùng quản lý.');
       }
+
       target.mustChangePassword = true;
       return route.fulfill({ json: { temporaryPassword: this.nextPassword() } });
     }

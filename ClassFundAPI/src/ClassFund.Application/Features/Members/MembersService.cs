@@ -59,6 +59,7 @@ public sealed class MembersService(
                     row.member.JoinedAt,
                     row.member.RemovedAt,
                     row.user.Origin == UserOrigin.Provisioned
+                        && row.user.MustChangePassword
                         && !memberships.Any(other => other.UserId == row.user.Id && other.FundId != fundId && other.Status == MemberStatus.Active))),
             cancellationToken);
 
@@ -78,32 +79,41 @@ public sealed class MembersService(
         };
     }
 
-    public async Task<BulkAddMembersResult> AddManyAsync(Guid fundId, IReadOnlyList<string> emails, CancellationToken cancellationToken)
+    public async Task<BulkAddMembersResult> AddManyAsync(Guid fundId, IReadOnlyList<BulkMemberInput> members, CancellationToken cancellationToken)
     {
-        if (emails.Count == 0)
+        if (members.Count == 0)
         {
             throw new BusinessRuleException(MembersErrors.NoEmailsCode, MembersErrors.NoEmailsMessage);
         }
 
-        if (emails.Count > MembersErrors.MaxBulkEmails)
+        if (members.Count > MembersErrors.MaxBulkEmails)
         {
             throw new BusinessRuleException(MembersErrors.TooManyEmailsCode, MembersErrors.TooManyEmailsMessage);
         }
 
         await EnsureFundActiveAsync(fundId, cancellationToken);
 
-        // Chuẩn hóa và bỏ email trùng trong danh sách (giữ thứ tự xuất hiện đầu tiên).
+        // Chuẩn hóa và bỏ email trùng trong danh sách (giữ dòng xuất hiện đầu tiên).
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        var unique = emails.Select(raw => raw.Trim()).Where(raw => raw.Length > 0 && seen.Add(EmailAddress.Normalize(raw))).ToList();
+        var unique = members
+            .Select(item => new BulkMemberInput(item.Email.Trim(), string.IsNullOrWhiteSpace(item.FullName) ? null : item.FullName.Trim()))
+            .Where(item => item.Email.Length > 0 && seen.Add(EmailAddress.Normalize(item.Email)))
+            .ToList();
         if (unique.Count == 0)
         {
             throw new BusinessRuleException(MembersErrors.NoEmailsCode, MembersErrors.NoEmailsMessage);
         }
 
         var results = new List<AddMemberResult>(unique.Count);
-        foreach (var raw in unique)
+        foreach (var item in unique)
         {
-            results.Add(await AddOneAsync(fundId, raw, fullName: null, cancellationToken));
+            if (item.FullName is { Length: > MembersErrors.FullNameMaxLength })
+            {
+                results.Add(new AddMemberResult(item.Email, AddMemberOutcome.Invalid, null, null, MembersErrors.InvalidNameMessage));
+                continue;
+            }
+
+            results.Add(await AddOneAsync(fundId, item.Email, item.FullName, cancellationToken));
         }
 
         return new BulkAddMembersResult(results);
@@ -134,7 +144,6 @@ public sealed class MembersService(
     {
         var (member, user) = await LoadManageableAsync(fundId, memberId, cancellationToken);
         await EnsureAccountManageableAsync(user, fundId, cancellationToken);
-
         var temporaryPassword = Credentials.TemporaryPassword();
         var passwordHash = hasher.Hash(temporaryPassword);
 
@@ -266,7 +275,7 @@ public sealed class MembersService(
                         }
                         else if (existing.Status == MemberStatus.Active)
                         {
-                            return new AddMemberResult(email, AddMemberOutcome.AlreadyExists, ToDto(existing, user, await IsManagedAsync(user, fundId, token)), null, MembersErrors.AlreadyExistsMessage);
+                            return new AddMemberResult(email, AddMemberOutcome.AlreadyExists, await ToDtoAsync(existing, user, fundId, token), null, MembersErrors.AlreadyExistsMessage);
                         }
                         else
                         {
@@ -280,6 +289,7 @@ public sealed class MembersService(
                         }
                     }
 
+                    var charges = await AssignOpenChargesAsync(fundId, user.Id, token);
                     audit.Record(new AuditEntry(
                         action,
                         fundId,
@@ -287,9 +297,9 @@ public sealed class MembersService(
                         FinancialScope.General,
                         EntityType: nameof(FundMember),
                         EntityId: member.Id,
-                        After: new { userId = user.Id, user.Email, role = member.Role.ToString(), outcome = outcome.ToString() }));
+                        After: new { userId = user.Id, user.Email, role = member.Role.ToString(), outcome = outcome.ToString(), assignedCharges = charges }));
                     await db.SaveChangesAsync(token);
-                    return new AddMemberResult(email, outcome, ToDto(member, user, outcome == AddMemberOutcome.Created || await IsManagedAsync(user, fundId, token)), issuedPassword, null);
+                    return new AddMemberResult(email, outcome, await ToDtoAsync(member, user, fundId, token), issuedPassword, null);
                 },
                 cancellationToken);
         }
@@ -298,6 +308,44 @@ public sealed class MembersService(
             // Hai request cùng email / cùng thành viên đua nhau: ràng buộc UNIQUE là chốt chặn cuối.
             return new AddMemberResult(email, AddMemberOutcome.AlreadyExists, null, null, MembersErrors.AlreadyExistsMessage);
         }
+    }
+
+    /// <summary>
+    /// Thành viên mới (hoặc được thêm lại) vẫn phải đóng các khoản thu chung đang mở: tạo nghĩa vụ còn thiếu
+    /// và khôi phục nghĩa vụ đã bị hủy khi ngừng (quyết toán sau đó chia theo tỷ lệ số đã đóng nên công bằng).
+    /// </summary>
+    private async Task<int> AssignOpenChargesAsync(Guid fundId, Guid userId, CancellationToken cancellationToken)
+    {
+        var charges = await db.ToListAsync(
+            db.Query<Charge>().Where(charge => charge.FundId == fundId && charge.EventId == null && charge.Status == ChargeStatus.Open),
+            cancellationToken);
+        if (charges.Count == 0)
+        {
+            return 0;
+        }
+
+        var chargeIds = charges.Select(charge => charge.Id).ToArray();
+        var existing = (await db.ToListAsync(
+                db.Query<ChargeAssignment>().Where(item => item.UserId == userId && chargeIds.Contains(item.ChargeId)),
+                cancellationToken))
+            .ToDictionary(item => item.ChargeId);
+
+        var count = 0;
+        foreach (var charge in charges)
+        {
+            if (!existing.TryGetValue(charge.Id, out var assignment))
+            {
+                db.Add(new ChargeAssignment(charge.Id, userId, charge.AmountPerPerson));
+                count++;
+            }
+            else if (assignment.Status == AssignmentStatus.Cancelled)
+            {
+                assignment.Status = AssignmentStatus.Unpaid;
+                count++;
+            }
+        }
+
+        return count;
     }
 
     // ---------- Quyền theo dữ liệu ----------
@@ -332,10 +380,19 @@ public sealed class MembersService(
             throw new BusinessRuleException(MembersErrors.CannotActOnSelfCode, MembersErrors.CannotActOnSelfMessage);
         }
 
-        if (!await IsManagedAsync(user, fundId, cancellationToken))
+        if (await IsManagedAsync(user, fundId, cancellationToken))
         {
-            throw new BusinessRuleException(MembersErrors.AccountNotManagedCode, MembersErrors.AccountNotManagedMessage);
+            return;
         }
+
+        // Tài khoản do thủ quỹ cấp nhưng học sinh đã tự đặt mật khẩu: báo rõ lý do thay vì thông báo chung.
+        var ownedByStudent = user.Origin == UserOrigin.Provisioned && !user.MustChangePassword
+            && !await db.AnyAsync(
+                db.Query<FundMember>().Where(item => item.UserId == user.Id && item.FundId != fundId && item.Status == MemberStatus.Active),
+                cancellationToken);
+        throw ownedByStudent
+            ? new BusinessRuleException(MembersErrors.PasswordAlreadySetCode, MembersErrors.PasswordAlreadySetMessage)
+            : new BusinessRuleException(MembersErrors.AccountNotManagedCode, MembersErrors.AccountNotManagedMessage);
     }
 
     // ---------- Ngừng thành viên ----------
@@ -398,9 +455,16 @@ public sealed class MembersService(
     private static MemberDto ToDto(FundMember member, User user, bool canManageAccount) =>
         new(member.Id, user.Id, user.FullName, user.Email, member.Role, member.Status, user.MustChangePassword, member.JoinedAt, member.RemovedAt, canManageAccount);
 
-    /// <summary>AZ-07: tài khoản do thủ quỹ cấp (Provisioned) và không còn là thành viên hoạt động của quỹ nào khác.</summary>
+    private async Task<MemberDto> ToDtoAsync(FundMember member, User user, Guid fundId, CancellationToken cancellationToken) =>
+        ToDto(member, user, await IsManagedAsync(user, fundId, cancellationToken));
+
+    /// <summary>
+    /// AZ-07: thủ quỹ chỉ quản lý (sửa tên, cấp mật khẩu tạm) tài khoản do mình cấp, CHƯA được học sinh tự đặt mật khẩu
+    /// (<c>MustChangePassword</c> còn true) và không thuộc quỹ hoạt động nào khác.
+    /// </summary>
     private async Task<bool> IsManagedAsync(User user, Guid fundId, CancellationToken cancellationToken) =>
         user.Origin == UserOrigin.Provisioned
+        && user.MustChangePassword
         && !await db.AnyAsync(
             db.Query<FundMember>().Where(item => item.UserId == user.Id && item.FundId != fundId && item.Status == MemberStatus.Active),
             cancellationToken);

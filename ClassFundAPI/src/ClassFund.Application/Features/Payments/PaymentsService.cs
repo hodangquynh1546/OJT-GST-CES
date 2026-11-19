@@ -1,0 +1,477 @@
+using ClassFund.Application.Common.Auditing;
+using ClassFund.Application.Common.Exceptions;
+using ClassFund.Application.Common.Notifications;
+using ClassFund.Application.Common.Paging;
+using ClassFund.Application.Common.Persistence;
+using ClassFund.Application.Common.Security;
+using ClassFund.Application.Features.Attachments;
+using ClassFund.Domain.Authorization;
+using ClassFund.Domain.Entities;
+using ClassFund.Domain.Enums;
+using ClassFund.Domain.Exceptions;
+using ClassFund.Domain.Rules;
+
+namespace ClassFund.Application.Features.Payments;
+
+/// <inheritdoc />
+public sealed class PaymentsService(
+    IAppDb db,
+    ICurrentUser currentUser,
+    IAccessService accessService,
+    IAttachmentsService attachments,
+    AuditTrail audit,
+    Notifier notifier,
+    TimeProvider clock) : IPaymentsService
+{
+    private static readonly IReadOnlySet<AttachmentKind> ProofKinds = new HashSet<AttachmentKind> { AttachmentKind.PaymentProof };
+
+    public async Task<IReadOnlyList<MyAssignmentItemDto>> ListMineAsync(Guid fundId, CancellationToken cancellationToken)
+    {
+        var userId = CurrentUserId();
+        await accessService.GetFundAccessAsync(userId, fundId, cancellationToken);
+
+        var rows = await db.ToListAsync(
+            from assignment in db.Query<ChargeAssignment>()
+            where assignment.UserId == userId
+                && assignment.Status != AssignmentStatus.Cancelled && assignment.Status != AssignmentStatus.Excluded
+            join charge in db.Query<Charge>() on assignment.ChargeId equals charge.Id
+            where charge.FundId == fundId && charge.EventId == null
+            select new { assignment, charge },
+            cancellationToken);
+
+        var assignmentIds = rows.Select(row => row.assignment.Id).ToArray();
+        var latest = (await db.ToListAsync(
+                db.Query<Payment>().Where(payment => assignmentIds.Contains(payment.AssignmentId)),
+                cancellationToken))
+            .GroupBy(payment => payment.AssignmentId)
+            .ToDictionary(group => group.Key, group => group.OrderByDescending(payment => payment.Status != PaymentStatus.Rejected).ThenByDescending(payment => payment.SubmittedAt).First());
+
+        return rows
+            .OrderBy(row => row.assignment.Status == AssignmentStatus.Paid ? 1 : 0)
+            .ThenBy(row => row.charge.DueDate)
+            .ThenBy(row => row.assignment.Id)
+            .Select(row =>
+            {
+                latest.TryGetValue(row.assignment.Id, out var payment);
+                return new MyAssignmentItemDto(
+                    row.assignment.Id,
+                    row.charge.Id,
+                    row.charge.Title,
+                    row.charge.Purpose,
+                    row.assignment.AmountDue,
+                    row.charge.DueDate,
+                    row.charge.Status,
+                    row.assignment.Status,
+                    payment?.Id,
+                    payment?.Method,
+                    payment?.Status,
+                    payment?.Status == PaymentStatus.Rejected ? payment.RejectionReason : null,
+                    payment?.ConfirmationMode == ConfirmationMode.SelfDeclared);
+            })
+            .ToArray();
+    }
+
+    public async Task<PaymentDto> SubmitAsync(Guid fundId, Guid assignmentId, SubmitPaymentInput input, CancellationToken cancellationToken)
+    {
+        var userId = CurrentUserId();
+        var access = await accessService.GetFundAccessAsync(userId, fundId, cancellationToken);
+        if (!access.Permissions.Contains(Permissions.PaymentSubmit))
+        {
+            throw new ForbiddenAccessException();
+        }
+
+        if (input.Method == PaymentMethod.PersonalBalance)
+        {
+            throw new BusinessRuleException(PaymentsErrors.MethodUnavailableCode, PaymentsErrors.MethodUnavailableMessage);
+        }
+
+        if (input.Method == PaymentMethod.BankTransfer && input.AttachmentId is null)
+        {
+            throw new BusinessRuleException(PaymentsErrors.ProofRequiredCode, PaymentsErrors.ProofRequiredMessage);
+        }
+
+        var transferCode = string.IsNullOrWhiteSpace(input.TransferCode) ? null : input.TransferCode.Trim();
+
+        try
+        {
+            return await db.InTransactionAsync(
+                async token =>
+                {
+                    await EnsureFundActiveAsync(fundId, token);
+
+                    var assignment = await db.LockAsync<ChargeAssignment>(assignmentId, token);
+                    if (assignment is null || assignment.UserId != userId)
+                    {
+                        throw new NotFoundException(); // AZ-04: nghĩa vụ của người khác như không tồn tại
+                    }
+
+                    var charge = await LoadChargeAsync(assignment.ChargeId, fundId, token);
+                    if (assignment.Status == AssignmentStatus.Cancelled || assignment.Status == AssignmentStatus.Excluded)
+                    {
+                        throw new NotFoundException();
+                    }
+
+                    if (assignment.Status != AssignmentStatus.Unpaid)
+                    {
+                        throw new ConflictException(PaymentsErrors.NotPayableCode, PaymentsErrors.NotPayableMessage);
+                    }
+
+                    if (charge.Status != ChargeStatus.Open)
+                    {
+                        throw new ConflictException(PaymentsErrors.ChargeNotOpenCode, PaymentsErrors.ChargeNotOpenMessage);
+                    }
+
+                    var now = clock.GetUtcNow();
+                    var payment = new Payment(assignment.Id, userId, assignment.AmountDue, input.Method, now) { TransferCode = transferCode };
+                    db.Add(payment);
+
+                    var proofCount = 0;
+                    if (input.AttachmentId is { } attachmentId)
+                    {
+                        proofCount = await attachments.AttachToAsync(fundId, [attachmentId], payment.Id, ProofKinds, token);
+                    }
+
+                    var payer = await db.FirstOrDefaultAsync(db.Query<User>().Where(user => user.Id == userId), token) ?? throw new NotFoundException();
+                    audit.Record(new AuditEntry(
+                        PaymentsAuditActions.Submit,
+                        fundId,
+                        userId,
+                        FinancialScope.General,
+                        EntityType: nameof(Payment),
+                        EntityId: payment.Id,
+                        After: new
+                        {
+                            chargeTitle = charge.Title,
+                            payerName = payer.FullName,
+                            amount = payment.Amount,
+                            method = input.Method.ToString(),
+                            hasProof = proofCount > 0,
+                        }));
+
+                    // BR-12: thủ quỹ nộp cho mình = gửi + tự xác nhận trong một thao tác.
+                    var decision = PaymentConfirmationPolicy.Decide(userId, userId, access.Permissions.Contains(Permissions.PaymentConfirm));
+                    if (decision.Allowed)
+                    {
+                        await ConfirmCoreAsync(fundId, payment, assignment, charge, payer, userId, decision.Mode, token);
+                    }
+                    else
+                    {
+                        assignment.Status = AssignmentStatus.AwaitingConfirmation;
+                    }
+
+                    await db.SaveChangesAsync(token);
+                    return ToDto(payment);
+                },
+                cancellationToken);
+        }
+        catch (UniqueConstraintException)
+        {
+            // BR-14: hai lần nộp đồng thời cho cùng nghĩa vụ – chỉ một lần thắng.
+            throw new ConflictException(PaymentsErrors.NotPayableCode, PaymentsErrors.NotPayableMessage);
+        }
+    }
+
+    public async Task<PaymentDto> RecordCashAsync(Guid fundId, Guid assignmentId, CancellationToken cancellationToken)
+    {
+        var actorId = await EnsureConfirmerAsync(fundId, cancellationToken);
+
+        try
+        {
+            return await db.InTransactionAsync(
+                async token =>
+                {
+                    await EnsureFundActiveAsync(fundId, token);
+
+                    var assignment = await db.LockAsync<ChargeAssignment>(assignmentId, token) ?? throw new NotFoundException();
+                    var charge = await LoadChargeAsync(assignment.ChargeId, fundId, token);
+                    if (assignment.Status is AssignmentStatus.Cancelled or AssignmentStatus.Excluded)
+                    {
+                        throw new NotFoundException();
+                    }
+
+                    if (assignment.Status != AssignmentStatus.Unpaid)
+                    {
+                        throw new ConflictException(PaymentsErrors.NotPayableCode, PaymentsErrors.NotPayableMessage);
+                    }
+
+                    if (charge.Status != ChargeStatus.Open)
+                    {
+                        throw new ConflictException(PaymentsErrors.ChargeNotOpenCode, PaymentsErrors.ChargeNotOpenMessage);
+                    }
+
+                    var payer = await db.FirstOrDefaultAsync(db.Query<User>().Where(user => user.Id == assignment.UserId), token)
+                        ?? throw new NotFoundException();
+                    var payment = new Payment(assignment.Id, payer.Id, assignment.AmountDue, PaymentMethod.Cash, clock.GetUtcNow());
+                    db.Add(payment);
+                    audit.Record(new AuditEntry(
+                        PaymentsAuditActions.Submit,
+                        fundId,
+                        actorId,
+                        FinancialScope.General,
+                        EntityType: nameof(Payment),
+                        EntityId: payment.Id,
+                        After: new { chargeTitle = charge.Title, payerName = payer.FullName, amount = payment.Amount, method = nameof(PaymentMethod.Cash) },
+                        Note: "Thủ quỹ ghi nhận tiền mặt."));
+
+                    var decision = PaymentConfirmationPolicy.Decide(actorId, payer.Id, actorCanConfirm: true);
+                    await ConfirmCoreAsync(fundId, payment, assignment, charge, payer, actorId, decision.Mode, token);
+                    await db.SaveChangesAsync(token);
+                    return ToDto(payment);
+                },
+                cancellationToken);
+        }
+        catch (UniqueConstraintException)
+        {
+            throw new ConflictException(PaymentsErrors.NotPayableCode, PaymentsErrors.NotPayableMessage);
+        }
+    }
+
+    public async Task<PagedResult<PaymentQueueItemDto>> ListAsync(Guid fundId, PaymentFilter filter, CancellationToken cancellationToken)
+    {
+        await EnsureConfirmerAsync(fundId, cancellationToken);
+        var status = filter.Status ?? PaymentStatus.Submitted;
+
+        var query = QueueQuery(fundId).Where(row => row.Payment.Status == status);
+        var total = await db.CountAsync(query, cancellationToken);
+        var rows = await db.ToListAsync(
+            query
+                .OrderBy(row => row.Payment.SubmittedAt)
+                .ThenBy(row => row.Payment.Id)
+                .Skip((filter.Page - 1) * filter.PageSize)
+                .Take(filter.PageSize),
+            cancellationToken);
+
+        return new PagedResult<PaymentQueueItemDto>(await ToQueueItemsAsync(fundId, rows, cancellationToken), total, filter.Page, filter.PageSize);
+    }
+
+    public async Task<PaymentQueueItemDto> ConfirmAsync(Guid fundId, Guid paymentId, CancellationToken cancellationToken)
+    {
+        var actorId = await EnsureConfirmerAsync(fundId, cancellationToken);
+
+        await db.InTransactionAsync(
+            async token =>
+            {
+                await EnsureFundActiveAsync(fundId, token);
+                var (payment, assignment, charge, payer) = await LockSubmittedAsync(fundId, paymentId, token);
+
+                var decision = PaymentConfirmationPolicy.Decide(actorId, payment.PayerUserId, actorCanConfirm: true);
+                await ConfirmCoreAsync(fundId, payment, assignment, charge, payer, actorId, decision.Mode, token);
+                await db.SaveChangesAsync(token);
+                return true;
+            },
+            cancellationToken);
+
+        return await LoadQueueItemAsync(fundId, paymentId, cancellationToken);
+    }
+
+    public async Task<PaymentQueueItemDto> RejectAsync(Guid fundId, Guid paymentId, string reason, CancellationToken cancellationToken)
+    {
+        var actorId = await EnsureConfirmerAsync(fundId, cancellationToken);
+        var trimmed = reason?.Trim();
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            throw new BusinessRuleException(PaymentsErrors.ReasonRequiredCode, PaymentsErrors.ReasonRequiredMessage);
+        }
+
+        await db.InTransactionAsync(
+            async token =>
+            {
+                await EnsureFundActiveAsync(fundId, token);
+                var (payment, assignment, charge, payer) = await LockSubmittedAsync(fundId, paymentId, token);
+
+                payment.Status = PaymentStatus.Rejected;
+                payment.RejectionReason = trimmed;
+                assignment.Status = AssignmentStatus.Unpaid;
+
+                audit.Record(new AuditEntry(
+                    PaymentsAuditActions.Reject,
+                    fundId,
+                    actorId,
+                    FinancialScope.General,
+                    EntityType: nameof(Payment),
+                    EntityId: payment.Id,
+                    Before: new { status = nameof(PaymentStatus.Submitted) },
+                    After: new { chargeTitle = charge.Title, payerName = payer.FullName, amount = payment.Amount, status = nameof(PaymentStatus.Rejected), reason = trimmed }));
+                notifier.Send(
+                    [payment.PayerUserId],
+                    new NotificationMessage(
+                        fundId,
+                        FinancialScope.General,
+                        null,
+                        NotificationType.PaymentRejected,
+                        $"{Notifier.GeneralPrefix} Thanh toán bị từ chối: {charge.Title}",
+                        $"Lý do: {trimmed}. Bạn có thể nộp lại.",
+                        nameof(Payment),
+                        payment.Id));
+                await db.SaveChangesAsync(token);
+                return true;
+            },
+            cancellationToken);
+
+        return await LoadQueueItemAsync(fundId, paymentId, cancellationToken);
+    }
+
+    /// <summary>Chuyển Payment sang Confirmed, nghĩa vụ → Paid, ghi bút toán thu + audit (+ thông báo nếu người xác nhận khác người nộp).</summary>
+    private async Task ConfirmCoreAsync(
+        Guid fundId, Payment payment, ChargeAssignment assignment, Charge charge, User payer, Guid actorId, ConfirmationMode mode, CancellationToken cancellationToken)
+    {
+        var now = clock.GetUtcNow();
+        var selfDeclared = mode == ConfirmationMode.SelfDeclared;
+
+        payment.Status = PaymentStatus.Confirmed;
+        payment.ConfirmedByUserId = actorId;
+        payment.ConfirmedAt = now;
+        payment.ConfirmationMode = mode;
+        assignment.Status = AssignmentStatus.Paid;
+
+        var incomeCategory = DefaultCategories.All.First(item => item.Type == LedgerType.Income).Name;
+        var categoryId = await db.FirstOrDefaultAsync(
+            db.Query<Category>()
+                .Where(category => category.FundId == fundId && category.Type == LedgerType.Income && category.Name == incomeCategory)
+                .Select(category => (Guid?)category.Id),
+            cancellationToken);
+
+        db.Add(new LedgerEntry(
+            fundId,
+            null,
+            LedgerType.Income,
+            LedgerSource.Payment,
+            categoryId,
+            charge.Title,
+            charge.Purpose,
+            payment.Amount,
+            VietnamTime.DateOf(now),
+            actorId,
+            now)
+        {
+            PaymentId = payment.Id,
+            TransferCode = payment.TransferCode,
+            IsSelfDeclared = selfDeclared,
+        });
+
+        audit.Record(new AuditEntry(
+            PaymentsAuditActions.Confirm,
+            fundId,
+            actorId,
+            FinancialScope.General,
+            EntityType: nameof(Payment),
+            EntityId: payment.Id,
+            Before: new { status = nameof(PaymentStatus.Submitted) },
+            After: new { chargeTitle = charge.Title, payerName = payer.FullName, amount = payment.Amount, status = nameof(PaymentStatus.Confirmed) },
+            IsSelfAction: selfDeclared,
+            Note: selfDeclared ? "Thủ quỹ tự ghi nhận khoản đóng của chính mình." : null));
+
+        if (!selfDeclared)
+        {
+            notifier.Send(
+                [payment.PayerUserId],
+                new NotificationMessage(
+                    fundId,
+                    FinancialScope.General,
+                    null,
+                    NotificationType.PaymentConfirmed,
+                    $"{Notifier.GeneralPrefix} Đã xác nhận khoản đóng: {charge.Title}",
+                    $"Thủ quỹ đã xác nhận bạn đóng {payment.Amount:N0}đ.",
+                    nameof(Payment),
+                    payment.Id));
+        }
+    }
+
+    /// <summary>Khóa Payment + nghĩa vụ; chỉ xử lý được khi đang <c>Submitted</c> (chống xác nhận đôi).</summary>
+    private async Task<(Payment Payment, ChargeAssignment Assignment, Charge Charge, User Payer)> LockSubmittedAsync(
+        Guid fundId, Guid paymentId, CancellationToken cancellationToken)
+    {
+        var payment = await db.LockAsync<Payment>(paymentId, cancellationToken) ?? throw new NotFoundException();
+        var assignment = await db.LockAsync<ChargeAssignment>(payment.AssignmentId, cancellationToken) ?? throw new NotFoundException();
+        var charge = await LoadChargeAsync(assignment.ChargeId, fundId, cancellationToken);
+
+        if (payment.Status != PaymentStatus.Submitted)
+        {
+            throw new ConflictException(PaymentsErrors.AlreadyProcessedCode, PaymentsErrors.AlreadyProcessedMessage);
+        }
+
+        var payer = await db.FirstOrDefaultAsync(db.Query<User>().Where(user => user.Id == payment.PayerUserId), cancellationToken)
+            ?? throw new NotFoundException();
+        return (payment, assignment, charge, payer);
+    }
+
+    private async Task<Charge> LoadChargeAsync(Guid chargeId, Guid fundId, CancellationToken cancellationToken) =>
+        await db.FirstOrDefaultAsync(
+            db.Query<Charge>().Where(charge => charge.Id == chargeId && charge.FundId == fundId && charge.EventId == null),
+            cancellationToken) ?? throw new NotFoundException();
+
+    private async Task EnsureFundActiveAsync(Guid fundId, CancellationToken cancellationToken)
+    {
+        var status = await db.FirstOrDefaultAsync(
+            db.Query<Fund>().Where(fund => fund.Id == fundId).Select(fund => (FundStatus?)fund.Status),
+            cancellationToken) ?? throw new NotFoundException();
+        YearEndRule.EnsureFundActive(status);
+    }
+
+    /// <summary>Dòng truy vấn hàng chờ; dùng khởi tạo thuộc tính (không dùng constructor) để EF Core dịch được phép chiếu.</summary>
+    private sealed class QueueRow
+    {
+        public required Payment Payment { get; init; }
+
+        public required Charge Charge { get; init; }
+
+        public required User Payer { get; init; }
+    }
+
+    private IQueryable<QueueRow> QueueQuery(Guid fundId) =>
+        from payment in db.Query<Payment>()
+        join assignment in db.Query<ChargeAssignment>() on payment.AssignmentId equals assignment.Id
+        join charge in db.Query<Charge>() on assignment.ChargeId equals charge.Id
+        where charge.FundId == fundId && charge.EventId == null
+        join user in db.Query<User>() on payment.PayerUserId equals user.Id
+        select new QueueRow { Payment = payment, Charge = charge, Payer = user };
+
+    private async Task<PaymentQueueItemDto> LoadQueueItemAsync(Guid fundId, Guid paymentId, CancellationToken cancellationToken)
+    {
+        var rows = await db.ToListAsync(QueueQuery(fundId).Where(row => row.Payment.Id == paymentId), cancellationToken);
+        return (await ToQueueItemsAsync(fundId, rows, cancellationToken)).SingleOrDefault() ?? throw new NotFoundException();
+    }
+
+    private async Task<IReadOnlyList<PaymentQueueItemDto>> ToQueueItemsAsync(Guid fundId, List<QueueRow> rows, CancellationToken cancellationToken)
+    {
+        var paymentIds = rows.Select(row => row.Payment.Id).ToArray();
+        var files = (await db.ToListAsync(
+                db.Query<Attachment>().Where(item => item.FundId == fundId && item.OwnerId != null && paymentIds.Contains(item.OwnerId.Value)),
+                cancellationToken))
+            .GroupBy(item => item.OwnerId!.Value)
+            .ToDictionary(group => group.Key, group => (IReadOnlyList<AttachmentDto>)group.OrderBy(item => item.UploadedAt).Select(AttachmentsService.ToDto).ToArray());
+
+        return rows
+            .Select(row => new PaymentQueueItemDto(
+                row.Payment.Id,
+                row.Payment.AssignmentId,
+                row.Charge.Id,
+                row.Charge.Title,
+                row.Payer.Id,
+                row.Payer.FullName,
+                row.Payer.Email,
+                row.Payment.Amount,
+                row.Payment.Method,
+                row.Payment.TransferCode,
+                row.Payment.Status,
+                row.Payment.SubmittedAt,
+                row.Payment.ConfirmedAt,
+                row.Payment.ConfirmationMode == ConfirmationMode.SelfDeclared,
+                row.Payment.RejectionReason,
+                files.GetValueOrDefault(row.Payment.Id) ?? []))
+            .ToArray();
+    }
+
+    private static PaymentDto ToDto(Payment payment) =>
+        new(payment.Id, payment.AssignmentId, payment.Amount, payment.Method, payment.TransferCode, payment.Status, payment.SubmittedAt,
+            payment.ConfirmationMode == ConfirmationMode.SelfDeclared);
+
+    private async Task<Guid> EnsureConfirmerAsync(Guid fundId, CancellationToken cancellationToken)
+    {
+        var userId = CurrentUserId();
+        var access = await accessService.GetFundAccessAsync(userId, fundId, cancellationToken);
+        return access.Permissions.Contains(Permissions.PaymentConfirm) ? userId : throw new ForbiddenAccessException();
+    }
+
+    private Guid CurrentUserId() => currentUser.UserId ?? throw new ForbiddenAccessException();
+}

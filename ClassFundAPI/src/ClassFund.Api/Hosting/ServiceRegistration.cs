@@ -16,6 +16,7 @@ using ClassFund.Api.ErrorHandling;
 using ClassFund.Api.Filters;
 using ClassFund.Api.Health;
 using ClassFund.Application.Common.Auditing;
+using ClassFund.Application.Common.Notifications;
 using ClassFund.Application.Common.Security;
 using ClassFund.Infrastructure;
 using ClassFund.Infrastructure.Security;
@@ -132,6 +133,7 @@ public static class ServiceRegistration
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<IRequestInfo, HttpRequestInfo>();
         services.AddScoped<AuditTrail>();
+        services.AddScoped<Notifier>();
 
         // Service của các module (Application/Features/*) tự đăng ký theo quy ước tên – không thêm dòng ở đây.
         services.AddFeatureServices(typeof(AuditTrail).Assembly, FeatureRegistration.ApplicationFeaturesNamespace);

@@ -28,8 +28,8 @@ export class MembersApi {
     return this.http.post<AddMemberResult>(fundApiUrl(fundId, '/members'), { email, fullName });
   }
 
-  addMany(fundId: string, emails: string[]): Observable<BulkAddResult> {
-    return this.http.post<BulkAddResult>(fundApiUrl(fundId, '/members/bulk'), { emails });
+  addMany(fundId: string, members: { email: string; fullName: string }[]): Observable<BulkAddResult> {
+    return this.http.post<BulkAddResult>(fundApiUrl(fundId, '/members/bulk'), { members });
   }
 
   update(fundId: string, memberId: string, fullName: string): Observable<Member> {

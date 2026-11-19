@@ -32,7 +32,7 @@ public sealed class MembersController(IMembersService service) : ApiControllerBa
     [EnableRateLimiting(RateLimitPolicies.MembersBulk)]
     [ProducesResponseType<BulkAddMembersResult>(StatusCodes.Status200OK)]
     public Task<BulkAddMembersResult> AddMany(Guid fundId, AddMembersRequest request, CancellationToken cancellationToken) =>
-        service.AddManyAsync(fundId, request.Emails, cancellationToken);
+        service.AddManyAsync(fundId, request.Members.Select(item => new BulkMemberInput(item.Email ?? string.Empty, item.FullName)).ToArray(), cancellationToken);
 
     [HttpPut("{memberId:guid}")]
     [ProducesResponseType<MemberDto>(StatusCodes.Status200OK)]

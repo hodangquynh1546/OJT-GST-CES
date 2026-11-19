@@ -224,7 +224,7 @@ public class MembersApiTests(PostgresFixture database) : IClassFixture<PostgresF
         var existing = await AddStudentAsync(owner, fundId);
         var fresh = new[] { NewEmail(), NewEmail() };
 
-        var response = await owner.PostAsJsonAsync(Url(fundId, "/bulk"), new { emails = new[] { fresh[0], existing.Email, "khong-hop-le", fresh[1], fresh[0].ToUpperInvariant() } });
+        var response = await owner.PostAsJsonAsync(Url(fundId, "/bulk"), new { members = new[] { fresh[0], existing.Email, "khong-hop-le", fresh[1], fresh[0].ToUpperInvariant() }.Select(email => new { email }).ToArray() });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var results = (await ReadAsync(response)).GetProperty("results").EnumerateArray().ToArray();
@@ -247,7 +247,7 @@ public class MembersApiTests(PostgresFixture database) : IClassFixture<PostgresF
         var (owner, fundId, _, _) = await OwnerWithFundAsync();
         var emails = new[] { NewEmail(), NewEmail(), NewEmail() };
 
-        var response = await owner.PostAsJsonAsync(Url(fundId, "/bulk"), new { emails });
+        var response = await owner.PostAsJsonAsync(Url(fundId, "/bulk"), new { members = emails.Select(email => new { email }).ToArray() });
         var passwords = (await ReadAsync(response)).GetProperty("results").EnumerateArray().Select(item => item.GetProperty("temporaryPassword").GetString()!).ToArray();
 
         await using var context = database.CreateContext();
@@ -261,10 +261,10 @@ public class MembersApiTests(PostgresFixture database) : IClassFixture<PostgresF
     {
         var (owner, fundId, _, _) = await OwnerWithFundAsync();
 
-        var empty = await owner.PostAsJsonAsync(Url(fundId, "/bulk"), new { emails = Array.Empty<string>() });
+        var empty = await owner.PostAsJsonAsync(Url(fundId, "/bulk"), new { members = Array.Empty<object>() });
         Assert.Equal(HttpStatusCode.BadRequest, empty.StatusCode);
 
-        var tooMany = await owner.PostAsJsonAsync(Url(fundId, "/bulk"), new { emails = Enumerable.Range(1, 51).Select(_ => NewEmail()).ToArray() });
+        var tooMany = await owner.PostAsJsonAsync(Url(fundId, "/bulk"), new { members = Enumerable.Range(1, 51).Select(_ => new { email = NewEmail() }).ToArray() });
         Assert.Equal(HttpStatusCode.BadRequest, tooMany.StatusCode);
         Assert.Equal("validation_failed", await CodeOfAsync(tooMany));
     }
@@ -276,10 +276,10 @@ public class MembersApiTests(PostgresFixture database) : IClassFixture<PostgresF
 
         for (var attempt = 0; attempt < 10; attempt++)
         {
-            Assert.Equal(HttpStatusCode.OK, (await owner.PostAsJsonAsync(Url(fundId, "/bulk"), new { emails = new[] { "khong-hop-le" } })).StatusCode);
+            Assert.Equal(HttpStatusCode.OK, (await owner.PostAsJsonAsync(Url(fundId, "/bulk"), new { members = new[] { new { email = "khong-hop-le" } } })).StatusCode);
         }
 
-        var limited = await owner.PostAsJsonAsync(Url(fundId, "/bulk"), new { emails = new[] { "khong-hop-le" } });
+        var limited = await owner.PostAsJsonAsync(Url(fundId, "/bulk"), new { members = new[] { new { email = "khong-hop-le" } } });
         Assert.Equal(HttpStatusCode.TooManyRequests, limited.StatusCode);
     }
 
@@ -328,7 +328,7 @@ public class MembersApiTests(PostgresFixture database) : IClassFixture<PostgresF
 
         Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync(Url(fundId))).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.PostAsJsonAsync(Url(fundId), new { email = NewEmail(), fullName = "A" })).StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.PostAsJsonAsync(Url(fundId, "/bulk"), new { emails = new[] { NewEmail() } })).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.PostAsJsonAsync(Url(fundId, "/bulk"), new { members = new[] { new { email = NewEmail() } } })).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.PutAsJsonAsync(Url(fundId, $"/{memberId}"), new { fullName = "A" })).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.PostAsync(Url(fundId, $"/{memberId}/reset-password"), null)).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync(Url(fundId, $"/{memberId}/removal-preview"))).StatusCode);
@@ -349,7 +349,7 @@ public class MembersApiTests(PostgresFixture database) : IClassFixture<PostgresF
         {
             await studentClient.GetAsync(Url(fundId)),
             await studentClient.PostAsJsonAsync(Url(fundId), new { email = NewEmail(), fullName = "A" }),
-            await studentClient.PostAsJsonAsync(Url(fundId, "/bulk"), new { emails = new[] { NewEmail() } }),
+            await studentClient.PostAsJsonAsync(Url(fundId, "/bulk"), new { members = new[] { new { email = NewEmail() } } }),
             await studentClient.PutAsJsonAsync(Url(fundId, $"/{student.MemberId}"), new { fullName = "A" }),
             await studentClient.PostAsync(Url(fundId, $"/{student.MemberId}/reset-password"), null),
             await studentClient.PostAsync(Url(fundId, $"/{student.MemberId}/remove"), null),
@@ -445,6 +445,40 @@ public class MembersApiTests(PostgresFixture database) : IClassFixture<PostgresF
         var reset = await owner.PostAsync(Url(fundId, $"/{memberId}/reset-password"), null);
         Assert.Equal(HttpStatusCode.UnprocessableEntity, reset.StatusCode);
         Assert.Equal("member.account_not_managed", await CodeOfAsync(reset));
+    }
+
+    [Fact]
+    public async Task Reset_password_is_refused_after_the_student_sets_their_own_password_and_the_list_says_so()
+    {
+        var (owner, fundId, _, _) = await OwnerWithFundAsync();
+        var student = await AddStudentAsync(owner, fundId);
+        var studentClient = await BrowserAsync();
+        await LoginAsync(studentClient, student.Email, student.TemporaryPassword);
+        var change = await studentClient.PostAsJsonAsync("/api/v1/auth/change-password", new { currentPassword = student.TemporaryPassword, newPassword = "NewPassw0rd" });
+        Assert.Equal(HttpStatusCode.OK, change.StatusCode);
+
+        var row = (await ReadAsync(await owner.GetAsync(Url(fundId)))).GetProperty("items").EnumerateArray().Single(item => item.GetProperty("email").GetString() == student.Email);
+        Assert.False(row.GetProperty("canManageAccount").GetBoolean());
+
+        var reset = await owner.PostAsync(Url(fundId, $"/{student.MemberId}/reset-password"), null);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, reset.StatusCode);
+        Assert.Equal("member.password_already_set", await CodeOfAsync(reset));
+        var rename = await owner.PutAsJsonAsync(Url(fundId, $"/{student.MemberId}"), new { fullName = "Tên mới" });
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, rename.StatusCode);
+        Assert.Equal("member.password_already_set", await CodeOfAsync(rename));
+    }
+
+    [Fact]
+    public async Task Bulk_add_uses_the_name_next_to_each_email()
+    {
+        var (owner, fundId, _, _) = await OwnerWithFundAsync();
+        var email = NewEmail();
+
+        var response = await owner.PostAsJsonAsync(Url(fundId, "/bulk"), new { members = new[] { new { email, fullName = "Hồ Đăng Quỳnh" } } });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var member = (await ReadAsync(response)).GetProperty("results")[0].GetProperty("member");
+        Assert.Equal("Hồ Đăng Quỳnh", member.GetProperty("fullName").GetString());
     }
 
     [Fact]

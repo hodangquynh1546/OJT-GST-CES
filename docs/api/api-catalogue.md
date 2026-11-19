@@ -49,9 +49,9 @@ Mã lỗi M1: `auth.invalid_credentials` (401, dùng chung cho email lạ và m�
 |---|---|---|---|---|
 | GET | `/{f}/members?search=&role=&status=&page=&pageSize=` → `PagedResult<{ id, userId, fullName, email, role, status, mustChangePassword, joinedAt, removedAt, canManageAccount }>` (mặc định `status=Active`; thứ tự Owner → Treasurer → học sinh theo tên) | `Member.Manage` | FR-11 | ✅ |
 | POST | `/{f}/members` `{ email, fullName }` → 201 `{ email, outcome, member, temporaryPassword?, message? }` (đã là thành viên → 409 `member.already_exists`; quỹ Archived → 422 `fund.archived`) | `Member.Manage` | FR-09 | ✅ |
-| POST | `/{f}/members/bulk` `{ emails[≤50] }` → `{ results[{ email, outcome (`Created`/`ExistingAdded`/`Reactivated`/`AlreadyExists`/`Invalid`), member?, temporaryPassword?, message? }] }` (mỗi email độc lập; mật khẩu tạm trả một lần; tên tạm của tài khoản mới = phần trước `@`; rate limit 10 lần/phút/người dùng → 429) | `Member.Manage` | FR-09, OQ-20 | ✅ |
+| POST | `/{f}/members/bulk` `{ members[≤50]: [{ email, fullName? }] }` (UI: "Thêm nhiều học sinh", mỗi dòng `email Họ tên`) → `{ results[{ email, outcome (`Created`/`ExistingAdded`/`Reactivated`/`AlreadyExists`/`Invalid`), member?, temporaryPassword?, message? }] }` (mỗi email độc lập; mật khẩu tạm trả một lần; tên của tài khoản mới = `fullName` nhập kèm (tối đa 100, quá dài → dòng `Invalid`), bỏ trống thì lấy phần trước `@`; thêm / thêm lại thành viên thì tự có nghĩa vụ của các khoản thu chung đang mở; rate limit 10 lần/phút/người dùng → 429) | `Member.Manage` | FR-09, OQ-20 | ✅ |
 | PUT | `/{f}/members/{memberId}` `{ fullName }` → member (AZ-02, AZ-07) | `Member.Manage` | FR-11 | ✅ |
-| POST | `/{f}/members/{memberId}/reset-password` → `{ temporaryPassword }` (đổi hash + SecurityStamp + MustChangePassword; AZ-02, AZ-07) | `Member.Manage` | FR-10 | ✅ |
+| POST | `/{f}/members/{memberId}/reset-password` → `{ temporaryPassword }` (đổi hash + SecurityStamp + MustChangePassword; AZ-02, AZ-07). Chỉ khi học sinh CHƯA tự đặt mật khẩu – đã đổi mật khẩu thì 422 `member.password_already_set` (áp dụng cả `PUT` sửa tên) | `Member.Manage` | FR-10 | ✅ |
 | GET | `/{f}/members/{memberId}/removal-preview` → `{ unpaidCount, pendingPaymentCount, balance, canRemove, blockedReason }` (cảnh báo trước khi ngừng, OQ-15) | `Member.Manage` | FR-11 | ✅ |
 | POST | `/{f}/members/{memberId}/remove` → `{ cancelledAssignments }` (422 `member.has_balance` / `member.pending_payments` / `member.cannot_remove_owner`; 409 `member.already_removed`) | `Member.Manage` | FR-11 | ✅ |
 
@@ -77,17 +77,22 @@ Mã lỗi M1: `auth.invalid_credentials` (401, dùng chung cho email lạ và m�
 
 ## M6 – Khoản thu & thanh toán
 
+M6a (✅) chỉ làm phạm vi **quỹ chung** (`EventId = null`); khoản thu sự kiện và đóng bằng số dư do M6b. Danh sách phân trang theo `PagedResult` (`items`, `total`, `page`, `pageSize`).
+
 | Method | Path | Permission | FR | Trạng thái |
 |---|---|---|---|---|
-| GET | `/{f}/charges?scope=&eventId=&status=` | `Fund.View` (học sinh: chỉ phạm vi được thấy) | FR-18, FR-19 | ⬜ |
-| POST | `/{f}/charges` `{ scope, eventId?, title, purpose, amountPerPerson, dueDate }` | `Charge.Manage` | FR-18, FR-19 | ⬜ |
-| GET | `/{f}/charges/{id}/assignments` (đã đóng/chưa đóng) | `Charge.Manage` | FR-24 | ⬜ |
-| POST | `/{f}/charges/{id}/close` · `/cancel` | `Charge.Manage` | – | ⬜ |
-| GET | `/{f}/me/assignments` | `Payment.Submit` | FR-20, FR-23 | ⬜ |
-| POST | `/{f}/me/assignments/{id}/payments` `{ method: Cash \| BankTransfer \| PersonalBalance, transferCode?, attachmentId? }` – `PersonalBalance` dùng cho khoản chung và sự kiện (OQ-10) | `Payment.Submit` | FR-20, FR-22, FR-25 | ⬜ |
-| GET | `/{f}/payments?status=Submitted&scope=` | `Payment.Confirm` | FR-21 | ⬜ |
-| POST | `/{f}/payments/{id}/confirm` | `Payment.Confirm` | FR-21, FR-22 | ⬜ |
-| POST | `/{f}/payments/{id}/reject` `{ reason }` | `Payment.Confirm` | FR-21 | ⬜ |
+| GET | `/{f}/charges?status=&page=&pageSize=` → `PagedResult<{ id, title, purpose, amountPerPerson, dueDate, status, createdAt, progress?, mine? }>`; `progress` = `{ assignedCount, paidCount, awaitingCount, collectedAmount }` chỉ có với `Charge.Manage`; `mine` = nghĩa vụ của chính người xem (null nếu không có). Khoản đang mở lên trước. Phạm vi sự kiện (`scope`/`eventId`) thêm ở M6b | `Fund.View` | FR-18 | ✅ |
+| GET | `/{f}/charges/{id}` → như một phần tử ở trên (404 nếu không phải khoản thu chung của quỹ) | `Fund.View` | FR-18 | ✅ |
+| POST | `/{f}/charges` `{ title, purpose?, amountPerPerson, dueDate }` → 201. Tạo nghĩa vụ cho mọi thành viên đang hoạt động (gồm thủ quỹ) + thông báo `GeneralChargeCreated`. 422 `charge.due_date_in_past` / `money.invalid` / `fund.archived` | `Charge.Manage` | FR-18 | ✅ |
+| GET | `/{f}/charges/{id}/assignments?status=&search=&page=&pageSize=` → `PagedResult<{ assignmentId, userId, fullName, email, role, amountDue, status, isSelfDeclared, paymentId?, method?, paymentAt?, hasProof, rejectionReason? }>` (đã đóng / chưa đóng; chưa đóng lên trước; không gồm nghĩa vụ đã hủy) | `Charge.Manage` | FR-24 | ✅ |
+| POST | `/{f}/charges/{id}/remind` → `{ reminded }`: thông báo `ChargeDueSoon` cho người CHƯA đóng (không nhắc người đang chờ xác nhận); 409 `charge.remind_too_soon` (1 giờ/khoản), 422 `charge.nothing_to_remind`, 409 `charge.invalid_status` | `Charge.Manage` | – | ✅ |
+| POST | `/{f}/charges/{id}/close` → khoản thu `Closed` (409 `charge.invalid_status` nếu không còn mở). `/cancel` → `Cancelled` khi chưa ai nộp (422 `charge.has_payments`), mọi nghĩa vụ → `Cancelled` | `Charge.Manage` | – | ✅ |
+| GET | `/{f}/me/assignments` → `[{ assignmentId, chargeId, title, purpose, amountDue, dueDate, chargeStatus, status, paymentId?, method?, paymentStatus?, rejectionReason?, isSelfDeclared }]` (chỉ của chính mình, không gồm đã hủy) | `Payment.Submit` | FR-20, FR-23 | ✅ |
+| POST | `/{f}/me/assignments/{id}/payments` `{ method: Cash \| BankTransfer, transferCode?, attachmentId? }` → 201 `{ id, assignmentId, amount, method, transferCode, status, submittedAt, isSelfDeclared }`. Chuyển khoản bắt buộc `attachmentId` (PaymentProof của chính mình, BR-11) → 422 `payment.proof_required`; nghĩa vụ người khác → 404; đã nộp / đang chờ → 409 `payment.not_payable`; khoản thu đã đóng → 409 `payment.charge_not_open`. Người có `Payment.Confirm` nộp cho mình = tự xác nhận (`status` = Confirmed, `isSelfDeclared`). `PersonalBalance` → 422 `payment.method_unavailable` tới khi có `BalanceService` (M6b/M10, OQ-10) | `Payment.Submit` | FR-20, FR-22 | ✅ (số dư ⬜) |
+| POST | `/{f}/assignments/{assignmentId}/record-cash` → 201 như nộp tiền: thủ quỹ ghi nhận học sinh đã đưa tiền mặt (gửi + xác nhận, `Verified`, thông báo `PaymentConfirmed`); ghi cho chính mình = tự ghi nhận. 409 `payment.not_payable` (đã đóng / đang chờ), 409 `payment.charge_not_open` | `Payment.Confirm` | FR-21, FR-22 | ✅ |
+| GET | `/{f}/payments?status=Submitted&page=&pageSize=` → `PagedResult<{ id, assignmentId, chargeId, chargeTitle, payerUserId, payerName, payerEmail, amount, method, transferCode, status, submittedAt, confirmedAt, isSelfDeclared, rejectionReason, attachments[] }>` (mặc định hàng chờ `Submitted`; cũ nhất lên trước) | `Payment.Confirm` | FR-21 | ✅ |
+| POST | `/{f}/payments/{id}/confirm` → ghi bút toán thu (`Source=Payment`, danh mục "Đóng góp quỹ lớp"), nghĩa vụ → Paid, thông báo `PaymentConfirmed`. 409 `payment.already_processed` (khóa dòng chống xác nhận đôi) | `Payment.Confirm` | FR-21 | ✅ |
+| POST | `/{f}/payments/{id}/reject` `{ reason }` (bắt buộc, ≤ 500) → nghĩa vụ về Unpaid để nộp lại, thông báo `PaymentRejected` kèm lý do | `Payment.Confirm` | FR-21 | ✅ |
 
 ## M7 – Thu chi
 

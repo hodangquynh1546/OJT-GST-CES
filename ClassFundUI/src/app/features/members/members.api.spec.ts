@@ -32,9 +32,19 @@ describe('MembersApi', () => {
     expect(add.request.body).toEqual({ email: 'a@x.com', fullName: 'An' });
     add.flush({});
 
-    api.addMany('f1', ['a@x.com', 'b@x.com']).subscribe();
+    api
+      .addMany('f1', [
+        { email: 'a@x.com', fullName: 'Nguyễn Văn An' },
+        { email: 'b@x.com', fullName: '' },
+      ])
+      .subscribe();
     const bulk = http.expectOne('/api/v1/funds/f1/members/bulk');
-    expect(bulk.request.body).toEqual({ emails: ['a@x.com', 'b@x.com'] });
+    expect(bulk.request.body).toEqual({
+      members: [
+        { email: 'a@x.com', fullName: 'Nguyễn Văn An' },
+        { email: 'b@x.com', fullName: '' },
+      ],
+    });
     bulk.flush({ results: [] });
 
     api.update('f1', 'm1', 'Tên mới').subscribe();
