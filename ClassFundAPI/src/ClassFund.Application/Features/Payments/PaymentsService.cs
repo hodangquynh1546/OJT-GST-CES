@@ -5,6 +5,7 @@ using ClassFund.Application.Common.Paging;
 using ClassFund.Application.Common.Persistence;
 using ClassFund.Application.Common.Security;
 using ClassFund.Application.Features.Attachments;
+using ClassFund.Application.Features.Balance;
 using ClassFund.Domain.Authorization;
 using ClassFund.Domain.Entities;
 using ClassFund.Domain.Enums;
@@ -19,6 +20,7 @@ public sealed class PaymentsService(
     ICurrentUser currentUser,
     IAccessService accessService,
     IAttachmentsService attachments,
+    IBalanceService balances,
     AuditTrail audit,
     Notifier notifier,
     TimeProvider clock) : IPaymentsService
@@ -92,17 +94,13 @@ public sealed class PaymentsService(
             throw new ForbiddenAccessException();
         }
 
-        if (input.Method == PaymentMethod.PersonalBalance)
-        {
-            throw new BusinessRuleException(PaymentsErrors.MethodUnavailableCode, PaymentsErrors.MethodUnavailableMessage);
-        }
-
         if (input.Method == PaymentMethod.BankTransfer && input.AttachmentId is null)
         {
             throw new BusinessRuleException(PaymentsErrors.ProofRequiredCode, PaymentsErrors.ProofRequiredMessage);
         }
 
-        var transferCode = string.IsNullOrWhiteSpace(input.TransferCode) ? null : input.TransferCode.Trim();
+        var viaBalance = input.Method == PaymentMethod.PersonalBalance;
+        var transferCode = viaBalance || string.IsNullOrWhiteSpace(input.TransferCode) ? null : input.TransferCode.Trim();
 
         try
         {
@@ -150,7 +148,7 @@ public sealed class PaymentsService(
                     db.Add(payment);
 
                     var proofCount = 0;
-                    if (input.AttachmentId is { } attachmentId)
+                    if (!viaBalance && input.AttachmentId is { } attachmentId)
                     {
                         proofCount = await attachments.AttachToAsync(fundId, [attachmentId], payment.Id, ProofKinds, token);
                     }
@@ -172,6 +170,15 @@ public sealed class PaymentsService(
                             method = input.Method.ToString(),
                             hasProof = proofCount > 0,
                         }));
+
+                    if (viaBalance)
+                    {
+                        // Trừ số dư + xác nhận ngay trong cùng transaction (không đủ → 422, đang chờ rút → 422).
+                        await balances.DebitAsync(fundId, userId, payment.Amount, BalanceTransactionType.ChargePayment, payment.Id, userId, token);
+                        await ConfirmCoreAsync(fundId, payment, assignment, charge, payer, userId, ConfirmationMode.Verified, token, viaBalance: true);
+                        await db.SaveChangesAsync(token);
+                        return ToDto(payment);
+                    }
 
                     // BR-12: thủ quỹ nộp cho mình = gửi + tự xác nhận trong một thao tác.
                     var decision = PaymentConfirmationPolicy.Decide(userId, userId, access.Permissions.Contains(Permissions.PaymentConfirm));
@@ -353,7 +360,7 @@ public sealed class PaymentsService(
 
     /// <summary>Chuyển Payment sang Confirmed, nghĩa vụ → Paid, ghi bút toán thu + audit (+ thông báo nếu người xác nhận khác người nộp).</summary>
     private async Task ConfirmCoreAsync(
-        Guid fundId, Payment payment, ChargeAssignment assignment, Charge charge, User payer, Guid actorId, ConfirmationMode mode, CancellationToken cancellationToken)
+        Guid fundId, Payment payment, ChargeAssignment assignment, Charge charge, User payer, Guid actorId, ConfirmationMode mode, CancellationToken cancellationToken, bool viaBalance = false)
     {
         var now = clock.GetUtcNow();
         var selfDeclared = mode == ConfirmationMode.SelfDeclared;
@@ -396,7 +403,7 @@ public sealed class PaymentsService(
         });
 
         audit.Record(new AuditEntry(
-            PaymentsAuditActions.Confirm,
+            viaBalance ? PaymentsAuditActions.PayWithBalance : PaymentsAuditActions.Confirm,
             fundId,
             actorId,
             confirmScope,
@@ -408,7 +415,7 @@ public sealed class PaymentsService(
             IsSelfAction: selfDeclared,
             Note: selfDeclared ? "Thủ quỹ tự ghi nhận khoản đóng của chính mình." : null));
 
-        if (!selfDeclared)
+        if (!selfDeclared && !viaBalance)
         {
             notifier.Send(
                 [payment.PayerUserId],

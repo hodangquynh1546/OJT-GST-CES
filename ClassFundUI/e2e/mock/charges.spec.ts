@@ -87,6 +87,44 @@ async function openPage(page: Page, role: 'Treasurer' | 'Student', path: string,
   return fake;
 }
 
+test.describe('M6b Đóng bằng số dư', () => {
+  const unpaid = (p: Page, balance: number, withdrawalPending = false) => {
+    const fake = new FakeChargesApi(p, [], [mine({ assignmentId: 'a1', title: 'Quỹ photo HK1', amountDue: 50000 })]);
+    fake.balance = balance;
+    fake.withdrawalPending = withdrawalPending;
+    return fake;
+  };
+
+  test('đủ số dư: chọn "Dùng số dư", trừ ngay và chuyển sang Lịch sử đã đóng', async ({ page }) => {
+    const api = await openPage(page, 'Student', 'my-payments', (p) => unpaid(p, 80000));
+
+    await page.getByRole('button', { name: 'Nộp tiền' }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toContainText('Số dư hiện có 80.000 đ');
+    await dialog.getByText('Dùng số dư').click();
+    await dialog.getByRole('button', { name: 'Đóng bằng số dư' }).click();
+
+    await expect(page.getByRole('region', { name: 'Lịch sử đã đóng' })).toContainText('Quỹ photo HK1');
+    expect(api.last('POST', '/me/assignments/a1/payments')?.body).toEqual({ method: 'PersonalBalance', transferCode: null, attachmentId: null });
+  });
+
+  test('số dư không đủ: lựa chọn bị khóa', async ({ page }) => {
+    await openPage(page, 'Student', 'my-payments', (p) => unpaid(p, 20000));
+
+    await page.getByRole('button', { name: 'Nộp tiền' }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toContainText('không đủ để đóng khoản này');
+    await expect(dialog.getByRole('radio', { name: /Dùng số dư/ })).toBeDisabled();
+  });
+
+  test('đang chờ rút: không hiện lựa chọn "Dùng số dư"', async ({ page }) => {
+    await openPage(page, 'Student', 'my-payments', (p) => unpaid(p, 80000, true));
+
+    await page.getByRole('button', { name: 'Nộp tiền' }).click();
+    await expect(page.getByRole('dialog')).not.toContainText('Dùng số dư');
+  });
+});
+
 test.describe('H-01 Khoản thu chung', () => {
   test('thủ quỹ thấy tiến độ thu và nút Theo dõi; tab Đã đóng tách riêng', async ({ page }) => {
     await openPage(page, 'Treasurer', 'charges', (p) => new FakeChargesApi(p, [charge({ id: 'c1', title: 'Quỹ lớp HK1' }), charge({ id: 'c2', title: 'Quỹ cũ', status: 'Closed' })]));

@@ -202,7 +202,7 @@ export class MyPaymentsPage {
 
   protected note(item: MyAssignmentItem): string {
     if (this.rejected(item)) {
-      return `Bị từ chối: "${item.rejectionReason ?? ''}" – vui lòng gửi lại`;
+      return `Bị từ chối: “${item.rejectionReason ?? ''}” – vui lòng gửi lại`;
     }
     if (item.status === 'Paid') {
       const method = item.method ? ` · ${PAYMENT_METHOD_LABEL[item.method]}` : '';

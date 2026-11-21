@@ -1,13 +1,15 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ButtonComponent } from '@progress/kendo-angular-buttons';
 import { DialogActionsComponent, DialogComponent } from '@progress/kendo-angular-dialog';
-import { firstValueFrom } from 'rxjs';
+import { catchError, firstValueFrom, of, switchMap } from 'rxjs';
 
 import { ApiError } from '../../shared/models/api-error';
 import { VndMoneyPipe } from '../../shared/pipes/vnd-money.pipe';
 import { FileUpload } from '../attachments/file-upload/file-upload';
 import { Attachment } from '../attachments/attachments.models';
+import { BalanceApi } from '../balance/balance.api';
 import { ChargesApi } from './charges.api';
 import './charges.errors';
 import { SubmitPaymentRequest } from './charges.models';
@@ -44,6 +46,17 @@ export interface PayTarget {
             <input type="radio" name="method" value="BankTransfer" [ngModel]="method()" (ngModelChange)="method.set('BankTransfer')" />
             <span><b>Chuyển khoản</b><span class="cf-muted">Cần ảnh minh chứng chuyển khoản</span></span>
           </label>
+          @if (balanceOption(); as option) {
+            <label class="method" [class.disabled]="!option.enough">
+              <input type="radio" name="method" value="PersonalBalance" [disabled]="!option.enough" [ngModel]="method()" (ngModelChange)="method.set('PersonalBalance')" />
+              <span>
+                <b>Dùng số dư</b>
+                <span class="cf-muted">
+                  Số dư hiện có {{ option.balance | vndMoney }}{{ option.enough ? ' – trừ ngay, không cần thủ quỹ xác nhận' : ' – không đủ để đóng khoản này' }}
+                </span>
+              </span>
+            </label>
+          }
         </fieldset>
 
         @if (method() === 'BankTransfer') {
@@ -60,6 +73,8 @@ export interface PayTarget {
             [required]="true"
             [(attachments)]="proofs"
           />
+        } @else if (method() === 'PersonalBalance') {
+          <p class="cf-muted">Số tiền được trừ ngay vào số dư cá nhân và ghi nhận đã đóng.</p>
         } @else {
           <p class="cf-muted">Thủ quỹ sẽ xác nhận sau khi nhận tiền.</p>
         }
@@ -71,7 +86,7 @@ export interface PayTarget {
       <kendo-dialog-actions>
         <button kendoButton type="button" fillMode="outline" [disabled]="busy()" (click)="closed.emit()">Hủy</button>
         <button kendoButton type="button" themeColor="primary" [disabled]="!canSubmit() || busy()" (click)="submit()">
-          {{ busy() ? 'Đang gửi…' : 'Xác nhận đã nộp' }}
+          {{ busy() ? 'Đang gửi…' : method() === 'PersonalBalance' ? 'Đóng bằng số dư' : 'Xác nhận đã nộp' }}
         </button>
       </kendo-dialog-actions>
     </kendo-dialog>
@@ -105,6 +120,10 @@ export interface PayTarget {
       border-radius: var(--cf-radius-lg);
       cursor: pointer;
     }
+    .method.disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
     .method span {
       display: flex;
       flex-direction: column;
@@ -126,6 +145,7 @@ export interface PayTarget {
 })
 export class PayDialog {
   private readonly api = inject(ChargesApi);
+  private readonly balanceApi = inject(BalanceApi);
 
   readonly fundId = input.required<string>();
   readonly target = input.required<PayTarget>();
@@ -138,7 +158,19 @@ export class PayDialog {
   protected readonly busy = signal(false);
   protected readonly error = signal<string | null>(null);
 
-  protected readonly canSubmit = computed(() => this.method() === 'Cash' || this.proofs().length > 0);
+  /** Số dư cá nhân của quỹ; không tải được (thiếu quyền, lỗi mạng) thì coi như không có lựa chọn này. */
+  private readonly myBalance = toSignal(toObservable(this.fundId).pipe(switchMap((fundId) => this.balanceApi.mine(fundId).pipe(catchError(() => of(null))))), { initialValue: null });
+
+  /** Ẩn khi chưa có số dư hoặc đang chờ rút (BR-26); mờ khi không đủ số tiền phải đóng. */
+  protected readonly balanceOption = computed(() => {
+    const mine = this.myBalance();
+    if (!mine || mine.balance <= 0 || mine.latestWithdrawal?.status === 'Requested') {
+      return null;
+    }
+    return { balance: mine.balance, enough: mine.balance >= this.target().amountDue };
+  });
+
+  protected readonly canSubmit = computed(() => this.method() !== 'BankTransfer' || this.proofs().length > 0);
 
   protected async submit(): Promise<void> {
     if (!this.canSubmit() || this.busy()) {

@@ -6,4 +6,5 @@ public static class PaymentsAuditActions
     public const string Submit = "payment.submit";
     public const string Confirm = "payment.confirm";
     public const string Reject = "payment.reject";
+    public const string PayWithBalance = "payment.pay_with_balance";
 }

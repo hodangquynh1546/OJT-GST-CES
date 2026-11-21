@@ -226,4 +226,66 @@ public class ChargesServiceTests
 
         Assert.Empty(_ctx.Db.Query<Charge>());
     }
+
+    // ---------- M6b: khoản thu sự kiện (BR-18) ----------
+
+    private Event SeedEvent(EventStatus status = EventStatus.Open)
+    {
+        var fundEvent = new Event(_ctx.Fund.Id, "Dã ngoại Ba Vì", null, new DateOnly(2026, 12, 20), _ctx.Owner.Id, ServiceTestContext.Start) { Status = status };
+        _ctx.Db.Seed(fundEvent);
+        _ctx.Db.Seed(new EventParticipant(fundEvent.Id, _ctx.StudentA.Id) { Response = ParticipationResponse.Accepted });
+        _ctx.Db.Seed(new EventParticipant(fundEvent.Id, _ctx.StudentB.Id) { Response = ParticipationResponse.Declined });
+        _ctx.Db.Seed(new EventParticipant(fundEvent.Id, _ctx.Treasurer.Id));
+        return fundEvent;
+    }
+
+    [Fact]
+    public async Task Event_charge_is_assigned_only_to_accepted_participants_and_notifies_only_them()
+    {
+        var fundEvent = SeedEvent();
+        _ctx.ActAs(_ctx.Treasurer);
+
+        var charge = await CreateService().CreateEventChargeAsync(_ctx.Fund.Id, fundEvent.Id, Input(70_000), default);
+
+        var assignment = Assert.Single(_ctx.Db.Query<ChargeAssignment>().Where(item => item.ChargeId == charge.Id));
+        Assert.Equal((_ctx.StudentA.Id, 70_000L), (assignment.UserId, assignment.AmountDue));
+        Assert.Equal(fundEvent.Id, _ctx.Db.Query<Charge>().Single(item => item.Id == charge.Id).EventId);
+        var notification = Assert.Single(_ctx.Db.Query<Notification>().Where(item => item.Type == NotificationType.EventChargeCreated));
+        Assert.Equal(_ctx.StudentA.Id, notification.UserId);
+        Assert.Contains(_ctx.AuditLogs, log => log.Action == ChargesAuditActions.EventCreate && log.Scope == FinancialScope.Event && log.EventId == fundEvent.Id);
+    }
+
+    [Fact]
+    public async Task Event_charge_cannot_be_created_after_the_event_has_ended()
+    {
+        var fundEvent = SeedEvent(EventStatus.Completed);
+        _ctx.ActAs(_ctx.Treasurer);
+
+        await Assert.ThrowsAsync<BusinessRuleException>(() => CreateService().CreateEventChargeAsync(_ctx.Fund.Id, fundEvent.Id, Input(), default));
+
+        Assert.Empty(_ctx.Db.Query<Charge>());
+    }
+
+    [Fact]
+    public async Task Event_charge_can_be_listed_closed_and_cancelled_only_through_its_own_event()
+    {
+        var fundEvent = SeedEvent();
+        var other = SeedEvent();
+        _ctx.ActAs(_ctx.Treasurer);
+        var charge = await CreateService().CreateEventChargeAsync(_ctx.Fund.Id, fundEvent.Id, Input(), default);
+
+        var rows = await CreateService().ListEventAssignmentsAsync(_ctx.Fund.Id, fundEvent.Id, charge.Id, new AssignmentFilter(null, null, 1, 50), default);
+        Assert.Equal(1, rows.Total);
+        await Assert.ThrowsAsync<NotFoundException>(() =>
+            CreateService().ListEventAssignmentsAsync(_ctx.Fund.Id, other.Id, charge.Id, new AssignmentFilter(null, null, 1, 50), default));
+        await Assert.ThrowsAsync<NotFoundException>(() => CreateService().CloseEventChargeAsync(_ctx.Fund.Id, other.Id, charge.Id, default));
+
+        var closed = await CreateService().CloseEventChargeAsync(_ctx.Fund.Id, fundEvent.Id, charge.Id, default);
+        Assert.Equal(ChargeStatus.Closed, closed.Status);
+        Assert.Contains(_ctx.AuditLogs, log => log.Action == ChargesAuditActions.EventClose && log.Scope == FinancialScope.Event);
+
+        var second = await CreateService().CreateEventChargeAsync(_ctx.Fund.Id, fundEvent.Id, Input(), default);
+        var cancelled = await CreateService().CancelEventChargeAsync(_ctx.Fund.Id, fundEvent.Id, second.Id, default);
+        Assert.Equal(ChargeStatus.Cancelled, cancelled.Status);
+    }
 }

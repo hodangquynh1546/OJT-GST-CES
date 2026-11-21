@@ -121,7 +121,11 @@ public sealed class ChargesService(
     {
         await EnsureManagerAsync(fundId, cancellationToken);
         await LoadAsync(fundId, chargeId, cancellationToken);
+        return await QueryAssignmentsAsync(fundId, chargeId, filter, cancellationToken);
+    }
 
+    private async Task<PagedResult<AssignmentRowDto>> QueryAssignmentsAsync(Guid fundId, Guid chargeId, AssignmentFilter filter, CancellationToken cancellationToken)
+    {
         var query = from assignment in db.Query<ChargeAssignment>()
                     where assignment.ChargeId == chargeId && assignment.Status != AssignmentStatus.Cancelled
                     join user in db.Query<User>() on assignment.UserId equals user.Id
@@ -349,8 +353,7 @@ public sealed class ChargesService(
             throw new NotFoundException();
         }
 
-        // dùng lại cùng logic với khoản thu chung
-        return await ListAssignmentsAsync(fundId, chargeId, filter, cancellationToken);
+        return await QueryAssignmentsAsync(fundId, chargeId, filter, cancellationToken);
     }
 
     private async Task<EventChargeDto> ChangeEventChargeStatusAsync(

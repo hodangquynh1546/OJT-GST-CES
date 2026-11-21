@@ -1,10 +1,12 @@
 using ClassFund.Application.Common.Exceptions;
 using ClassFund.Application.Common.Notifications;
 using ClassFund.Application.Features.Attachments;
+using ClassFund.Application.Features.Balance;
 using ClassFund.Application.Features.Payments;
 using ClassFund.Domain.Entities;
 using ClassFund.Domain.Enums;
 using ClassFund.Domain.Exceptions;
+using ClassFund.Domain.Rules;
 
 namespace ClassFund.UnitTests.Application;
 
@@ -37,9 +39,17 @@ public class PaymentsServiceTests
             _ctx.CurrentUser,
             _ctx.Access,
             new AttachmentsService(_ctx.Db, _ctx.CurrentUser, _ctx.Access, _ctx.Storage, _ctx.Audit, _ctx.Clock),
+            Balances,
             _ctx.Audit,
             new Notifier(_ctx.Db, _ctx.Clock),
             _ctx.Clock);
+
+    private BalanceService Balances => new(_ctx.Db, _ctx.CurrentUser, _ctx.Access, _ctx.Audit, _ctx.Clock);
+
+    private long BalanceOf(User user) => _ctx.Db.Query<PersonalBalance>().SingleOrDefault(item => item.UserId == user.Id)?.Balance ?? 0;
+
+    private Task Credit(User user, long amount) =>
+        Balances.CreditAsync(_ctx.Fund.Id, user.Id, amount, BalanceTransactionType.SettlementCredit, null, _ctx.Owner.Id, default);
 
     private ChargeAssignment AssignmentOf(User user) =>
         _ctx.Db.Query<ChargeAssignment>().Single(item => item.ChargeId == _charge.Id && item.UserId == user.Id);
@@ -92,13 +102,74 @@ public class PaymentsServiceTests
         Assert.Equal("attachment.unusable", error.Code);
     }
 
-    [Fact]
-    public async Task Paying_from_personal_balance_is_not_available_yet()
-    {
-        var error = await Assert.ThrowsAsync<BusinessRuleException>(() =>
-            CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, new(PaymentMethod.PersonalBalance, null, null), default));
+    private static SubmitPaymentInput FromBalance => new(PaymentMethod.PersonalBalance, null, null);
 
-        Assert.Equal(PaymentsErrors.MethodUnavailableCode, error.Code);
+    [Fact]
+    public async Task Paying_from_balance_debits_confirms_at_once_and_writes_a_general_ledger_entry_TD20()
+    {
+        await Credit(_ctx.StudentA, 80_000);
+
+        var payment = await CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, FromBalance, default);
+
+        Assert.Equal(PaymentStatus.Confirmed, payment.Status);
+        Assert.Equal(PaymentMethod.PersonalBalance, payment.Method);
+        Assert.False(payment.IsSelfDeclared);
+        Assert.Equal(AssignmentStatus.Paid, AssignmentOf(_ctx.StudentA).Status);
+        Assert.Equal(30_000, BalanceOf(_ctx.StudentA));
+        var debit = _ctx.Db.Query<BalanceTransaction>().Single(item => item.Type == BalanceTransactionType.ChargePayment);
+        Assert.Equal(-50_000, debit.Amount);
+        Assert.Equal(payment.Id, debit.ReferenceId);
+        var entry = _ctx.Db.Query<LedgerEntry>().Single();
+        Assert.Null(entry.EventId);
+        Assert.Equal(50_000, entry.Amount);
+        Assert.Contains(_ctx.AuditLogs, log => log.Action == PaymentsAuditActions.PayWithBalance && log.ActorUserId == _ctx.StudentA.Id);
+    }
+
+    [Fact]
+    public async Task Paying_from_balance_needs_enough_balance_and_changes_nothing_otherwise()
+    {
+        await Credit(_ctx.StudentA, 49_999);
+
+        var error = await Assert.ThrowsAsync<BusinessRuleException>(() =>
+            CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, FromBalance, default));
+
+        Assert.Equal(BalanceErrors.Insufficient, error.Code);
+        Assert.Equal(49_999, BalanceOf(_ctx.StudentA));
+        Assert.Equal(AssignmentStatus.Unpaid, AssignmentOf(_ctx.StudentA).Status);
+    }
+
+    [Fact]
+    public async Task Paying_from_balance_is_blocked_while_a_withdrawal_is_pending_BR26()
+    {
+        await Credit(_ctx.StudentA, 80_000);
+        await Balances.RequestWithdrawalAsync(_ctx.Fund.Id, default);
+
+        var error = await Assert.ThrowsAsync<BusinessRuleException>(() =>
+            CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, FromBalance, default));
+
+        Assert.Equal(WithdrawalRule.BalanceLockedCode, error.Code);
+        Assert.Equal(80_000, BalanceOf(_ctx.StudentA));
+    }
+
+    [Fact]
+    public async Task Paying_an_event_charge_from_balance_writes_an_event_ledger_entry()
+    {
+        var picnic = new Event(_ctx.Fund.Id, "Dã ngoại", null, new DateOnly(2026, 12, 20), _ctx.Owner.Id, ServiceTestContext.Start);
+        _ctx.Db.Seed(picnic);
+        var eventCharge = new Charge(_ctx.Fund.Id, picnic.Id, "Tiền xe", null, 70_000, new DateOnly(2026, 12, 31), ChargeKind.Regular, _ctx.Owner.Id, ServiceTestContext.Start)
+        {
+            CategoryId = _custom.Id,
+        };
+        _ctx.Db.Seed(eventCharge);
+        var assignment = new ChargeAssignment(eventCharge.Id, _ctx.StudentA.Id, 70_000);
+        _ctx.Db.Seed(assignment);
+        await Credit(_ctx.StudentA, 100_000);
+
+        await CreateService().SubmitAsync(_ctx.Fund.Id, assignment.Id, FromBalance, default);
+
+        Assert.Equal(30_000, BalanceOf(_ctx.StudentA));
+        Assert.Equal(picnic.Id, _ctx.Db.Query<LedgerEntry>().Single().EventId);
+        Assert.Contains(_ctx.AuditLogs, log => log.Action == PaymentsAuditActions.PayWithBalance && log.Scope == FinancialScope.Event);
     }
 
     [Fact]
