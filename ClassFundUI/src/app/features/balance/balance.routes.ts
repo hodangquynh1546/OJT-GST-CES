@@ -1,13 +1,21 @@
 import { Routes } from '@angular/router';
 
-import { comingSoon } from '../../shared/components/coming-soon/coming-soon';
+import './balance.errors';
 
-/** Màn hình giữ chỗ – module thay bằng màn hình thật (docs/ui-design/screen-specifications.md). */
+/** B-01 Số dư cá nhân (guard Balance.ViewOwn ở app.routes.ts). */
 export const BALANCE_ROUTES: Routes = [
-  { path: '', ...comingSoon('B-01', 'Số dư cá nhân') },
+  {
+    path: '',
+    title: 'Số dư cá nhân · ClassFund',
+    loadComponent: () => import('./balance-page/balance-page').then((m) => m.BalancePage),
+  },
 ];
 
-/** Màn hình giữ chỗ – module thay bằng màn hình thật (docs/ui-design/screen-specifications.md). */
+/** B-02 Yêu cầu rút tiền (guard Balance.Handle ở app.routes.ts). */
 export const WITHDRAWAL_ROUTES: Routes = [
-  { path: '', ...comingSoon('B-02', 'Yêu cầu rút tiền') },
+  {
+    path: '',
+    title: 'Yêu cầu rút tiền · ClassFund',
+    loadComponent: () => import('./withdrawals-page/withdrawals-page').then((m) => m.WithdrawalsPage),
+  },
 ];

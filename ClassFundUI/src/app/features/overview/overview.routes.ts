@@ -1,8 +1,10 @@
 import { Routes } from '@angular/router';
 
-import { comingSoon } from '../../shared/components/coming-soon/coming-soon';
-
-/** Màn hình giữ chỗ – module thay bằng màn hình thật (docs/ui-design/screen-specifications.md). */
+/** S-01 Tổng quan quỹ chung (mọi thành viên – Fund.View). */
 export const OVERVIEW_ROUTES: Routes = [
-  { path: '', ...comingSoon('S-01', 'Tổng quan quỹ chung') },
+  {
+    path: '',
+    title: 'Tổng quan · ClassFund',
+    loadComponent: () => import('./overview-page/overview-page').then((m) => m.OverviewPage),
+  },
 ];

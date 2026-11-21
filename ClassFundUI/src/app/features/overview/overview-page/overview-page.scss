@@ -1,0 +1,301 @@
+// Theo canvas S-01 (Overview.dc.html, StuOverview.dc.html + cf.css); màu dùng token --cf-*.
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: var(--cf-content-max);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.head-t {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+h1 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+h2 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+}
+
+p {
+  margin: 0;
+}
+
+.small {
+  font-size: 13px;
+}
+
+.xs {
+  font-size: 12px;
+}
+
+.strong {
+  font-weight: 500;
+}
+
+.strong-600 {
+  font-weight: 600;
+}
+
+.pend {
+  color: var(--cf-warning-fg);
+}
+
+.title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cf-primary-link kendo-svgicon {
+  margin-right: 6px;
+}
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 20px;
+  color: var(--cf-ink);
+  text-decoration: none;
+
+  &:hover {
+    border-color: var(--cf-ink-soft);
+    color: var(--cf-ink);
+  }
+}
+
+.kpi-l {
+  color: var(--cf-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.kpi-v {
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  align-items: start;
+  gap: 16px;
+}
+
+.wide {
+  grid-column: span 2;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.pad {
+  padding: 20px;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tight {
+  gap: 12px;
+}
+
+.stack-s {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stack-xs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.between {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.link {
+  color: var(--cf-ink);
+  text-decoration: none;
+}
+
+.card-h {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+}
+
+.small-btn {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+// Canvas .tbl
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+
+  th {
+    height: 40px;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--cf-border);
+    color: var(--cf-text-muted);
+    font-weight: 500;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--cf-subtle);
+    vertical-align: middle;
+  }
+
+  tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .num {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    white-space: nowrap;
+  }
+}
+
+.rowlink {
+  color: var(--cf-ink);
+  font-weight: 500;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.strike {
+  color: var(--cf-text-muted);
+  text-decoration: line-through;
+}
+
+.empty {
+  text-align: center;
+}
+
+// Canvas .bar: thanh tiến độ đen + phần chờ xác nhận vàng.
+.bar {
+  display: flex;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--cf-subtle);
+
+  .paid {
+    background: var(--cf-ink);
+  }
+
+  .await {
+    background: #f59e0b;
+  }
+}
+
+.event-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  box-shadow: none;
+  color: var(--cf-ink);
+  text-decoration: none;
+
+  &:hover {
+    border-color: var(--cf-ink-soft);
+  }
+}
+
+.date {
+  flex: none;
+  width: 48px;
+  padding-right: 10px;
+  border-right: 1px solid var(--cf-border);
+  text-align: center;
+
+  b {
+    display: block;
+    font-size: 20px;
+    line-height: 24px;
+  }
+}
+
+.row-main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.three {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.due {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  .cf-primary-link {
+    margin-left: auto;
+  }
+}

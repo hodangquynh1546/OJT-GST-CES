@@ -35,6 +35,10 @@ export const AUDIT_ACTION_LABEL: Readonly<Record<string, string>> = {
   'event.complete': 'Kết thúc sự kiện',
   'event.respond': 'Trả lời tham gia sự kiện',
   'event.invite': 'Mời vào sự kiện',
+  // M10 – Số dư cá nhân
+  'withdrawal.request': 'Gửi yêu cầu rút số dư',
+  'withdrawal.paid': 'Xác nhận đã trả tiền rút',
+  'withdrawal.reject': 'Từ chối yêu cầu rút',
 };
 
 export function actionLabel(action: string): string {
@@ -150,6 +154,7 @@ const AUDIT_VALUE_LABEL: Readonly<Record<string, string>> = {
   Settled: 'Đã quyết toán',
   Cancelled: 'Đã hủy',
   Verified: 'Đã đối chiếu',
+  Requested: 'Đang chờ',
   SelfDeclared: 'Tự ghi nhận',
 };
 

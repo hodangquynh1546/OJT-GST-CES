@@ -1,0 +1,230 @@
+// Theo canvas S-02 (Reports.dc.html + cf.css); màu dùng token --cf-*.
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: var(--cf-content-max);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.head-t {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+h1 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+h3 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+}
+
+p {
+  margin: 0;
+}
+
+.small {
+  font-size: 13px;
+}
+
+.xs {
+  font-size: 12px;
+}
+
+.strong {
+  font-weight: 500;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.report {
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.utabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--cf-border);
+}
+
+.utab {
+  height: 44px;
+  margin-bottom: -1px;
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--cf-text-muted);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+
+  &.on {
+    border-bottom-color: var(--cf-ink);
+    color: var(--cf-ink);
+  }
+}
+
+.pad {
+  padding: 20px;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.stack-s {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.between {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.date {
+  width: 150px;
+}
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 20px;
+}
+
+.flat {
+  box-shadow: none;
+}
+
+.kpi-l {
+  color: var(--cf-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.kpi-v {
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  align-items: start;
+  gap: 16px;
+}
+
+// Canvas: thanh chi theo danh mục màu đỏ.
+.bar {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--cf-subtle);
+
+  span {
+    display: block;
+    height: 100%;
+    background: var(--cf-expense);
+  }
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.scroll {
+  overflow-x: auto;
+}
+
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+
+  th {
+    height: 40px;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--cf-border);
+    color: var(--cf-text-muted);
+    font-weight: 500;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  th.num {
+    text-align: right;
+  }
+
+  td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--cf-subtle);
+    vertical-align: middle;
+  }
+
+  td .cf-tag {
+    margin: 0 4px 2px 0;
+  }
+
+  tr:last-child td {
+    border-bottom: 0;
+  }
+}
+
+.rowlink {
+  color: var(--cf-ink);
+  font-weight: 500;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.card-f {
+  padding: 12px 16px;
+  border-top: 1px solid var(--cf-border);
+}
+
+.nowrap {
+  white-space: nowrap;
+}
