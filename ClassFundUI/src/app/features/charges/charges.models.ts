@@ -84,7 +84,7 @@ export interface MyAssignmentItem {
 }
 
 export interface SubmitPaymentRequest {
-  method: Extract<PaymentMethod, 'Cash' | 'BankTransfer'>;
+  method: Extract<PaymentMethod, 'Cash' | 'BankTransfer' | 'PersonalBalance'>;
   transferCode: string | null;
   attachmentId: string | null;
 }

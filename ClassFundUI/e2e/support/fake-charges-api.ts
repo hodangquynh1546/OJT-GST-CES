@@ -30,6 +30,8 @@ export interface FakeMine {
   paymentStatus: string | null;
   rejectionReason: string | null;
   isSelfDeclared: boolean;
+  eventId?: string | null;
+  eventName?: string | null;
 }
 
 export interface FakeQueueItem {
@@ -62,6 +64,9 @@ export class FakeChargesApi {
   readonly requests: Recorded[] = [];
   /** Mã lỗi buộc POST nộp tiền / xác nhận trả về (mô phỏng xung đột). */
   failNext: { status: number; code: string; title: string } | null = null;
+  /** Số dư cá nhân của người đang đăng nhập; 0 = chưa có. `withdrawalPending` mô phỏng yêu cầu rút đang chờ. */
+  balance = 0;
+  withdrawalPending = false;
 
   constructor(
     private readonly page: Page,
@@ -72,7 +77,7 @@ export class FakeChargesApi {
   ) {}
 
   async install(): Promise<void> {
-    await this.page.route(new RegExp(`/api/v1/funds/${FUND_ID}/(charges|me/assignments|payments|members|categories)`), (route) => this.handle(route));
+    await this.page.route(new RegExp(`/api/v1/funds/${FUND_ID}/(charges|me/assignments|me/balance|payments|members|categories)`), (route) => this.handle(route));
   }
 
   last(method: string, path: string): Recorded | undefined {
@@ -127,6 +132,12 @@ export class FakeChargesApi {
       this.charges.unshift(charge);
       return this.json(route, charge, 201);
     }
+    if (method === 'GET' && path === '/me/balance') {
+      const latestWithdrawal = this.withdrawalPending
+        ? { id: 'w1', amount: this.balance, status: 'Requested', requestedAt: '2026-11-20T01:00:00Z', handledAt: null, handledByName: null, rejectionReason: null }
+        : null;
+      return this.json(route, { fundName: 'Lớp 10A1', balance: this.balance, latestWithdrawal, history: [], otherFunds: [] });
+    }
     if (method === 'GET' && path === '/me/assignments') {
       return this.json(route, this.mine);
     }
@@ -139,11 +150,16 @@ export class FakeChargesApi {
       }
       const item = this.mine.find((entry) => entry.assignmentId === submit[1]);
       if (item) {
-        item.status = 'AwaitingConfirmation';
+        const instant = body.method === 'PersonalBalance';
+        item.status = instant ? 'Paid' : 'AwaitingConfirmation';
         item.method = body.method;
-        item.paymentStatus = 'Submitted';
+        item.paymentStatus = instant ? 'Confirmed' : 'Submitted';
+        if (instant) {
+          this.balance -= item.amountDue;
+        }
       }
-      return this.json(route, { id: 'p-new', assignmentId: submit[1], amount: item?.amountDue ?? 0, method: body.method, transferCode: body.transferCode, status: 'Submitted', submittedAt: '2026-11-19T01:00:00Z', isSelfDeclared: false }, 201);
+      const status = body.method === 'PersonalBalance' ? 'Confirmed' : 'Submitted';
+      return this.json(route, { id: 'p-new', assignmentId: submit[1], amount: item?.amountDue ?? 0, method: body.method, transferCode: body.transferCode, status, submittedAt: '2026-11-19T01:00:00Z', isSelfDeclared: false }, 201);
     }
     if (method === 'GET' && path === '/payments') {
       const status = url.searchParams.get('status') ?? 'Submitted';

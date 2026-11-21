@@ -10,10 +10,6 @@ public static class PaymentsErrors
     public const string ProofRequiredCode = "payment.proof_required";
     public const string ProofRequiredMessage = "Chuyển khoản cần kèm ảnh minh chứng.";
 
-    /// <summary>Đóng bằng số dư cá nhân chỉ có khi M10 (BalanceService) xong.</summary>
-    public const string MethodUnavailableCode = "payment.method_unavailable";
-    public const string MethodUnavailableMessage = "Chưa hỗ trợ đóng bằng số dư cá nhân.";
-
     public const string NotPayableCode = "payment.not_payable";
     public const string NotPayableMessage = "Khoản này đã nộp hoặc đang chờ thủ quỹ xác nhận.";
 
