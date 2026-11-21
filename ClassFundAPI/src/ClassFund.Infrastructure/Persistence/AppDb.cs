@@ -27,7 +27,9 @@ public sealed class AppDb(AppDbContext context) : IAppDb, IDatabaseProbe
     public async Task<T?> LockAsync<T>(Guid id, CancellationToken cancellationToken) where T : Entity
     {
         var table = context.Model.FindEntityType(typeof(T))!.GetTableName();
-        var sql = string.Concat("SELECT * FROM \"", table, "\" WHERE \"Id\" = {0} FOR UPDATE");
+        // Kèm cột hệ thống xmin: entity dùng xmin làm token đồng thời (PersonalBalance) bắt buộc phải có cột này
+        // trong kết quả FromSql; mọi bảng PostgreSQL đều có xmin, entity khác không ánh xạ thì EF bỏ qua.
+        var sql = string.Concat("SELECT *, xmin FROM \"", table, "\" WHERE \"Id\" = {0} FOR UPDATE");
         var rows = await context.Set<T>().FromSqlRaw(sql, id).ToListAsync(cancellationToken);
         return rows.SingleOrDefault();
     }

@@ -1,0 +1,101 @@
+@if (kind(); as stateKindValue) {
+  <app-state [kind]="stateKindValue" />
+} @else if (data(); as data) {
+  <div class="page">
+    <div class="head-t">
+      <h1>Số dư cá nhân</h1>
+      <p class="cf-muted">Tiền thừa sau quyết toán được cộng vào đây. Dùng để đóng khoản thu (chung hoặc sự kiện) hoặc rút toàn bộ (FR-40…42).</p>
+    </div>
+
+    <div class="split">
+      <section class="cf-card pad main-card" aria-label="Số dư hiện có">
+        <div class="amount-block">
+          <span class="cf-muted label">Số dư hiện có · {{ data.fundName }}</span>
+          <span class="big">{{ data.balance | vndMoney }}</span>
+        </div>
+
+        @if (data.latestWithdrawal; as request) {
+          @switch (request.status) {
+            @case ('Requested') {
+              <div class="cf-alert cf-alert--warning" role="status">
+                Đã gửi yêu cầu rút {{ request.amount | vndMoney }} lúc {{ time(request.requestedAt) }}. Thủ quỹ sẽ liên hệ trả tiền rồi xác nhận.
+                Trong lúc chờ, số dư bị giữ, không dùng đóng khoản thu được.
+              </div>
+            }
+            @case ('Rejected') {
+              <div class="cf-alert cf-alert--danger" role="status">Yêu cầu rút bị từ chối: “{{ request.rejectionReason }}” Số dư đã được mở lại.</div>
+            }
+            @case ('Paid') {
+              <div class="cf-alert cf-alert--success" role="status">
+                Thủ quỹ đã trả {{ request.amount | vndMoney }} và xác nhận lúc {{ time(request.handledAt) }}.
+              </div>
+            }
+          }
+        }
+
+        <div class="actions">
+          <button kendoButton themeColor="primary" type="button" [disabled]="pending() || data.balance <= 0" (click)="confirming.set(true)">
+            {{ withdrawLabel() }}
+          </button>
+          <a class="cf-link-button" [routerLink]="['/funds', fundId(), 'my-payments']">Dùng đóng khoản thu</a>
+        </div>
+        <p class="cf-muted small">Rút tiền luôn là rút toàn bộ số dư; mỗi lúc chỉ có một yêu cầu đang chờ.</p>
+      </section>
+
+      <section class="cf-card pad aside" aria-label="Số dư ở các quỹ khác">
+        <h2>Số dư ở các quỹ khác</h2>
+        @for (fund of data.otherFunds; track fund.fundId) {
+          <div class="between">
+            <span>{{ fund.fundName }}@if (fund.isArchived) {&nbsp;<span class="cf-muted">(đã tổng kết)</span>}</span>
+            <span class="cf-money">{{ fund.balance | vndMoney }}</span>
+          </div>
+        } @empty {
+          <p class="cf-muted small">Bạn chưa tham gia quỹ nào khác.</p>
+        }
+        <p class="cf-muted small">Số dư tính riêng theo từng quỹ, không chuyển qua lại.</p>
+      </section>
+    </div>
+
+    <section class="cf-card list" aria-label="Lịch sử biến động">
+      <div class="card-h">
+        <h2>Lịch sử biến động</h2>
+        <span class="cf-muted small">Chỉ ghi thêm, không sửa/xóa</span>
+      </div>
+      <kendo-grid [data]="data.history">
+        <kendo-grid-column title="Thời điểm" [width]="130">
+          <ng-template kendoGridCellTemplate let-row><span class="cf-muted">{{ time(row.createdAt) }}</span></ng-template>
+        </kendo-grid-column>
+        <kendo-grid-column title="Nội dung">
+          <ng-template kendoGridCellTemplate let-row><span class="strong">{{ row.description }}</span></ng-template>
+        </kendo-grid-column>
+        <kendo-grid-column title="Nguồn" [width]="260">
+          <ng-template kendoGridCellTemplate let-row>
+            @let origin = source(row);
+            <span class="cf-tag" [class.cf-tag--event]="origin.event">{{ origin.text }}</span>
+          </ng-template>
+        </kendo-grid-column>
+        <kendo-grid-column title="Thay đổi" [width]="150" headerClass="num-head">
+          <ng-template kendoGridCellTemplate let-row>
+            <span class="cf-money block" [class.cf-income]="row.amount > 0" [class.cf-expense]="row.amount < 0">{{ row.amount | vndMoney: true }}</span>
+          </ng-template>
+        </kendo-grid-column>
+        <kendo-grid-column title="Số dư sau" [width]="150" headerClass="num-head">
+          <ng-template kendoGridCellTemplate let-row><span class="cf-money block">{{ row.balanceAfter | vndMoney }}</span></ng-template>
+        </kendo-grid-column>
+        <ng-template kendoGridNoRecordsTemplate>
+          <app-state kind="empty" title="Chưa có biến động" message="Số dư được cộng khi sự kiện quyết toán có tiền thừa." />
+        </ng-template>
+      </kendo-grid>
+    </section>
+  </div>
+
+  @if (confirming()) {
+    <kendo-dialog [title]="'Rút toàn bộ ' + (data.balance | vndMoney) + '?'" [width]="440" [maxWidth]="'calc(100vw - 32px)'" (close)="confirming.set(false)">
+      <p class="cf-muted dlg-text">Yêu cầu được gửi tới thủ quỹ. Thủ quỹ liên hệ trả tiền mặt hoặc chuyển khoản, sau đó xác nhận trên hệ thống.</p>
+      <kendo-dialog-actions layout="end">
+        <button kendoButton type="button" (click)="confirming.set(false)">Hủy</button>
+        <button kendoButton themeColor="primary" type="button" [disabled]="busy()" (click)="withdraw()">Gửi yêu cầu rút</button>
+      </kendo-dialog-actions>
+    </kendo-dialog>
+  }
+}

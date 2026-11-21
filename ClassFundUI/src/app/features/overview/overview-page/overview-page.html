@@ -1,0 +1,228 @@
+@if (kind(); as stateKindValue) {
+  <app-state [kind]="stateKindValue" />
+} @else if (data(); as data) {
+  <div class="page">
+    @if (manager()) {
+      <!-- ===== Thủ quỹ (canvas Overview.dc.html) ===== -->
+      <div class="head">
+        <div class="head-t">
+          <div class="title-row"><h1>Tổng quan quỹ chung</h1><app-scope-badge scope="General" /></div>
+          <p class="cf-muted">Không gồm tiền của các sự kiện (FR-48). Năm học {{ data.schoolYear }}.</p>
+        </div>
+        <div class="actions">
+          @if (canCreateCharge()) {
+            <a class="cf-link-button" [routerLink]="['/funds', fundId(), 'charges', 'new']">Tạo khoản thu</a>
+          }
+          <a class="cf-primary-link" [routerLink]="['/funds', fundId(), 'ledger', 'new']"><kendo-svgicon [icon]="plus" />Ghi giao dịch</a>
+        </div>
+      </div>
+
+      <div class="kpis">
+        <a class="cf-card kpi" [routerLink]="['/funds', fundId(), 'ledger']">
+          <span class="kpi-l">Số dư quỹ chung</span><span class="kpi-v">{{ data.general.balance | vndMoney }}</span>
+          <span class="cf-muted xs">= Tổng thu − Tổng chi</span>
+        </a>
+        <a class="cf-card kpi" [routerLink]="['/funds', fundId(), 'ledger']">
+          <span class="kpi-l">Tổng thu</span><span class="kpi-v cf-income">{{ data.general.totalIncome | vndMoney }}</span>
+          <span class="cf-muted xs">
+            {{ data.general.incomeCount }} lượt thanh toán đã xác nhận@if (data.general.selfDeclaredIncome > 0) {
+              · tự ghi nhận {{ data.general.selfDeclaredIncome | vndMoney }}
+            }
+          </span>
+        </a>
+        <a class="cf-card kpi" [routerLink]="['/funds', fundId(), 'ledger']">
+          <span class="kpi-l">Tổng chi</span><span class="kpi-v cf-expense">{{ data.general.totalExpense | vndMoney }}</span>
+          <span class="cf-muted xs">{{ data.general.expenseCount }} khoản chi đã phát sinh</span>
+        </a>
+        <a class="cf-card kpi" [routerLink]="['/funds', fundId(), 'members']">
+          <span class="kpi-l">Học sinh</span><span class="kpi-v">{{ data.memberCount }}</span>
+          <span class="cf-muted xs">gồm {{ data.treasurerCount }} thủ quỹ@if (data.heldBalance > 0) { · giữ hộ {{ data.heldBalance | vndMoney }}}</span>
+        </a>
+      </div>
+
+      <div class="grid2">
+        <section class="cf-card wide" aria-label="Giao dịch gần đây">
+          <div class="card-h">
+            <div>
+              <h2>Giao dịch gần đây</h2>
+              <p class="cf-muted small">Chỉ phạm vi quỹ chung</p>
+            </div>
+            <a class="cf-link-button small-btn" [routerLink]="['/funds', fundId(), 'ledger']">Xem tất cả</a>
+          </div>
+          <table class="tbl">
+            <thead>
+              <tr><th>Ngày</th><th>Nội dung</th><th>Danh mục</th><th class="num">Số tiền</th></tr>
+            </thead>
+            <tbody>
+              @for (entry of data.recentEntries; track entry.id) {
+                <tr>
+                  <td class="cf-muted">{{ shortDate(entry.transactionDate) }}</td>
+                  <td>
+                    <div class="title-row">
+                      <a class="rowlink" [class.strike]="entry.isReversed" [routerLink]="['/funds', fundId(), 'ledger', entry.id]">{{ entry.title }}</a>
+                      @if (entry.isSelfDeclared) {
+                        <span class="cf-tag cf-tag--warning">Tự ghi nhận</span>
+                      }
+                    </div>
+                    <div class="cf-muted xs">{{ entryNote(entry) }}</div>
+                  </td>
+                  <td>{{ entry.categoryName ?? '–' }}</td>
+                  <td class="num" [class.cf-income]="entry.type === 'Income'" [class.cf-expense]="entry.type === 'Expense'">
+                    {{ (entry.type === 'Income' ? entry.amount : -entry.amount) | vndMoney: true }}
+                  </td>
+                </tr>
+              } @empty {
+                <tr><td colspan="4" class="cf-muted empty">Chưa có giao dịch quỹ chung.</td></tr>
+              }
+            </tbody>
+          </table>
+        </section>
+
+        <ng-container *ngTemplateOutlet="charges" />
+        <ng-container *ngTemplateOutlet="eventsBox" />
+
+        @if (data.todo; as todo) {
+          <section class="cf-card pad stack tight" aria-label="Việc cần làm">
+            <h2>Việc cần làm</h2>
+            <a class="between link" [routerLink]="['/funds', fundId(), 'payments']">
+              <span>Xác nhận thanh toán</span>
+              <span class="cf-tag" [class.cf-tag--warning]="todo.pendingPayments > 0">{{ todo.pendingPayments }}</span>
+            </a>
+            <a class="between link" [routerLink]="['/funds', fundId(), 'withdrawals']">
+              <span>Yêu cầu rút tiền</span>
+              <span class="cf-tag" [class.cf-tag--warning]="todo.pendingWithdrawals > 0">{{ todo.pendingWithdrawals }}</span>
+            </a>
+            @for (item of todo.eventsAwaitingSettlement; track item.id) {
+              <a class="between link" [routerLink]="['/funds', fundId(), 'events', item.id, 'settlement']">
+                <span>Quyết toán “{{ item.name }}”</span><span class="cf-tag">Chưa làm</span>
+              </a>
+            }
+            <a class="between link" [routerLink]="['/funds', fundId(), 'reports', 'year-end']">
+              <span>Tổng kết cuối năm</span><span class="cf-tag">Cuối năm học</span>
+            </a>
+          </section>
+        }
+      </div>
+    } @else {
+      <!-- ===== Học sinh (canvas StuOverview.dc.html) ===== -->
+      <div class="head-t">
+        <h1>Chào {{ greeting() }}</h1>
+        <p class="cf-muted">
+          {{ data.fundName }} · năm học {{ data.schoolYear }}@if (data.treasurerNames.length) { · thủ quỹ: {{ data.treasurerNames.join(', ') }}}
+        </p>
+      </div>
+
+      <div class="kpis">
+        <a class="cf-card kpi" [routerLink]="['/funds', fundId(), 'my-payments']">
+          <span class="kpi-l">Bạn cần đóng</span><span class="kpi-v cf-expense">{{ data.me.dueAmount | vndMoney }}</span>
+          <span class="cf-muted xs">
+            @if (data.me.dueCount > 0) {
+              {{ data.me.dueCount }} khoản · gần nhất hạn {{ data.me.nearestDueDate | vnDate }}
+            } @else {
+              Không còn khoản nào
+            }
+          </span>
+        </a>
+        <a class="cf-card kpi" [routerLink]="['/funds', fundId(), 'my-payments']">
+          <span class="kpi-l">Chờ thủ quỹ xác nhận</span><span class="kpi-v pend">{{ data.me.awaitingAmount | vndMoney }}</span>
+          <span class="cf-muted xs">{{ data.me.awaitingTitle ?? 'Không có thanh toán đang chờ' }}</span>
+        </a>
+        <a class="cf-card kpi" [routerLink]="['/funds', fundId(), 'balance']">
+          <span class="kpi-l">Số dư cá nhân</span><span class="kpi-v">{{ data.me.balance | vndMoney }}</span>
+          <span class="cf-muted xs">Dùng đóng tiền hoặc rút</span>
+        </a>
+      </div>
+
+      @if (data.me.nearestDueTitle) {
+        <div class="cf-alert cf-alert--warning due">
+          <span>
+            {{ data.me.nearestDueEventName ? 'Phí' : 'Khoản' }} <strong>{{ data.me.nearestDueTitle }}</strong> {{ data.me.nearestDueAmount | vndMoney }}
+            hết hạn ngày {{ data.me.nearestDueDate | vnDate }}.@if (data.me.nearestDueEventName) {
+              Chưa đóng khoản nào khi sự kiện kết thúc sẽ bị loại khỏi sự kiện.
+            }
+          </span>
+          <a class="cf-primary-link small-btn" [routerLink]="['/funds', fundId(), 'my-payments']">Nộp ngay</a>
+        </div>
+      }
+
+      <div class="grid2">
+        <section class="cf-card pad stack" aria-label="Quỹ chung của lớp">
+          <div class="between">
+            <div class="title-row"><h2>Quỹ chung của lớp</h2><app-scope-badge scope="General" /></div>
+            <a class="small" [routerLink]="['/funds', fundId(), 'ledger']">Thu chi</a>
+          </div>
+          <div class="three">
+            <div class="cell"><span class="cf-muted xs">Số dư</span><span class="strong-600">{{ data.general.balance | vndMoney }}</span></div>
+            <div class="cell"><span class="cf-muted xs">Tổng thu</span><span class="strong-600 cf-income">{{ data.general.totalIncome | vndMoney }}</span></div>
+            <div class="cell"><span class="cf-muted xs">Tổng chi</span><span class="strong-600 cf-expense">{{ data.general.totalExpense | vndMoney }}</span></div>
+          </div>
+          <p class="cf-muted small">Minh bạch: bạn xem được mọi khoản chi kèm chứng từ công khai.</p>
+        </section>
+
+        <ng-container *ngTemplateOutlet="eventsBox" />
+
+        <section class="cf-card pad stack tight" aria-label="Thông báo mới">
+          <div class="between"><h2>Thông báo mới</h2><a class="small" [routerLink]="['/funds', fundId(), 'notifications']">Tất cả</a></div>
+          @for (item of data.notifications; track $index) {
+            <div class="stack-xs">
+              <span class="title-row">
+                <app-scope-badge [scope]="item.scope === 'Event' ? 'Event' : 'General'" [eventName]="item.eventName" />
+                <span class="strong">{{ item.title }}</span>
+              </span>
+              <span class="cf-muted xs">{{ item.body }}</span>
+            </div>
+          } @empty {
+            <p class="cf-muted small">Chưa có thông báo.</p>
+          }
+        </section>
+      </div>
+    }
+  </div>
+
+  <ng-template #charges>
+    <section class="cf-card pad stack" aria-label="Khoản thu chưa hoàn thành">
+      <div class="between"><h2>Khoản thu chưa hoàn thành</h2><a class="small" [routerLink]="['/funds', fundId(), 'charges']">Tất cả</a></div>
+      @for (charge of data.openCharges; track charge.id) {
+        <a class="stack-s link" [routerLink]="['/funds', fundId(), 'charges', charge.id]">
+          <div class="between"><span class="strong">{{ charge.title }}</span><span class="cf-muted">{{ charge.paidCount }}/{{ charge.assignedCount }}</span></div>
+          <div class="bar" role="img" [attr.aria-label]="charge.paidCount + ' trên ' + charge.assignedCount + ' đã đóng'">
+            <span class="paid" [style.width.%]="percent(charge.paidCount, charge.assignedCount)"></span>
+            <span class="await" [style.width.%]="percent(charge.awaitingCount, charge.assignedCount)"></span>
+          </div>
+          <span class="cf-muted xs">
+            {{ charge.amountPerPerson | vndMoney }}/người · hạn {{ shortDate(charge.dueDate) }}@if (charge.awaitingCount > 0) { · {{ charge.awaitingCount }} chờ xác nhận}
+          </span>
+        </a>
+      } @empty {
+        <p class="cf-muted small">Mọi khoản thu chung đã đóng đủ.</p>
+      }
+    </section>
+  </ng-template>
+
+  <ng-template #eventsBox>
+    <section class="cf-card pad stack tight" aria-label="Sự kiện">
+      <div class="between"><h2>Sự kiện</h2><a class="small" [routerLink]="['/funds', fundId(), 'events']">Tất cả</a></div>
+      @for (event of data.events; track event.id) {
+        @let box = date(event.eventDate);
+        <a class="cf-card event-card" [routerLink]="['/funds', fundId(), 'events', event.id]">
+          <span class="date">
+            @if (box) {
+              <span class="cf-muted xs">{{ box.month }}</span><b>{{ box.day }}</b>
+            }
+          </span>
+          <span class="row-main">
+            <span class="strong">{{ event.name }}</span>
+            <span class="cf-muted xs">{{ eventNote(event) }}</span>
+          </span>
+          @if (event.status === 'Open') {
+            <span class="cf-tag cf-tag--event">{{ manager() ? 'Đang thu' : 'Đang mở' }}</span>
+          } @else {
+            <span class="cf-tag cf-tag--warning">Chờ quyết toán</span>
+          }
+        </a>
+      } @empty {
+        <p class="cf-muted small">Chưa có sự kiện đang diễn ra.</p>
+      }
+    </section>
+  </ng-template>
+}

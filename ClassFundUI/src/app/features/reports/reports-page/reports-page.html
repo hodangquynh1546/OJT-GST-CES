@@ -1,0 +1,146 @@
+<div class="page">
+  <div class="head">
+    <div class="head-t">
+      <h1>Báo cáo</h1>
+      <p class="cf-muted">Số liệu quỹ chung và từng sự kiện luôn tách riêng (FR-48…52).</p>
+    </div>
+    <div class="actions">
+      <button kendoButton type="button" [disabled]="!!kind()" (click)="exportExcel()">Xuất Excel</button>
+      <a class="cf-primary-link" [routerLink]="['/funds', fundId(), 'reports', 'year-end']">Tổng kết cuối năm</a>
+    </div>
+  </div>
+
+  <section class="cf-card report" aria-label="Báo cáo">
+    <div class="utabs" role="tablist" aria-label="Loại báo cáo">
+      @for (option of tabs; track option.value) {
+        <button type="button" role="tab" class="utab" [class.on]="tab() === option.value" [attr.aria-selected]="tab() === option.value" (click)="tab.set(option.value)">
+          {{ option.label }}
+        </button>
+      }
+    </div>
+
+    @if (tab() === 'general') {
+      <div class="pad stack">
+        <div class="between">
+          <app-scope-badge scope="General" />
+          <div class="actions">
+            <kendo-datepicker class="date" format="dd/MM/yyyy" [max]="maxFrom()" [ngModel]="from()" (ngModelChange)="from.set($event)" [attr.aria-label]="'Từ ngày'" />
+            <kendo-datepicker class="date" format="dd/MM/yyyy" [min]="minTo()" [ngModel]="to()" (ngModelChange)="to.set($event)" [attr.aria-label]="'Đến ngày'" />
+          </div>
+        </div>
+        @if (kind(); as stateKindValue) {
+          <app-state [kind]="stateKindValue" />
+        } @else if (generalData(); as data) {
+          <div class="kpis">
+            <div class="cf-card kpi flat"><span class="kpi-l">Tổng thu</span><span class="kpi-v cf-income">{{ data.totalIncome | vndMoney }}</span>
+              @if (data.selfDeclaredIncome > 0) {
+                <span class="cf-muted xs">trong đó tự ghi nhận {{ data.selfDeclaredIncome | vndMoney }}</span>
+              }
+            </div>
+            <div class="cf-card kpi flat"><span class="kpi-l">Tổng chi</span><span class="kpi-v cf-expense">{{ data.totalExpense | vndMoney }}</span></div>
+            <div class="cf-card kpi flat"><span class="kpi-l">Số dư</span><span class="kpi-v">{{ data.balance | vndMoney }}</span></div>
+            <div class="cf-card kpi flat"><span class="kpi-l">Khoản thu chưa hoàn thành</span><span class="kpi-v">{{ data.openChargeCount }}</span></div>
+          </div>
+          <div class="grid2">
+            <div class="stack-s">
+              <h3>Chi theo danh mục</h3>
+              <div class="stack-s" role="img" [attr.aria-label]="'Chi theo danh mục'">
+                @for (row of data.expenseByCategory; track row.categoryName) {
+                  <div class="between small"><span>{{ row.categoryName }}</span><span class="num">{{ row.amount | vndMoney }}</span></div>
+                  <div class="bar"><span [style.width.%]="percent(row.amount, data.totalExpense)"></span></div>
+                } @empty {
+                  <p class="cf-muted small">Chưa có khoản chi trong khoảng ngày này.</p>
+                }
+              </div>
+            </div>
+            <div class="stack-s">
+              <h3>Số dư theo tháng</h3>
+              <table class="tbl">
+                <thead><tr><th>Tháng</th><th class="num">Thu</th><th class="num">Chi</th><th class="num">Số dư cuối</th></tr></thead>
+                <tbody>
+                  @for (month of data.months; track month.year * 100 + month.month) {
+                    <tr>
+                      <td>{{ monthLabel(month) }}</td>
+                      <td class="num cf-income">+{{ plain(month.income) }}</td>
+                      <td class="num cf-expense">−{{ plain(month.expense) }}</td>
+                      <td class="num">{{ plain(month.closingBalance) }}</td>
+                    </tr>
+                  } @empty {
+                    <tr><td colspan="4" class="cf-muted">Chưa có giao dịch.</td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <a class="small" [routerLink]="['/funds', fundId(), 'ledger']">Xem lịch sử giao dịch chi tiết →</a>
+        }
+      </div>
+    } @else if (kind(); as stateKindValue) {
+      <app-state [kind]="stateKindValue" />
+    } @else if (tab() === 'events') {
+      <div class="scroll">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>Sự kiện</th><th class="num">Tham gia / sau kết thúc</th><th class="num">Cần thu</th><th class="num">Đã thu</th><th class="num">Chưa thu</th>
+              <th class="num">Tổng chi</th><th class="num">Tiền thừa</th><th>Xử lý</th><th>Quyết toán</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of eventRows(); track row.id) {
+              @let badge = statusBadge[row.status];
+              <tr>
+                <td class="nowrap"><a class="rowlink" [routerLink]="['/funds', fundId(), 'events', row.id]">{{ row.name }}</a></td>
+                <td class="num">{{ participants(row) }}</td>
+                <td class="num">{{ plain(row.amountDue) }}</td>
+                <td class="num cf-income">{{ plain(row.collected) }}</td>
+                <td class="num" [class.cf-expense]="row.uncollected > 0">{{ plain(row.uncollected) }}</td>
+                <td class="num" [class.cf-expense]="row.totalExpense > 0">{{ plain(row.totalExpense) }}</td>
+                <td class="num" [class.cf-income]="(row.surplus ?? 0) > 0">{{ row.surplus === null ? '–' : (row.surplus > 0 ? '+' : '') + plain(row.surplus) }}</td>
+                <td class="nowrap" [class.cf-muted]="handling(row) === '–' || handling(row) === 'Chưa xử lý'">{{ handling(row) }}</td>
+                <td><span class="cf-tag" [class]="'cf-tag--' + badge.tone">{{ shortStatus[row.status] }}</span></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="9" class="cf-muted">Chưa có sự kiện.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <div class="scroll">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>Học sinh</th><th class="num">Đã đóng quỹ chung</th><th>Khoản chung chưa đóng</th><th class="num">Đã đóng sự kiện</th>
+              <th class="num">Được hoàn</th><th class="num">Đã dùng số dư</th><th class="num">Số dư hiện tại</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of studentRows(); track row.userId) {
+              <tr>
+                <td class="strong">{{ row.fullName }}</td>
+                <td class="num">{{ plain(row.paidGeneral) }}</td>
+                <td>
+                  @for (item of row.unpaidGeneral; track $index) {
+                    <span class="cf-tag" [class.cf-tag--danger]="item.status === 'Unpaid'" [class.cf-tag--warning]="item.status !== 'Unpaid'">
+                      {{ item.title }}@if (item.status !== 'Unpaid') { {{ assignmentLabel[item.status].toLowerCase() }}}
+                    </span>
+                  } @empty {
+                    <span class="cf-muted">Không</span>
+                  }
+                </td>
+                <td class="num">{{ plain(row.paidEvents) }}</td>
+                <td class="num cf-income">{{ plain(row.refunded) }}</td>
+                <td class="num">{{ plain(row.usedBalance) }}</td>
+                <td class="num">{{ plain(row.balance) }}</td>
+              </tr>
+            } @empty {
+              <tr><td colspan="7" class="cf-muted">Chưa có học sinh.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="card-f"><span class="cf-muted small">Học sinh chỉ xem được dòng của chính mình (FR-51).</span></div>
+    }
+  </section>
+</div>

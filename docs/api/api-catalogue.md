@@ -134,12 +134,14 @@ Nội bộ cho M3 (TD-10): `IEventInvitationService.InviteToOpenEventsAsync` –
 
 ## M10 – Số dư cá nhân
 
+> ✅ 2026-11-21 (nhánh `feature/m10-m13-balance-reports`). Số dư là tiền giữ hộ, không ghi `LedgerEntry` (BR-26); khóa dòng `PersonalBalance` khi cộng / trừ. Nội bộ cho M6b / M9 / M14: `IBalanceService.CreditAsync` / `DebitAsync` (trong transaction của module gọi; đóng khoản thu bằng số dư khi có yêu cầu rút chờ → 422 `balance.locked_by_withdrawal`; không đủ → 422 `balance.insufficient`).
+
 | Method | Path | Permission | FR | Trạng thái |
 |---|---|---|---|---|
-| GET | `/{f}/me/balance` → `{ balance, pendingWithdrawal?, history[] }` | `Balance.ViewOwn` | FR-40, FR-42 | ⬜ |
-| POST | `/{f}/me/withdrawal-requests` (không body – rút toàn bộ số dư, OQ-11) | `Balance.Withdraw` | FR-41 | ⬜ |
-| GET | `/{f}/withdrawal-requests?status=` | `Balance.Handle` | FR-41 | ⬜ |
-| POST | `/{f}/withdrawal-requests/{id}/paid` · `/reject` | `Balance.Handle` | FR-41 | ⬜ |
+| GET | `/{f}/me/balance` → `{ fundName, balance, latestWithdrawal?, history[{ type, amount, balanceAfter, createdAt, description, scope, eventName }], otherFunds[] }` | `Balance.ViewOwn` | FR-40, FR-42 | ✅ |
+| POST | `/{f}/me/withdrawal-requests` (không body – rút toàn bộ số dư, OQ-11) → 201 như GET. 422 `withdrawal.nothing_to_withdraw` / `withdrawal.pending_exists`. Quỹ `Archived` vẫn rút được (BR-37) | `Balance.Withdraw` | FR-41 | ✅ |
+| GET | `/{f}/withdrawal-requests?status=Requested` (`Paid` / `Rejected`) → `{ items[{ fullName, email, amount, status, requestedAt, handledAt, handledByName, rejectionReason, isMine }], requestedCount, paidCount, rejectedCount }` | `Balance.Handle` | FR-41 | ✅ |
+| POST | `/{f}/withdrawal-requests/{id}/paid` – trừ đúng số tiền yêu cầu, `BalanceTransaction(Withdrawal)`, thông báo `WithdrawalProcessed`, audit `withdrawal.paid` (`IsSelfAction` khi tự xử lý của mình); đã xử lý → 409 `withdrawal.not_pending` · `/reject` `{ reason }` – lý do bắt buộc, số dư mở lại | `Balance.Handle` | FR-41 | ✅ |
 
 ## M11 – Thông báo
 
@@ -160,14 +162,16 @@ Nội bộ cho M3 (TD-10): `IEventInvitationService.InviteToOpenEventsAsync` –
 
 ## M13 – Báo cáo
 
+> ✅ 2026-11-21. Chỉ đọc; số liệu quỹ chung chỉ lấy `EventId = null`, sự kiện chỉ lấy đúng sự kiện (BR-02); thu tự ghi nhận tách riêng (BR-13); bút toán đảo trừ vào loại của dòng gốc.
+
 | Method | Path | Permission | FR | Trạng thái |
 |---|---|---|---|---|
-| GET | `/{f}/reports/general-overview` | `Fund.View` | FR-48 | ⬜ |
-| GET | `/{f}/reports/general?from=&to=` | `Fund.View` (học sinh: phần công khai) | FR-49 | ⬜ |
-| GET | `/{f}/reports/events/{eventId}` | `Event.Participate` | FR-50 | ⬜ |
-| GET | `/{f}/reports/students` · `/students/{memberId}` | `Report.View` | FR-51 | ⬜ |
-| GET | `/{f}/me/report` | `Fund.View` | FR-51 | ⬜ |
-| GET | `/{f}/reports/year-end` | `Report.View` | FR-52 | ⬜ |
+| GET | `/{f}/reports/overview` → S-01: `general { balance, totalIncome, totalExpense, selfDeclaredIncome, incomeCount, expenseCount }`, `memberCount`, `treasurerCount`, `heldBalance` (tiền giữ hộ), `openCharges[]`, `events[]`, `me { dueAmount, nearestDue…, awaitingAmount, balance }`, `notifications[]` (3 mới nhất của tôi); thủ quỹ có thêm `recentEntries[]` và `todo` (thanh toán chờ, yêu cầu rút chờ, sự kiện chờ quyết toán) | `Fund.View` | FR-48 | ✅ |
+| GET | `/{f}/reports/general?from=&to=` → tổng thu / chi trong khoảng ngày, `balance` toàn thời gian, `expenseByCategory[]`, `months[{ year, month, income, expense, closingBalance }]`, `openChargeCount`; 400 khi `to < from` | `Report.View` | FR-49 | ✅ |
+| GET | `/{f}/reports/events` → mỗi sự kiện: tham gia / sau kết thúc, cần thu, đã thu, chưa thu, tổng chi, tiền thừa, cách xử lý (từ Settlement nếu có) | `Report.View` | FR-50 | ✅ |
+| GET | `/{f}/reports/students` → mỗi thành viên: đã đóng quỹ chung, khoản chung chưa đóng, đã đóng sự kiện, được hoàn, đã dùng số dư, số dư | `Report.View` | FR-51 | ✅ |
+| GET | `/{f}/reports/me` – dòng báo cáo của chính tôi (học sinh chỉ xem của mình) | `Fund.View` | FR-51 | ✅ |
+| – | S-03 dùng chung E-03 (`/reports/events/:id` chuyển sang trang sự kiện); S-05 tổng kết cuối năm làm cùng M14 | – | FR-50, FR-52 | – |
 
 ## M14 – Quyết toán cuối năm quỹ chung
 

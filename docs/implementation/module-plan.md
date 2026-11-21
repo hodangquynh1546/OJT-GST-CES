@@ -145,6 +145,8 @@ Ký hiệu: **BE** backend, **FE** frontend, **T** test. Mỗi task kết thúc 
 
 ### M10 – Số dư cá nhân (FR-40 → FR-42, BR-25, BR-26, OQ-11)
 
+> ✅ **Đã làm 2026-11-21** (nhánh `feature/m10-m13-balance-reports`). `CreditAsync` / `DebitAsync` sẵn cho M6b, M9, M14 (nối "đóng bằng số dư" ở M6b – TD-20).
+
 | Task | Nội dung |
 |---|---|
 | M10-T1 BE | `BalanceService`: `CreditAsync`/`DebitAsync` (dùng chung cho M6b, M9, M14; tạo PersonalBalance nếu chưa có; BalanceTransaction với BalanceAfter; xử lý `DbUpdateConcurrencyException` → retry/409) – **làm trước** để Dev A dùng; `HasPendingWithdrawalAsync`. |
@@ -178,6 +180,8 @@ Ký hiệu: **BE** backend, **FE** frontend, **T** test. Mỗi task kết thúc 
 | M12-T3 T | ✅ Học sinh → 403; lọc theo phạm vi đúng. Kiểm tra checklist: mọi API ghi của các module đã merge đều sinh audit. |
 
 ### M13 – Báo cáo (FR-48 → FR-52, BR-02, BR-13)
+
+> ✅ **Đã làm 2026-11-21** (cùng nhánh M10). S-01, S-02 (3 tab + xuất CSV); S-03 dùng E-03; S-05 làm cùng M14 (TD-21).
 
 | Task | Nội dung |
 |---|---|

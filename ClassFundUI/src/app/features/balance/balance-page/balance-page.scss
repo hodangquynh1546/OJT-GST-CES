@@ -1,0 +1,123 @@
+// Theo canvas B-01 (BalanceBody.dc.html + cf.css); màu dùng token --cf-*.
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: var(--cf-content-max);
+}
+
+.head-t {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+h1 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+h2 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+}
+
+p {
+  margin: 0;
+}
+
+.small {
+  font-size: 13px;
+}
+
+.strong {
+  font-weight: 500;
+}
+
+.split {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 16px;
+}
+
+.pad {
+  padding: 20px;
+}
+
+.main-card {
+  display: flex;
+  flex: 2 1 420px;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.aside {
+  display: flex;
+  flex: 1 1 320px;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.amount-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.label {
+  font-weight: 500;
+}
+
+// Canvas: số dư 40 px / 600.
+.big {
+  font-size: 40px;
+  line-height: 48px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.between {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.list {
+  padding: 0;
+  overflow: hidden;
+}
+
+.card-h {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+}
+
+.block {
+  display: block;
+}
+
+:host ::ng-deep .num-head .k-cell-inner {
+  justify-content: flex-end;
+}
+
+.dlg-text {
+  margin: 0;
+}
