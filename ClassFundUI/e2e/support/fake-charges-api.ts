@@ -32,6 +32,7 @@ export interface FakeMine {
   isSelfDeclared: boolean;
   eventId?: string | null;
   eventName?: string | null;
+  balanceApplied?: number;
 }
 
 export interface FakeQueueItem {
@@ -51,6 +52,8 @@ export interface FakeQueueItem {
   isSelfDeclared: boolean;
   rejectionReason: string | null;
   attachments: unknown[];
+  eventId?: string | null;
+  eventName?: string | null;
 }
 
 export interface Recorded {
@@ -151,6 +154,10 @@ export class FakeChargesApi {
       const item = this.mine.find((entry) => entry.assignmentId === submit[1]);
       if (item) {
         const instant = body.method === 'PersonalBalance';
+        if (body.useBalance && !instant) {
+          item.balanceApplied = Math.min(this.balance, item.amountDue);
+          this.balance -= item.balanceApplied;
+        }
         item.status = instant ? 'Paid' : 'AwaitingConfirmation';
         item.method = body.method;
         item.paymentStatus = instant ? 'Confirmed' : 'Submitted';

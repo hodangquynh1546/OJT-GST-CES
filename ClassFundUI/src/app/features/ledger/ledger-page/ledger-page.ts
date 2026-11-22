@@ -61,8 +61,8 @@ const ALL_CATEGORIES: Partial<Category> = { id: undefined, name: 'Mọi danh m�
     <div class="page">
       <div class="head">
         <div class="head-t">
-          <div class="title-row"><h1>Thu chi chung</h1><app-scope-badge scope="General" /></div>
-          <p class="cf-muted">Sổ chỉ ghi thêm; ghi sai thì tạo bút toán đảo. Thu chi của sự kiện xem trong từng sự kiện (FR-26…29).</p>
+          <div class="title-row"><h1>{{ canManage() ? 'Thu chi chung' : 'Chi tiêu' }}</h1><app-scope-badge scope="General" /></div>
+          <p class="cf-muted">Sổ chỉ ghi thêm; ghi sai thì tạo bút toán đảo. Thu chi của sự kiện xem trong từng sự kiện.</p>
         </div>
         @if (canManage()) {
           <div class="actions">
@@ -209,6 +209,10 @@ const ALL_CATEGORIES: Partial<Category> = { id: undefined, name: 'Mọi danh m�
             <dd class="cf-money left" [class.cf-income]="detail.entry.type === 'Income'" [class.cf-expense]="detail.entry.type === 'Expense'">
               {{ signed(detail.entry) | vndMoney: true }}
             </dd>
+            @if (detail.payerName) {
+              <dt>Thu từ</dt>
+              <dd>{{ detail.payerName }}</dd>
+            }
             <dt>Người thực hiện</dt>
             <dd>{{ detail.entry.performedByName }}</dd>
             @if (detail.purpose) {
@@ -218,10 +222,10 @@ const ALL_CATEGORIES: Partial<Category> = { id: undefined, name: 'Mọi danh m�
           </dl>
           @if (detail.attachments.length) {
             <app-attachment-gallery [fundId]="fundId()" [attachments]="detail.attachments" />
-          } @else {
+          } @else if (detail.entry.type === 'Expense') {
             <div class="cf-alert">Khoản chi này không kèm chứng từ (≤ 500.000 đ được phép không có chứng từ).</div>
           }
-          <p class="cf-muted small">Học sinh xem được chứng từ chi công khai; không xem minh chứng thanh toán của bạn khác (FR-17).</p>
+          <p class="cf-muted small">Bạn xem được các khoản chi công khai và các khoản bạn đã nộp; không xem khoản đóng của bạn khác.</p>
         </div>
         <kendo-dialog-actions layout="end">
           <button kendoButton themeColor="primary" type="button" (click)="viewing.set(null)">Đóng</button>

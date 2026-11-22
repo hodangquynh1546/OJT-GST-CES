@@ -156,6 +156,8 @@ Ký hiệu: **BE** backend, **FE** frontend, **T** test. Mỗi task kết thúc 
 
 ### M9 – Quyết toán sự kiện (FR-35 → FR-39, BR-21 → BR-24, OQ-18, OQ-19)
 
+> ✅ **Đã làm 2026-11-22** (nhánh `feature/m9-settlement`): `SettlementCalculator`, `SettlementService` + `SettlementController`, màn E-04. Cộng số dư không ghi `LedgerEntry` (BR-26); hoàn trực tiếp ghi chi `Refund` khi thủ quỹ bấm "Đã hoàn"; hoàn tất → khoản thu sự kiện đóng, nghĩa vụ `Unpaid` → `Excluded`.
+
 | Task | Nội dung |
 |---|---|
 | M9-T1 Domain | `SettlementCalculator` (thuần, ở Domain/Rules, **dùng chung với M14**): chia tiền thừa **theo tỷ lệ số tiền đã đóng** (OQ-18; không còn chia đều, không còn chia thiếu), largest remainder, tổng = số thừa. Unit test nhiều trường hợp biên (1 người, chia không hết, đóng góp 0, đóng góp lệch). `AllocationRule.Equal` / `ChargeKind.Supplementary` không còn dùng cho sự kiện. |

@@ -45,7 +45,7 @@ import { REJECT_REASON_MAX, WITHDRAWAL_STATUS_BADGE, WithdrawalList, WithdrawalR
     <div class="page">
       <div class="head-t">
         <h1>Yêu cầu rút tiền</h1>
-        <p class="cf-muted">Thành viên rút toàn bộ số dư cá nhân. Liên hệ trả tiền rồi bấm “Đã trả tiền” – hệ thống trừ số dư và ghi lịch sử (FR-41).</p>
+        <p class="cf-muted">Thành viên rút toàn bộ số dư cá nhân. Liên hệ trả tiền rồi bấm “Đã trả tiền” – hệ thống trừ số dư và ghi lịch sử.</p>
       </div>
 
       <section class="cf-card list" aria-label="Danh sách yêu cầu rút">

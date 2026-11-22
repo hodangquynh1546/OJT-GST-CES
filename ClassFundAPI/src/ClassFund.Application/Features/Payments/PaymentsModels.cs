@@ -19,9 +19,11 @@ public sealed record MyAssignmentItemDto(
     string? RejectionReason,
     bool IsSelfDeclared,
     Guid? EventId = null,
-    string? EventName = null);
+    string? EventName = null,
+    long BalanceApplied = 0);
 
-public sealed record SubmitPaymentInput(PaymentMethod Method, string? TransferCode, Guid? AttachmentId);
+/// <param name="UseBalance">Dùng số dư cá nhân trước; phần còn thiếu đóng bằng <paramref name="Method"/> (tiền mặt / chuyển khoản).</param>
+public sealed record SubmitPaymentInput(PaymentMethod Method, string? TransferCode, Guid? AttachmentId, bool UseBalance = false);
 
 /// <summary>Kết quả nộp tiền. Thủ quỹ tự nộp cho mình thì <see cref="Status"/> = Confirmed và <see cref="IsSelfDeclared"/> = true.</summary>
 public sealed record PaymentDto(
@@ -32,7 +34,8 @@ public sealed record PaymentDto(
     string? TransferCode,
     PaymentStatus Status,
     DateTimeOffset SubmittedAt,
-    bool IsSelfDeclared);
+    bool IsSelfDeclared,
+    long BalanceApplied = 0);
 
 /// <summary>Một dòng trong hàng chờ xác nhận (H-04) kèm ảnh minh chứng.</summary>
 public sealed record PaymentQueueItemDto(
@@ -51,7 +54,10 @@ public sealed record PaymentQueueItemDto(
     DateTimeOffset? ConfirmedAt,
     bool IsSelfDeclared,
     string? RejectionReason,
-    IReadOnlyList<AttachmentDto> Attachments);
+    IReadOnlyList<AttachmentDto> Attachments,
+    long BalanceApplied = 0,
+    Guid? EventId = null,
+    string? EventName = null);
 
 /// <summary><see cref="Status"/> mặc định <c>Submitted</c> (chờ xác nhận).</summary>
 public sealed record PaymentFilter(PaymentStatus? Status, int Page, int PageSize);

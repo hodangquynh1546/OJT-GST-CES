@@ -46,7 +46,7 @@ const REASON_MAX = 500;
                   <button type="button" class="item" [class.selected]="item.id === selectedId()" [attr.aria-current]="item.id === selectedId()" (click)="select(item.id)">
                     <span class="row"><b>{{ item.payerName }}</b><b class="amount">{{ item.amount | vndMoney }}</b></span>
                     <span class="row meta">
-                      <app-scope-badge scope="General" />
+                      <app-scope-badge [scope]="item.eventId ? 'Event' : 'General'" [eventName]="item.eventName" />
                       <span class="cf-muted">{{ item.chargeTitle }} · {{ methodLabel(item) }}</span>
                     </span>
                   </button>
@@ -66,9 +66,13 @@ const REASON_MAX = 500;
               </header>
 
               <dl class="facts">
-                <dt>Phạm vi</dt><dd><app-scope-badge scope="General" /></dd>
+                <dt>Phạm vi</dt><dd><app-scope-badge [scope]="item.eventId ? 'Event' : 'General'" [eventName]="item.eventName" /></dd>
                 <dt>Học sinh</dt><dd>{{ item.payerName }} · <span class="cf-muted">{{ item.payerEmail }}</span></dd>
                 <dt>Số tiền nộp</dt><dd><b>{{ item.amount | vndMoney }}</b></dd>
+                @if (item.balanceApplied > 0) {
+                  <dt>Đã trừ từ số dư</dt><dd>{{ item.balanceApplied | vndMoney }}</dd>
+                  <dt>Cần nhận thêm</dt><dd><b>{{ item.amount - item.balanceApplied | vndMoney }}</b></dd>
+                }
                 <dt>Hình thức</dt><dd>{{ methodLabel(item) }}</dd>
                 @if (item.transferCode) {
                   <dt>Mã giao dịch</dt><dd>{{ item.transferCode }}</dd>

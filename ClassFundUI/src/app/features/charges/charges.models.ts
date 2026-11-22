@@ -81,12 +81,16 @@ export interface MyAssignmentItem {
   isSelfDeclared: boolean;
   eventId: string | null;
   eventName: string | null;
+  /** Số dư cá nhân đã dùng cho khoản này (đóng một phần bằng số dư). */
+  balanceApplied: number;
 }
 
 export interface SubmitPaymentRequest {
   method: Extract<PaymentMethod, 'Cash' | 'BankTransfer' | 'PersonalBalance'>;
   transferCode: string | null;
   attachmentId: string | null;
+  /** Dùng số dư cá nhân trước, phần còn thiếu đóng bằng `method`. */
+  useBalance?: boolean;
 }
 
 export interface SubmittedPayment {
@@ -98,6 +102,7 @@ export interface SubmittedPayment {
   status: PaymentStatus;
   submittedAt: string;
   isSelfDeclared: boolean;
+  balanceApplied: number;
 }
 
 /** Một dòng hàng chờ xác nhận (khớp `PaymentQueueItemDto`). */
@@ -118,4 +123,9 @@ export interface PaymentQueueItem {
   isSelfDeclared: boolean;
   rejectionReason: string | null;
   attachments: Attachment[];
+  /** Phần đã trừ từ số dư cá nhân; thủ quỹ chỉ cần nhận `amount - balanceApplied`. */
+  balanceApplied: number;
+  /** Khoản thu của sự kiện nào (null = quỹ chung). */
+  eventId: string | null;
+  eventName: string | null;
 }

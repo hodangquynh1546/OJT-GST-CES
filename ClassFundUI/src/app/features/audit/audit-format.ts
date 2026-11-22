@@ -35,6 +35,21 @@ export const AUDIT_ACTION_LABEL: Readonly<Record<string, string>> = {
   'event.complete': 'Kết thúc sự kiện',
   'event.respond': 'Trả lời tham gia sự kiện',
   'event.invite': 'Mời vào sự kiện',
+  // M6 – Khoản thu & thanh toán
+  'charge.create': 'Tạo khoản thu chung',
+  'charge.close': 'Đóng khoản thu chung',
+  'charge.cancel': 'Hủy khoản thu chung',
+  'charge.remind': 'Nhắc người chưa đóng',
+  'charge.event_create': 'Tạo khoản thu sự kiện',
+  'charge.event_close': 'Đóng khoản thu sự kiện',
+  'charge.event_cancel': 'Hủy khoản thu sự kiện',
+  'payment.submit': 'Nộp tiền',
+  'payment.confirm': 'Xác nhận thanh toán',
+  'payment.reject': 'Từ chối thanh toán',
+  'payment.pay_with_balance': 'Đóng bằng số dư cá nhân',
+  // M9 – Quyết toán sự kiện
+  'settlement.execute': 'Quyết toán sự kiện',
+  'settlement.refund': 'Xác nhận đã hoàn tiền',
   // M10 – Số dư cá nhân
   'withdrawal.request': 'Gửi yêu cầu rút số dư',
   'withdrawal.paid': 'Xác nhận đã trả tiền rút',
@@ -109,6 +124,11 @@ export const AUDIT_FIELD_LABEL: Readonly<Record<string, string>> = {
   purpose: 'Mục đích',
   transactiondate: 'Ngày giao dịch',
   attachmentcount: 'Số chứng từ',
+  hasproof: 'Có minh chứng',
+  balanceused: 'Trừ từ số dư',
+  paidextra: 'Đóng thêm',
+  contributed: 'Đã đóng',
+  refundamount: 'Được hoàn',
   // M8 – Sự kiện
   eventdate: 'Ngày diễn ra',
   description: 'Mô tả',
@@ -156,6 +176,9 @@ const AUDIT_VALUE_LABEL: Readonly<Record<string, string>> = {
   Verified: 'Đã đối chiếu',
   Requested: 'Đang chờ',
   SelfDeclared: 'Tự ghi nhận',
+  Balanced: 'Vừa đủ',
+  Surplus: 'Có tiền thừa',
+  DirectRefund: 'Hoàn trực tiếp',
 };
 
 const MONEY_FIELDS = new Set(['amount', 'amountdue', 'amountperperson', 'total', 'surplus', 'balance']);
@@ -250,6 +273,8 @@ function formatField(key: string, value: unknown, side: 'before' | 'after', chan
   switch (key) {
     case 'isactive':
       return value === true ? 'Đang dùng' : 'Ngừng dùng';
+    case 'hasproof':
+      return value === true ? 'Có' : 'Không';
     case 'mustchangepassword':
       return value === true ? 'Mật khẩu tạm (phải đổi khi đăng nhập)' : 'Đã đổi mật khẩu';
     case 'avatarattachmentid':

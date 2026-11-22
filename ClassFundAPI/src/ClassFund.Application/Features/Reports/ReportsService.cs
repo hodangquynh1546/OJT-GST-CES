@@ -416,7 +416,7 @@ public sealed class ReportsService(IAppDb db, ICurrentUser currentUser, IAccessS
                 // "Được hoàn" = tiền thừa cộng vào số dư + tiền thừa đã hoàn trực tiếp.
                 transactions.Where(row => row.UserId == member.UserId && row.Type == BalanceTransactionType.SettlementCredit).Sum(row => row.Amount)
                     + refundedDirect.Where(row => row.UserId == member.UserId).Sum(row => row.RefundAmount),
-                -transactions.Where(row => row.UserId == member.UserId && row.Type == BalanceTransactionType.ChargePayment).Sum(row => row.Amount),
+                -transactions.Where(row => row.UserId == member.UserId && (row.Type == BalanceTransactionType.ChargePayment || row.Type == BalanceTransactionType.ChargeRefund)).Sum(row => row.Amount),
                 balances.FirstOrDefault(row => row.UserId == member.UserId)?.Balance ?? 0))
             .ToArray();
     }

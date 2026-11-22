@@ -160,7 +160,7 @@ type Kind = 'Income' | 'Expense';
           <div class="field">
             <span class="k-label">Chứng từ @if (needProof()) {<span class="cf-req">* bắt buộc</span>}</span>
             @if (needProof()) {
-              <div class="cf-alert cf-alert--warning" role="status">Khoản chi trên 500.000 đ bắt buộc có chứng từ (FR-16).</div>
+              <div class="cf-alert cf-alert--warning" role="status">Khoản chi trên 500.000 đ bắt buộc có chứng từ.</div>
             }
             <app-file-upload [fundId]="fundId()" kind="Receipt" label="Tải ảnh hóa đơn / PDF" [required]="needProof()" [(attachments)]="files" />
             @if (proofMissing()) {

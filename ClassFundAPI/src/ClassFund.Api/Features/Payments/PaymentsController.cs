@@ -27,7 +27,7 @@ public sealed class PaymentsController(IPaymentsService service) : ApiController
     public async Task<IActionResult> Submit(Guid fundId, Guid assignmentId, SubmitPaymentRequest request, CancellationToken cancellationToken) =>
         StatusCode(
             StatusCodes.Status201Created,
-            await service.SubmitAsync(fundId, assignmentId, new SubmitPaymentInput(request.Method!.Value, request.TransferCode, request.AttachmentId), cancellationToken));
+            await service.SubmitAsync(fundId, assignmentId, new SubmitPaymentInput(request.Method!.Value, request.TransferCode, request.AttachmentId, request.UseBalance), cancellationToken));
 
     [HttpPost("assignments/{assignmentId:guid}/record-cash")]
     [RequirePermission(Permissions.PaymentConfirm)]

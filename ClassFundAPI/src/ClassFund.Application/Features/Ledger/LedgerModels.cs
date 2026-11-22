@@ -86,4 +86,5 @@ public sealed record LedgerEntryDetailDto(
     LedgerReversalDto? ReversedBy,
     LedgerLinkDto? Reverses,
     bool CanReverse,
-    IReadOnlyList<LedgerHistoryDto> History);
+    IReadOnlyList<LedgerHistoryDto> History,
+    string? PayerName = null);

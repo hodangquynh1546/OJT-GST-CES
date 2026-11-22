@@ -100,6 +100,61 @@ export interface SaveEventBody {
   eventDate: string;
 }
 
+export type SurplusMethod = 'DirectRefund' | 'PersonalBalance';
+export type SettlementOutcome = 'Balanced' | 'Surplus';
+export type SettlementLineStatus = 'PendingRefund' | 'Refunded' | 'CreditedToBalance';
+
+/** Phần tiền thừa của một người (E-04). `id` / `status` chỉ có sau khi quyết toán. */
+export interface SettlementLine {
+  id: string | null;
+  userId: string;
+  fullName: string;
+  contributed: number;
+  amount: number;
+  status: SettlementLineStatus | null;
+}
+
+export interface SettlementPreview {
+  eventId: string;
+  eventName: string;
+  status: EventStatus;
+  participantCount: number;
+  totalCollected: number;
+  totalSpent: number;
+  surplus: number;
+  outcome: SettlementOutcome;
+  pendingPaymentCount: number;
+  unpaidObligationCount: number;
+  canExecute: boolean;
+  lines: SettlementLine[];
+}
+
+export interface SettlementResult {
+  id: string;
+  eventId: string;
+  eventName: string;
+  outcome: SettlementOutcome;
+  surplusMethod: SurplusMethod | null;
+  participantCount: number;
+  totalCollected: number;
+  totalSpent: number;
+  surplus: number;
+  settledAt: string;
+  settledByName: string;
+  lines: SettlementLine[];
+}
+
+export const SURPLUS_METHOD_LABEL: Record<SurplusMethod, string> = {
+  DirectRefund: 'Hoàn tiền trực tiếp',
+  PersonalBalance: 'Cộng vào số dư cá nhân',
+};
+
+export const SETTLEMENT_LINE_LABEL: Record<SettlementLineStatus, string> = {
+  PendingRefund: 'Chờ hoàn',
+  Refunded: 'Đã hoàn',
+  CreditedToBalance: 'Đã cộng số dư',
+};
+
 export const EVENT_NAME_MAX = 150;
 export const EVENT_DESCRIPTION_MAX = 1000;
 export const CANCEL_REASON_MAX = 500;

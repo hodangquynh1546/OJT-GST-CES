@@ -39,6 +39,12 @@ describe('buildNavItems', () => {
     expect(groupsOf(TREASURER)).toEqual(['Quỹ chung', 'Cá nhân', 'Quản lý']);
   });
 
+  it('calls the ledger "Chi tiêu" for people who cannot manage it', () => {
+    const labels = buildNavItems({ fundId: 'f1', role: null, permissions: STUDENT }).map((item) => item.label);
+    expect(labels).toContain('Chi tiêu');
+    expect(labels).not.toContain('Thu chi chung');
+  });
+
   it('uses the labels of the design canvas', () => {
     const labels = buildNavItems({ fundId: 'f1', role: null, permissions: TREASURER }).map((item) => item.label);
     expect(labels).toEqual([

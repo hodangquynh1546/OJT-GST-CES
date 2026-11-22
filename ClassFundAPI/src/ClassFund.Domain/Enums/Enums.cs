@@ -44,7 +44,7 @@ public enum SettlementOutcome { Balanced = 1, Surplus = 2 }
 
 public enum SettlementLineStatus { PendingRefund = 1, Refunded = 2, CreditedToBalance = 3 }
 
-public enum BalanceTransactionType { SettlementCredit = 1, ChargePayment = 2, Withdrawal = 3, Adjustment = 4 }
+public enum BalanceTransactionType { SettlementCredit = 1, ChargePayment = 2, Withdrawal = 3, Adjustment = 4, ChargeRefund = 5 }
 
 public enum WithdrawalStatus { Requested = 1, Paid = 2, Rejected = 3 }
 

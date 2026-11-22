@@ -210,7 +210,8 @@ export class MyPaymentsPage {
     }
     if (item.status === 'AwaitingConfirmation') {
       const method = item.method ? ` · ${PAYMENT_METHOD_LABEL[item.method]}` : '';
-      return `Đã gửi${method} · chờ thủ quỹ xác nhận`;
+      const used = item.balanceApplied > 0 ? ` · đã dùng ${new Intl.NumberFormat('vi-VN').format(item.balanceApplied)} đ số dư` : '';
+      return `Đã gửi${method}${used} · chờ thủ quỹ xác nhận`;
     }
     const due = new VnDatePipe().transform(item.dueDate);
     const purpose = item.purpose ? ` · ${item.purpose}` : '';

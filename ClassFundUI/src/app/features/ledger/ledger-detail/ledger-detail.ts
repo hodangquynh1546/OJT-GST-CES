@@ -56,7 +56,7 @@ import { MEMBER_ROLE_LABEL, REVERSE_REASON_MAX, signedAmount } from '../ledger.m
             @if (entry.eventId) {
               <a class="back" [routerLink]="['/funds', fundId(), 'events', entry.eventId]">← Sự kiện {{ entry.eventName }}</a>
             } @else {
-              <a class="back" [routerLink]="['/funds', fundId(), 'ledger']">← Thu chi chung</a>
+              <a class="back" [routerLink]="['/funds', fundId(), 'ledger']">← {{ ledgerTitle() }}</a>
             }
             <div class="title-row">
               <h1>{{ entry.title }}</h1>
@@ -96,6 +96,10 @@ import { MEMBER_ROLE_LABEL, REVERSE_REASON_MAX, signedAmount } from '../ledger.m
               <dd>{{ entry.categoryName ?? '–' }}</dd>
               <dt>Ngày giao dịch</dt>
               <dd>{{ entry.transactionDate | vnDate }}</dd>
+              @if (detail.payerName) {
+                <dt>Thu từ</dt>
+                <dd>{{ detail.payerName }}</dd>
+              }
               <dt>Người thực hiện</dt>
               <dd>{{ entry.performedByName }}@if (detail.performedByRole; as role) { ({{ roleLabel[role] }})}</dd>
               <dt>Ghi lúc</dt>
@@ -156,7 +160,7 @@ import { MEMBER_ROLE_LABEL, REVERSE_REASON_MAX, signedAmount } from '../ledger.m
         <kendo-dialog title="Tạo bút toán đảo" [width]="520" [maxWidth]="'calc(100vw - 32px)'" (close)="reversing.set(false)">
           <div class="stack">
             <p class="cf-muted">
-              Sổ thu chi không sửa/xóa được (FR-29). Hệ thống tạo dòng <strong>Thu {{ entry.amount | vndMoney: true }}</strong> cùng phạm vi để triệt tiêu
+              Sổ thu chi không sửa/xóa được. Hệ thống tạo dòng <strong>Thu {{ entry.amount | vndMoney: true }}</strong> cùng phạm vi để triệt tiêu
               dòng này. Một giao dịch chỉ đảo được một lần.
             </p>
             <kendo-formfield class="field cf-required">
@@ -308,6 +312,7 @@ export class LedgerDetail {
   protected readonly signed = signedAmount;
   protected readonly label = actionLabel;
   protected readonly canAudit = computed(() => this.currentFund.can(Permissions.AuditView));
+  protected readonly ledgerTitle = computed(() => (this.currentFund.can(Permissions.LedgerManage) ? 'Thu chi chung' : 'Chi tiêu'));
 
   protected readonly reversing = signal(false);
   protected readonly busy = signal(false);

@@ -13,12 +13,12 @@ async function shot(page: Page, name: string): Promise<void> {
   }
 }
 
-test('B-01: balance, other funds, history and withdraw-all confirmation', async ({ page }) => {
+test('B-01: balance, history and withdraw-all confirmation', async ({ page }) => {
   const api = await FakeBalanceReportsApi.open(page, student, `${FUND}/balance`);
 
   await expect(page.getByRole('heading', { name: 'Số dư cá nhân' })).toBeVisible();
   await expect(page.getByText('Số dư hiện có · Lớp 10A1')).toBeVisible();
-  await expect(page.getByText('CLB Tiếng Anh')).toBeVisible();
+  await expect(page.getByText('Số dư ở các quỹ khác')).toHaveCount(0);
   const grid = page.locator('kendo-grid');
   await expect(grid.getByText('Sự kiện: Tham quan bảo tàng')).toBeVisible();
   await expect(grid.getByText('−25.000 đ')).toBeVisible();
@@ -99,5 +99,5 @@ test('S-02: general tab, events tab, students tab and CSV export', async ({ page
 
   await page.getByRole('tab', { name: 'Học sinh' }).click();
   await expect(page.getByText('HK1 chờ xác nhận')).toBeVisible();
-  await expect(page.getByText('Học sinh chỉ xem được dòng của chính mình (FR-51).')).toBeVisible();
+  await expect(page.getByText('Học sinh chỉ xem được dòng của chính mình.')).toBeVisible();
 });

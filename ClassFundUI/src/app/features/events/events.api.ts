@@ -16,6 +16,10 @@ import {
   ParticipantPaymentStatus,
   ParticipationResponse,
   SaveEventBody,
+  SettlementLine,
+  SettlementPreview,
+  SettlementResult,
+  SurplusMethod,
 } from './events.models';
 
 /** M8 – Sự kiện. */
@@ -57,6 +61,24 @@ export class EventsApi {
 
   respond(fundId: string, eventId: string, response: Exclude<ParticipationResponse, 'Pending'>): Observable<EventDetail> {
     return this.http.put<EventDetail>(this.url(fundId, eventId, '/me/response'), { response });
+  }
+
+  // ---- Quyết toán (M9) ----
+
+  settlementPreview(fundId: string, eventId: string): Observable<SettlementPreview> {
+    return this.http.get<SettlementPreview>(this.url(fundId, eventId, '/settlement/preview'));
+  }
+
+  settlement(fundId: string, eventId: string): Observable<SettlementResult> {
+    return this.http.get<SettlementResult>(this.url(fundId, eventId, '/settlement'));
+  }
+
+  settle(fundId: string, eventId: string, surplusMethod: SurplusMethod | null): Observable<SettlementResult> {
+    return this.http.post<SettlementResult>(this.url(fundId, eventId, '/settlement'), { surplusMethod });
+  }
+
+  confirmRefund(fundId: string, eventId: string, lineId: string): Observable<SettlementLine> {
+    return this.http.post<SettlementLine>(this.url(fundId, eventId, `/settlement/lines/${encodeURIComponent(lineId)}/refunded`), {});
   }
 
   // ---- Khoản thu sự kiện (M6b) ----
