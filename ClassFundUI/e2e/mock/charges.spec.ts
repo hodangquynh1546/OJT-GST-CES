@@ -108,13 +108,19 @@ test.describe('M6b Đóng bằng số dư', () => {
     expect(api.last('POST', '/me/assignments/a1/payments')?.body).toEqual({ method: 'PersonalBalance', transferCode: null, attachmentId: null });
   });
 
-  test('số dư không đủ: lựa chọn bị khóa', async ({ page }) => {
-    await openPage(page, 'Student', 'my-payments', (p) => unpaid(p, 20000));
+  test('số dư không đủ: dùng hết số dư rồi đóng thêm bằng tiền mặt', async ({ page }) => {
+    const api = await openPage(page, 'Student', 'my-payments', (p) => unpaid(p, 20000));
 
     await page.getByRole('button', { name: 'Nộp tiền' }).click();
     const dialog = page.getByRole('dialog');
-    await expect(dialog).toContainText('không đủ để đóng khoản này');
-    await expect(dialog.getByRole('radio', { name: /Dùng số dư/ })).toBeDisabled();
+    await expect(dialog.getByRole('radio', { name: /Dùng số dư/ })).toHaveCount(0);
+    await expect(dialog).toContainText('đóng thêm 30.000 đ');
+    await dialog.getByRole('checkbox').check();
+    await dialog.getByRole('button', { name: 'Xác nhận đã nộp' }).click();
+
+    await expect(page.getByText('Đã gửi. Thủ quỹ sẽ xác nhận khoản đóng của bạn.')).toBeVisible();
+    expect(api.last('POST', '/me/assignments/a1/payments')?.body).toEqual({ method: 'Cash', transferCode: null, attachmentId: null, useBalance: true });
+    await expect(page.getByText('đã dùng 20.000 đ số dư')).toBeVisible();
   });
 
   test('đang chờ rút: không hiện lựa chọn "Dùng số dư"', async ({ page }) => {
@@ -226,6 +232,22 @@ test.describe('H-03 Khoản cần đóng của tôi', () => {
     await page.getByRole('dialog').getByRole('button', { name: 'Xác nhận đã nộp' }).click();
 
     await expect(page.getByRole('dialog').getByRole('alert')).toContainText('Khoản này đã nộp hoặc đang chờ thủ quỹ xác nhận.');
+  });
+});
+
+test.describe('H-04 phạm vi trong hàng chờ', () => {
+  test('phân biệt khoản quỹ chung và khoản của từng sự kiện', async ({ page }) => {
+    await openPage(page, 'Treasurer', 'payments', (p) =>
+      new FakeChargesApi(p, [], [], [
+        queueItem('p1', 'Phạm Đức Long'),
+        { ...queueItem('p2', 'Lê Thu Hà'), eventId: 'e1', eventName: 'Dã ngoại Ba Vì', chargeTitle: 'Tiền xe' },
+      ]),
+    );
+
+    await expect(page.getByRole('button', { name: /Phạm Đức Long/ })).toContainText('Quỹ chung');
+    await expect(page.getByRole('button', { name: /Lê Thu Hà/ })).toContainText('Sự kiện: Dã ngoại Ba Vì');
+    await page.getByRole('button', { name: /Lê Thu Hà/ }).click();
+    await expect(page.getByText('Sự kiện: Dã ngoại Ba Vì').last()).toBeVisible();
   });
 });
 

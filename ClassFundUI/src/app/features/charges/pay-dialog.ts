@@ -47,17 +47,31 @@ export interface PayTarget {
             <span><b>Chuyển khoản</b><span class="cf-muted">Cần ảnh minh chứng chuyển khoản</span></span>
           </label>
           @if (balanceOption(); as option) {
-            <label class="method" [class.disabled]="!option.enough">
-              <input type="radio" name="method" value="PersonalBalance" [disabled]="!option.enough" [ngModel]="method()" (ngModelChange)="method.set('PersonalBalance')" />
+            @if (option.enough) {
+              <label class="method">
+                <input type="radio" name="method" value="PersonalBalance" [ngModel]="method()" (ngModelChange)="method.set('PersonalBalance')" />
+                <span>
+                  <b>Dùng số dư</b>
+                  <span class="cf-muted">Số dư hiện có {{ option.balance | vndMoney }} – trừ ngay, không cần thủ quỹ xác nhận</span>
+                </span>
+              </label>
+            }
+          }
+        </fieldset>
+
+        @if (balanceOption(); as option) {
+          @if (!option.enough && method() !== 'PersonalBalance') {
+            <label class="method">
+              <input type="checkbox" name="use-balance" [ngModel]="useBalance()" (ngModelChange)="useBalance.set($event)" />
               <span>
-                <b>Dùng số dư</b>
+                <b>Dùng số dư cá nhân {{ option.balance | vndMoney }} trước</b>
                 <span class="cf-muted">
-                  Số dư hiện có {{ option.balance | vndMoney }}{{ option.enough ? ' – trừ ngay, không cần thủ quỹ xác nhận' : ' – không đủ để đóng khoản này' }}
+                  Số dư không đủ nên trừ hết số dư, đóng thêm {{ target().amountDue - option.balance | vndMoney }} bằng hình thức đã chọn ở trên
                 </span>
               </span>
             </label>
           }
-        </fieldset>
+        }
 
         @if (method() === 'BankTransfer') {
           <div class="field">
@@ -153,6 +167,7 @@ export class PayDialog {
   readonly closed = output<void>();
 
   protected readonly method = signal<SubmitPaymentRequest['method']>('Cash');
+  protected readonly useBalance = signal(false);
   protected readonly transferCode = signal('');
   protected readonly proofs = signal<Attachment[]>([]);
   protected readonly busy = signal(false);
@@ -170,6 +185,9 @@ export class PayDialog {
     return { balance: mine.balance, enough: mine.balance >= this.target().amountDue };
   });
 
+  /** Dùng một phần số dư rồi đóng nốt bằng tiền mặt / chuyển khoản. */
+  protected readonly partialBalance = computed(() => this.useBalance() && this.method() !== 'PersonalBalance' && this.balanceOption()?.enough === false);
+
   protected readonly canSubmit = computed(() => this.method() !== 'BankTransfer' || this.proofs().length > 0);
 
   protected async submit(): Promise<void> {
@@ -186,6 +204,7 @@ export class PayDialog {
           method: this.method(),
           transferCode: bank ? this.transferCode().trim() || null : null,
           attachmentId: bank ? (this.proofs()[0]?.id ?? null) : null,
+          ...(this.partialBalance() ? { useBalance: true } : {}),
         }),
       );
       this.paid.emit({ selfDeclared: payment.isSelfDeclared });

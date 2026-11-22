@@ -37,7 +37,7 @@ import { EVENT_DESCRIPTION_MAX, EVENT_NAME_MAX, EventDetail } from '../events.mo
         <div class="title">
           <span>{{ event() ? 'Sửa sự kiện' : 'Tạo sự kiện' }}</span>
           @if (!event()) {
-            <span class="sub">Mọi thành viên đang hoạt động được mời và nhận thông báo (FR-30).</span>
+            <span class="sub">Mọi thành viên đang hoạt động được mời và nhận thông báo.</span>
           }
         </div>
       </kendo-dialog-titlebar>
@@ -57,7 +57,7 @@ import { EVENT_DESCRIPTION_MAX, EVENT_NAME_MAX, EventDetail } from '../events.mo
           <kendo-formerror>{{ serverError(form.controls.eventDate) ?? 'Vui lòng chọn ngày diễn ra.' }}</kendo-formerror>
         </kendo-formfield>
         @if (!event()) {
-          <div class="cf-alert">Khoản thu của sự kiện được tạo sau, trong trang chi tiết, và chỉ áp cho người đã xác nhận tham gia (FR-19).</div>
+          <div class="cf-alert">Khoản thu của sự kiện được tạo sau, trong trang chi tiết, và chỉ áp cho người đã xác nhận tham gia.</div>
         }
       </form>
       <kendo-dialog-actions layout="end">

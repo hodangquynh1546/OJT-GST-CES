@@ -98,7 +98,7 @@ test('U-01 lists audit entries like the canvas and filters by scope, actor, self
   await expect(first).toContainText('Nguyễn Minh Anh');
   await expect(first).toContainText('Tạo bút toán đảo'); // nhãn M7 (TD-14)
   await expect(grid.getByRole('row', { name: /Phân quyền thủ quỹ/ })).toContainText('Học sinh → Thủ quỹ');
-  await expect(grid.getByRole('row', { name: /payment\.confirm/ })).toContainText('Sự kiện: Dã ngoại Ba Vì');
+  await expect(grid.getByRole('row', { name: /Xác nhận thanh toán/ })).toContainText('Sự kiện: Dã ngoại Ba Vì');
   await expect(grid.getByText('Tự ghi nhận')).toHaveCount(2);
   await expect(page.getByText('7 bản ghi')).toBeVisible();
   await page.screenshot({ path: 'test-results/U-01.png', fullPage: true });
@@ -126,7 +126,7 @@ test('U-01 lists audit entries like the canvas and filters by scope, actor, self
 test('U-01 shows before / after in a dialog', async ({ page }) => {
   await open(page);
 
-  await page.getByRole('row', { name: /payment\.confirm/ }).getByRole('button', { name: 'Trước / sau' }).click();
+  await page.getByRole('row', { name: /Xác nhận thanh toán/ }).getByRole('button', { name: 'Trước / sau' }).click();
 
   const dialog = page.getByRole('dialog');
   await expect(dialog).toContainText('Trần Quang Huy · 16/11 20:30 · IP 113.190.xx.xx');

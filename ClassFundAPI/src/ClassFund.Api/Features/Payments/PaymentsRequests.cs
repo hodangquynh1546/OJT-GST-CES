@@ -11,7 +11,7 @@ public sealed record PaymentListRequest : PageRequest
     public PaymentStatus? Status { get; init; }
 }
 
-public sealed record SubmitPaymentRequest(PaymentMethod? Method, string? TransferCode, Guid? AttachmentId);
+public sealed record SubmitPaymentRequest(PaymentMethod? Method, string? TransferCode, Guid? AttachmentId, bool UseBalance = false);
 
 public sealed record RejectPaymentRequest(string Reason);
 

@@ -72,6 +72,8 @@ export interface LedgerEntryDetail {
   reverses: { id: string; title: string; transactionDate: string } | null;
   canReverse: boolean;
   history: LedgerHistoryItem[];
+  /** Khoản thu sinh từ thanh toán: người đã nộp. */
+  payerName: string | null;
 }
 
 export interface LedgerQuery {

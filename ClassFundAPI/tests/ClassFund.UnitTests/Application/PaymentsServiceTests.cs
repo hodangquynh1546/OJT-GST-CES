@@ -173,6 +173,66 @@ public class PaymentsServiceTests
     }
 
     [Fact]
+    public async Task Short_balance_plus_cash_deducts_balance_now_and_waits_for_the_rest()
+    {
+        await Credit(_ctx.StudentA, 20_000);
+
+        var payment = await CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, new(PaymentMethod.Cash, null, null, UseBalance: true), default);
+
+        Assert.Equal((PaymentStatus.Submitted, PaymentMethod.Cash, 50_000L, 20_000L), (payment.Status, payment.Method, payment.Amount, payment.BalanceApplied));
+        Assert.Equal(0, BalanceOf(_ctx.StudentA));
+        Assert.Equal(AssignmentStatus.AwaitingConfirmation, AssignmentOf(_ctx.StudentA).Status);
+        Assert.Empty(_ctx.Db.Query<LedgerEntry>());
+
+        _ctx.ActAs(_ctx.Treasurer);
+        var queue = await CreateService().ListAsync(_ctx.Fund.Id, new PaymentFilter(null, 1, 20), default);
+        Assert.Equal(20_000, Assert.Single(queue.Items).BalanceApplied);
+
+        await CreateService().ConfirmAsync(_ctx.Fund.Id, payment.Id, default);
+        Assert.Equal(50_000, _ctx.Db.Query<LedgerEntry>().Single().Amount);
+        Assert.Equal(0, BalanceOf(_ctx.StudentA));
+    }
+
+    [Fact]
+    public async Task Rejecting_a_mixed_payment_gives_the_balance_back()
+    {
+        await Credit(_ctx.StudentA, 20_000);
+        var payment = await CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, new(PaymentMethod.Cash, null, null, UseBalance: true), default);
+
+        _ctx.ActAs(_ctx.Treasurer);
+        await CreateService().RejectAsync(_ctx.Fund.Id, payment.Id, "Chưa nhận được tiền", default);
+
+        Assert.Equal(20_000, BalanceOf(_ctx.StudentA));
+        Assert.Contains(_ctx.Db.Query<BalanceTransaction>(), item => item.Type == BalanceTransactionType.ChargeRefund && item.Amount == 20_000 && item.ReferenceId == payment.Id);
+        Assert.Equal(AssignmentStatus.Unpaid, AssignmentOf(_ctx.StudentA).Status);
+    }
+
+    [Fact]
+    public async Task Use_balance_covering_everything_becomes_a_full_balance_payment()
+    {
+        await Credit(_ctx.StudentA, 80_000);
+
+        var payment = await CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, new(PaymentMethod.Cash, null, null, UseBalance: true), default);
+
+        Assert.Equal((PaymentStatus.Confirmed, PaymentMethod.PersonalBalance, 50_000L), (payment.Status, payment.Method, payment.BalanceApplied));
+        Assert.Equal(30_000, BalanceOf(_ctx.StudentA));
+    }
+
+    [Fact]
+    public async Task Use_balance_without_any_balance_is_refused_and_bank_transfer_part_needs_proof()
+    {
+        var none = await Assert.ThrowsAsync<BusinessRuleException>(() =>
+            CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, new(PaymentMethod.Cash, null, null, UseBalance: true), default));
+        Assert.Equal(BalanceErrors.Insufficient, none.Code);
+
+        await Credit(_ctx.StudentA, 20_000);
+        var noProof = await Assert.ThrowsAsync<BusinessRuleException>(() =>
+            CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, new(PaymentMethod.BankTransfer, null, null, UseBalance: true), default));
+        Assert.Equal(PaymentsErrors.ProofRequiredCode, noProof.Code);
+        Assert.Equal(20_000, BalanceOf(_ctx.StudentA));
+    }
+
+    [Fact]
     public async Task A_student_cannot_pay_someone_elses_obligation()
     {
         await Assert.ThrowsAsync<NotFoundException>(() =>

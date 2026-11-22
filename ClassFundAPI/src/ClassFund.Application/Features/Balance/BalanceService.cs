@@ -30,6 +30,12 @@ public interface IBalanceService
     /// <returns>Số dư sau khi trừ.</returns>
     Task<long> DebitAsync(Guid fundId, Guid userId, long amount, BalanceTransactionType type, Guid? referenceId, Guid actorUserId, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Số dư hiện có của người dùng ở quỹ (0 nếu chưa có), khóa dòng số dư để quyết định dùng bao nhiêu cho một khoản đóng.
+    /// <b>Chỉ gọi trong transaction của module gọi.</b>
+    /// </summary>
+    Task<long> GetBalanceForUpdateAsync(Guid fundId, Guid userId, CancellationToken cancellationToken);
+
     Task<bool> HasPendingWithdrawalAsync(Guid fundId, Guid userId, CancellationToken cancellationToken);
 
     /// <summary>B-01: số dư, yêu cầu rút gần nhất, lịch sử biến động, số dư ở các quỹ khác.</summary>
@@ -64,6 +70,12 @@ public sealed class BalanceService(
         }
 
         return await ApplyAsync(fundId, userId, -amount, type, referenceId, actorUserId, cancellationToken);
+    }
+
+    public async Task<long> GetBalanceForUpdateAsync(Guid fundId, Guid userId, CancellationToken cancellationToken)
+    {
+        WithdrawalRule.EnsureCanSpend(await HasPendingWithdrawalAsync(fundId, userId, cancellationToken));
+        return (await LockExistingAsync(fundId, userId, cancellationToken))?.Balance ?? 0;
     }
 
     public Task<bool> HasPendingWithdrawalAsync(Guid fundId, Guid userId, CancellationToken cancellationToken) =>
@@ -233,6 +245,9 @@ public sealed class BalanceService(
                 BalanceTransactionType.ChargePayment => payment is null
                     ? ("Đóng khoản thu bằng số dư", null, null)
                     : ($"Đóng “{payment.Title}”", payment.EventId is null ? FinancialScope.General : FinancialScope.Event, payment.EventName),
+                BalanceTransactionType.ChargeRefund => payment is null
+                    ? ("Hoàn số dư do thanh toán bị từ chối", null, null)
+                    : ($"Hoàn số dư – thanh toán “{payment.Title}” bị từ chối", payment.EventId is null ? FinancialScope.General : FinancialScope.Event, payment.EventName),
                 BalanceTransactionType.Withdrawal => ("Rút số dư – thủ quỹ đã trả", null, null),
                 _ => ("Điều chỉnh số dư", null, null),
             };

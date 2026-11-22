@@ -50,14 +50,14 @@ public sealed class LedgerService(
 
     public async Task<LedgerListResult> ListAsync(Guid fundId, LedgerFilter filter, CancellationToken cancellationToken)
     {
-        var (_, access) = await ViewerAsync(fundId, cancellationToken);
+        var (viewerId, access) = await ViewerAsync(fundId, cancellationToken);
         var manager = CanManage(access);
         if (filter.EventId is { } eventId)
         {
             await EnsureCanViewEventAsync(fundId, eventId, manager, cancellationToken);
         }
 
-        var entries = Visible(LedgerBalances.InScope(db, fundId, filter.EventId), manager);
+        var entries = Visible(LedgerBalances.InScope(db, fundId, filter.EventId), manager, viewerId);
         if (filter.Type is { } type)
         {
             entries = entries.Where(entry => entry.Type == type);
@@ -97,13 +97,13 @@ public sealed class LedgerService(
 
     public async Task<LedgerEntryDetailDto> GetAsync(Guid fundId, Guid entryId, CancellationToken cancellationToken)
     {
-        var (_, access) = await ViewerAsync(fundId, cancellationToken);
+        var (viewerId, access) = await ViewerAsync(fundId, cancellationToken);
         var manager = CanManage(access);
         var entry = await db.FirstOrDefaultAsync(
             db.Query<LedgerEntry>().Where(item => item.Id == entryId && item.FundId == fundId),
             cancellationToken) ?? throw new NotFoundException();
 
-        if (!manager && entry.Source != LedgerSource.Manual)
+        if (!manager && !await db.AnyAsync(Visible(db.Query<LedgerEntry>().Where(item => item.Id == entry.Id), false, viewerId), cancellationToken))
         {
             throw new NotFoundException();
         }
@@ -354,6 +354,15 @@ public sealed class LedgerService(
                 cancellationToken);
         }
 
+        var payerName = entry.PaymentId is { } paymentId
+            ? await db.FirstOrDefaultAsync(
+                from payment in db.Query<Payment>()
+                where payment.Id == paymentId
+                join user in db.Query<User>() on payment.PayerUserId equals user.Id
+                select user.FullName,
+                cancellationToken)
+            : null;
+
         var canReverse = CanManage(access)
             && entry.Source == LedgerSource.Manual
             && entry.Type == LedgerType.Expense
@@ -375,7 +384,8 @@ public sealed class LedgerService(
             reversedBy,
             reverses,
             canReverse,
-            history);
+            history,
+            payerName);
     }
 
     private async Task<bool> ScopeOpenForReversalAsync(Guid fundId, Guid? eventId, CancellationToken cancellationToken)
@@ -410,9 +420,21 @@ public sealed class LedgerService(
     private Task<string?> CategoryNameAsync(Guid categoryId, CancellationToken cancellationToken) =>
         db.FirstOrDefaultAsync(db.Query<Category>().Where(category => category.Id == categoryId).Select(category => category.Name), cancellationToken);
 
-    /// <summary>Học sinh chỉ thấy khoản chi ghi tay và bút toán đảo của chúng; thu từ thanh toán cho biết ai đã đóng (OQ-14).</summary>
-    private static IQueryable<LedgerEntry> Visible(IQueryable<LedgerEntry> entries, bool manager) =>
-        manager ? entries : entries.Where(entry => entry.Source == LedgerSource.Manual);
+    /// <summary>
+    /// Học sinh thấy khoản chi ghi tay, bút toán đảo của chúng và các khoản thu do CHÍNH MÌNH đã nộp; không thấy ai khác đã đóng (OQ-14).
+    /// </summary>
+    private IQueryable<LedgerEntry> Visible(IQueryable<LedgerEntry> entries, bool manager, Guid viewerId)
+    {
+        if (manager)
+        {
+            return entries;
+        }
+
+        var mine = db.Query<Payment>().Where(payment => payment.PayerUserId == viewerId);
+        return entries.Where(entry =>
+            entry.Source == LedgerSource.Manual
+            || (entry.Source == LedgerSource.Payment && mine.Any(payment => payment.Id == entry.PaymentId)));
+    }
 
     /// <summary>Sự kiện phải thuộc quỹ; người không quản lý phải là người đã nhận tham gia (như chứng từ chi sự kiện, AZ-05).</summary>
     private async Task EnsureCanViewEventAsync(Guid fundId, Guid eventId, bool manager, CancellationToken cancellationToken)

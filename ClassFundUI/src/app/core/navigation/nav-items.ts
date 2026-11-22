@@ -57,7 +57,7 @@ export function buildNavItems({ fundId, permissions }: NavContext): NavItem[] {
   };
 
   add(Permissions.FundView, 'Quỹ chung', 'overview', 'Tổng quan', '', ICONS.overview);
-  add(Permissions.FundView, 'Quỹ chung', 'ledger', 'Thu chi chung', '/ledger', ICONS.ledger);
+  add(Permissions.FundView, 'Quỹ chung', 'ledger', permissions.includes(Permissions.LedgerManage) ? 'Thu chi chung' : 'Chi tiêu', '/ledger', ICONS.ledger);
   add(Permissions.FundView, 'Quỹ chung', 'charges', 'Khoản thu chung', '/charges', ICONS.charges);
   add(Permissions.EventParticipate, 'Quỹ chung', 'events', 'Sự kiện', '/events', ICONS.events);
   add(Permissions.PaymentSubmit, 'Cá nhân', 'my-payments', 'Khoản cần đóng', '/my-payments', ICONS.payments);

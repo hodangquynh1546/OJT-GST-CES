@@ -38,7 +38,7 @@ test('student sees general fund and events but not management menu', async ({ pa
   await page.getByRole('link', { name: 'Mở quỹ Lớp 10A1' }).click();
   await expect(page).toHaveURL(/\/funds\/f1$/);
   const nav = page.getByRole('navigation', { name: 'Điều hướng chính' });
-  await expect(nav.getByText('Thu chi chung')).toBeVisible();
+  await expect(nav.getByText('Chi tiêu')).toBeVisible();
   await expect(nav.getByText('Sự kiện')).toBeVisible();
   await expect(nav.getByText('Xác nhận thanh toán')).toHaveCount(0);
 });

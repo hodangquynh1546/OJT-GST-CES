@@ -57,6 +57,7 @@ public sealed class PaymentsService(
             .GroupBy(payment => payment.AssignmentId)
             .ToDictionary(group => group.Key, group => group.OrderByDescending(payment => payment.Status != PaymentStatus.Rejected).ThenByDescending(payment => payment.SubmittedAt).First());
 
+        var applied = await BalanceAppliedAsync(latest.Values.Select(payment => payment.Id).ToArray(), cancellationToken);
         return rows
             .OrderBy(row => row.assignment.Status == AssignmentStatus.Paid ? 1 : 0)
             .ThenBy(row => row.charge.DueDate)
@@ -80,7 +81,8 @@ public sealed class PaymentsService(
                     payment?.Status == PaymentStatus.Rejected ? payment.RejectionReason : null,
                     payment?.ConfirmationMode == ConfirmationMode.SelfDeclared,
                     eventId,
-                    eventId.HasValue ? eventNames.GetValueOrDefault(eventId.Value) : null);
+                    eventId.HasValue ? eventNames.GetValueOrDefault(eventId.Value) : null,
+                    payment is null ? 0 : applied.GetValueOrDefault(payment.Id));
             })
             .ToArray();
     }
@@ -94,13 +96,12 @@ public sealed class PaymentsService(
             throw new ForbiddenAccessException();
         }
 
-        if (input.Method == PaymentMethod.BankTransfer && input.AttachmentId is null)
+        if (input.Method == PaymentMethod.BankTransfer && input.AttachmentId is null && !input.UseBalance)
         {
             throw new BusinessRuleException(PaymentsErrors.ProofRequiredCode, PaymentsErrors.ProofRequiredMessage);
         }
 
-        var viaBalance = input.Method == PaymentMethod.PersonalBalance;
-        var transferCode = viaBalance || string.IsNullOrWhiteSpace(input.TransferCode) ? null : input.TransferCode.Trim();
+        var transferCode = string.IsNullOrWhiteSpace(input.TransferCode) ? null : input.TransferCode.Trim();
 
         try
         {
@@ -142,10 +143,43 @@ public sealed class PaymentsService(
                         }
                     }
 
+                    // Dùng số dư: toàn bộ (PersonalBalance) hoặc một phần rồi đóng nốt bằng tiền mặt / chuyển khoản (UseBalance).
+                    var method = input.Method;
+                    long balancePart = 0;
+                    if (method == PaymentMethod.PersonalBalance)
+                    {
+                        balancePart = assignment.AmountDue;
+                    }
+                    else if (input.UseBalance)
+                    {
+                        var available = await balances.GetBalanceForUpdateAsync(fundId, userId, token);
+                        if (available <= 0)
+                        {
+                            throw new BusinessRuleException(BalanceErrors.Insufficient, "Bạn chưa có số dư để sử dụng.");
+                        }
+
+                        balancePart = Math.Min(available, assignment.AmountDue);
+                        if (balancePart == assignment.AmountDue)
+                        {
+                            method = PaymentMethod.PersonalBalance;
+                        }
+                    }
+
+                    var viaBalance = method == PaymentMethod.PersonalBalance;
+                    if (!viaBalance && method == PaymentMethod.BankTransfer && input.AttachmentId is null)
+                    {
+                        throw new BusinessRuleException(PaymentsErrors.ProofRequiredCode, PaymentsErrors.ProofRequiredMessage);
+                    }
+
                     var scope = charge.EventId.HasValue ? FinancialScope.Event : FinancialScope.General;
                     var now = clock.GetUtcNow();
-                    var payment = new Payment(assignment.Id, userId, assignment.AmountDue, input.Method, now) { TransferCode = transferCode };
+                    var payment = new Payment(assignment.Id, userId, assignment.AmountDue, method, now) { TransferCode = viaBalance ? null : transferCode };
                     db.Add(payment);
+
+                    if (balancePart > 0)
+                    {
+                        await balances.DebitAsync(fundId, userId, balancePart, BalanceTransactionType.ChargePayment, payment.Id, userId, token);
+                    }
 
                     var proofCount = 0;
                     if (!viaBalance && input.AttachmentId is { } attachmentId)
@@ -167,17 +201,17 @@ public sealed class PaymentsService(
                             chargeTitle = charge.Title,
                             payerName = payer.FullName,
                             amount = payment.Amount,
-                            method = input.Method.ToString(),
+                            method = method.ToString(),
                             hasProof = proofCount > 0,
+                            balanceUsed = balancePart,
                         }));
 
                     if (viaBalance)
                     {
-                        // Trừ số dư + xác nhận ngay trong cùng transaction (không đủ → 422, đang chờ rút → 422).
-                        await balances.DebitAsync(fundId, userId, payment.Amount, BalanceTransactionType.ChargePayment, payment.Id, userId, token);
+                        // Số dư đã trừ ở trên (không đủ → 422, đang chờ rút → 422); xác nhận ngay trong cùng transaction.
                         await ConfirmCoreAsync(fundId, payment, assignment, charge, payer, userId, ConfirmationMode.Verified, token, viaBalance: true);
                         await db.SaveChangesAsync(token);
-                        return ToDto(payment);
+                        return ToDto(payment, balancePart);
                     }
 
                     // BR-12: thủ quỹ nộp cho mình = gửi + tự xác nhận trong một thao tác.
@@ -192,7 +226,7 @@ public sealed class PaymentsService(
                     }
 
                     await db.SaveChangesAsync(token);
-                    return ToDto(payment);
+                    return ToDto(payment, balancePart);
                 },
                 cancellationToken);
         }
@@ -328,6 +362,13 @@ public sealed class PaymentsService(
                 payment.RejectionReason = trimmed;
                 assignment.Status = AssignmentStatus.Unpaid;
 
+                // Phần đã trừ từ số dư cá nhân được hoàn lại để người nộp nộp lại.
+                var refunded = (await BalanceAppliedAsync([payment.Id], token)).GetValueOrDefault(payment.Id);
+                if (refunded > 0)
+                {
+                    await balances.CreditAsync(fundId, payment.PayerUserId, refunded, BalanceTransactionType.ChargeRefund, payment.Id, actorId, token);
+                }
+
                 var rejectScope = charge.EventId.HasValue ? FinancialScope.Event : FinancialScope.General;
                 audit.Record(new AuditEntry(
                     PaymentsAuditActions.Reject,
@@ -347,7 +388,7 @@ public sealed class PaymentsService(
                         charge.EventId,
                         NotificationType.PaymentRejected,
                         $"{Notifier.GeneralPrefix} Thanh toán bị từ chối: {charge.Title}",
-                        $"Lý do: {trimmed}. Bạn có thể nộp lại.",
+                        refunded > 0 ? $"Lý do: {trimmed}. Số dư {refunded:N0}đ đã dùng được hoàn lại, bạn có thể nộp lại." : $"Lý do: {trimmed}. Bạn có thể nộp lại.",
                         nameof(Payment),
                         payment.Id));
                 await db.SaveChangesAsync(token);
@@ -495,6 +536,12 @@ public sealed class PaymentsService(
             .GroupBy(item => item.OwnerId!.Value)
             .ToDictionary(group => group.Key, group => (IReadOnlyList<AttachmentDto>)group.OrderBy(item => item.UploadedAt).Select(AttachmentsService.ToDto).ToArray());
 
+        var applied = await BalanceAppliedAsync(paymentIds, cancellationToken);
+        var eventIds = rows.Where(row => row.Charge.EventId.HasValue).Select(row => row.Charge.EventId!.Value).Distinct().ToArray();
+        var eventNames = eventIds.Length == 0
+            ? new Dictionary<Guid, string>()
+            : (await db.ToListAsync(db.Query<Event>().Where(item => eventIds.Contains(item.Id)).Select(item => new { item.Id, item.Name }), cancellationToken))
+                .ToDictionary(item => item.Id, item => item.Name);
         return rows
             .Select(row => new PaymentQueueItemDto(
                 row.Payment.Id,
@@ -512,13 +559,32 @@ public sealed class PaymentsService(
                 row.Payment.ConfirmedAt,
                 row.Payment.ConfirmationMode == ConfirmationMode.SelfDeclared,
                 row.Payment.RejectionReason,
-                files.GetValueOrDefault(row.Payment.Id) ?? []))
+                files.GetValueOrDefault(row.Payment.Id) ?? [],
+                applied.GetValueOrDefault(row.Payment.Id),
+                row.Charge.EventId,
+                row.Charge.EventId.HasValue ? eventNames.GetValueOrDefault(row.Charge.EventId.Value) : null))
             .ToArray();
     }
 
-    private static PaymentDto ToDto(Payment payment) =>
+    private static PaymentDto ToDto(Payment payment, long balanceApplied = 0) =>
         new(payment.Id, payment.AssignmentId, payment.Amount, payment.Method, payment.TransferCode, payment.Status, payment.SubmittedAt,
-            payment.ConfirmationMode == ConfirmationMode.SelfDeclared);
+            payment.ConfirmationMode == ConfirmationMode.SelfDeclared, balanceApplied);
+
+    /// <summary>Số dư cá nhân đã dùng cho mỗi thanh toán (đã trừ hoàn lại khi bị từ chối).</summary>
+    private async Task<Dictionary<Guid, long>> BalanceAppliedAsync(IReadOnlyCollection<Guid> paymentIds, CancellationToken cancellationToken)
+    {
+        if (paymentIds.Count == 0)
+        {
+            return [];
+        }
+
+        var rows = await db.ToListAsync(
+            db.Query<BalanceTransaction>().Where(item =>
+                item.ReferenceId != null && paymentIds.Contains(item.ReferenceId.Value)
+                && (item.Type == BalanceTransactionType.ChargePayment || item.Type == BalanceTransactionType.ChargeRefund)),
+            cancellationToken);
+        return rows.GroupBy(item => item.ReferenceId!.Value).ToDictionary(group => group.Key, group => -group.Sum(item => item.Amount));
+    }
 
     private async Task<Guid> EnsureConfirmerAsync(Guid fundId, CancellationToken cancellationToken)
     {

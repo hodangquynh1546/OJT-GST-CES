@@ -179,4 +179,77 @@ public class EventChargesAndBalancePaymentsApiTests(ApiTestHost host)
         Assert.Equal(1, await db.Payments.CountAsync(payment => payment.PayerUserId == s.Going.Id));
         Assert.Equal(1, await db.LedgerEntries.CountAsync(entry => entry.FundId == s.Fund.Id));
     }
+
+    [Fact]
+    public async Task Short_balance_plus_cash_then_reject_returns_the_balance_and_confirm_writes_the_full_income()
+    {
+        var s = await SetupAsync();
+        Assert.Equal(HttpStatusCode.Created, (await s.OwnerClient.PostAsJsonAsync($"{Base(s.Fund.Id)}/charges", NewCharge(s.CategoryId, "Quỹ HK1", 50_000))).StatusCode);
+        var assignmentId = await AssignmentIdAsync(s.GoingClient, s.Fund.Id, "Quỹ HK1");
+        await SeedBalanceAsync(s.Fund, s.Going, 20_000);
+
+        var submitted = await s.GoingClient.PostAsJsonAsync($"{Base(s.Fund.Id)}/me/assignments/{assignmentId}/payments", new { method = "Cash", useBalance = true });
+        Assert.Equal(HttpStatusCode.Created, submitted.StatusCode);
+        var payment = await ReadAsync(submitted);
+        Assert.Equal("Submitted", payment.GetProperty("status").GetString());
+        Assert.Equal(20_000, payment.GetProperty("balanceApplied").GetInt64());
+        Assert.Equal(0, await BalanceOfAsync(s.Fund, s.Going));
+        var paymentId = payment.GetProperty("id").GetGuid();
+
+        var queue = await ReadAsync(await s.OwnerClient.GetAsync($"{Base(s.Fund.Id)}/payments"));
+        Assert.Equal(20_000, queue.GetProperty("items")[0].GetProperty("balanceApplied").GetInt64());
+        Assert.Equal(JsonValueKind.Null, queue.GetProperty("items")[0].GetProperty("eventId").ValueKind);
+
+        Assert.Equal(HttpStatusCode.OK, (await s.OwnerClient.PostAsJsonAsync($"{Base(s.Fund.Id)}/payments/{paymentId}/reject", new { reason = "Chưa nhận được tiền" })).StatusCode);
+        Assert.Equal(20_000, await BalanceOfAsync(s.Fund, s.Going));
+
+        var again = await s.GoingClient.PostAsJsonAsync($"{Base(s.Fund.Id)}/me/assignments/{assignmentId}/payments", new { method = "Cash", useBalance = true });
+        Assert.Equal(HttpStatusCode.Created, again.StatusCode);
+        var secondId = (await ReadAsync(again)).GetProperty("id").GetGuid();
+        Assert.Equal(HttpStatusCode.OK, (await s.OwnerClient.PostAsync($"{Base(s.Fund.Id)}/payments/{secondId}/confirm", null)).StatusCode);
+
+        await using var db = host.CreateDbContext();
+        Assert.Equal(50_000, (await db.LedgerEntries.SingleAsync(entry => entry.FundId == s.Fund.Id)).Amount);
+        Assert.Equal(0, await BalanceOfAsync(s.Fund, s.Going));
+    }
+
+    [Fact]
+    public async Task Students_see_expenses_and_only_their_own_income_and_the_detail_names_the_payer()
+    {
+        var s = await SetupAsync();
+        Assert.Equal(HttpStatusCode.Created, (await s.OwnerClient.PostAsJsonAsync($"{Base(s.Fund.Id)}/charges", NewCharge(s.CategoryId, "Quỹ HK1", 50_000))).StatusCode);
+        foreach (var client in new[] { s.GoingClient, s.StayingClient })
+        {
+            var assignment = await AssignmentIdAsync(client, s.Fund.Id, "Quỹ HK1");
+            var paid = await ReadAsync(await client.PostAsJsonAsync($"{Base(s.Fund.Id)}/me/assignments/{assignment}/payments", new { method = "Cash" }));
+            Assert.Equal(HttpStatusCode.OK, (await s.OwnerClient.PostAsync($"{Base(s.Fund.Id)}/payments/{paid.GetProperty("id").GetGuid()}/confirm", null)).StatusCode);
+        }
+
+        var mine = await ReadAsync(await s.GoingClient.GetAsync($"{Base(s.Fund.Id)}/ledger-entries"));
+        var incomeEntry = Assert.Single(mine.GetProperty("items").EnumerateArray());
+        Assert.Equal("Income", incomeEntry.GetProperty("type").GetString());
+        var detail = await ReadAsync(await s.GoingClient.GetAsync($"{Base(s.Fund.Id)}/ledger-entries/{incomeEntry.GetProperty("id").GetGuid()}"));
+        Assert.Equal(s.Going.FullName, detail.GetProperty("payerName").GetString());
+
+        var all = await ReadAsync(await s.OwnerClient.GetAsync($"{Base(s.Fund.Id)}/ledger-entries"));
+        Assert.Equal(2, all.GetProperty("items").GetArrayLength());
+        var otherId = all.GetProperty("items").EnumerateArray().Select(item => item.GetProperty("id").GetGuid()).Single(id => id != incomeEntry.GetProperty("id").GetGuid());
+        Assert.Equal(HttpStatusCode.NotFound, (await s.GoingClient.GetAsync($"{Base(s.Fund.Id)}/ledger-entries/{otherId}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task The_confirmation_queue_names_the_event_of_an_event_payment()
+    {
+        var s = await SetupAsync();
+        var eventId = await CreateEventWithAnswersAsync(s);
+        Assert.Equal(HttpStatusCode.Created, (await s.OwnerClient.PostAsJsonAsync($"{Base(s.Fund.Id)}/events/{eventId}/charges", NewCharge(s.CategoryId, "Tiền xe", 70_000))).StatusCode);
+        var assignmentId = await AssignmentIdAsync(s.GoingClient, s.Fund.Id, "Tiền xe");
+        var paid = await s.GoingClient.PostAsJsonAsync($"{Base(s.Fund.Id)}/me/assignments/{assignmentId}/payments", new { method = "Cash" });
+        Assert.Equal(HttpStatusCode.Created, paid.StatusCode);
+
+        var queue = await ReadAsync(await s.OwnerClient.GetAsync($"{Base(s.Fund.Id)}/payments"));
+        var item = Assert.Single(queue.GetProperty("items").EnumerateArray());
+        Assert.Equal(eventId, item.GetProperty("eventId").GetGuid());
+        Assert.Equal("Dã ngoại Ba Vì", item.GetProperty("eventName").GetString());
+    }
 }

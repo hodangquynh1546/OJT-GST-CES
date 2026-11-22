@@ -4,7 +4,7 @@
   <div class="page">
     <div class="head-t">
       <h1>Số dư cá nhân</h1>
-      <p class="cf-muted">Tiền thừa sau quyết toán được cộng vào đây. Dùng để đóng khoản thu (chung hoặc sự kiện) hoặc rút toàn bộ (FR-40…42).</p>
+      <p class="cf-muted">Tiền thừa sau quyết toán được cộng vào đây. Dùng để đóng khoản thu (chung hoặc sự kiện) hoặc rút toàn bộ.</p>
     </div>
 
     <div class="split">
@@ -40,19 +40,6 @@
           <a class="cf-link-button" [routerLink]="['/funds', fundId(), 'my-payments']">Dùng đóng khoản thu</a>
         </div>
         <p class="cf-muted small">Rút tiền luôn là rút toàn bộ số dư; mỗi lúc chỉ có một yêu cầu đang chờ.</p>
-      </section>
-
-      <section class="cf-card pad aside" aria-label="Số dư ở các quỹ khác">
-        <h2>Số dư ở các quỹ khác</h2>
-        @for (fund of data.otherFunds; track fund.fundId) {
-          <div class="between">
-            <span>{{ fund.fundName }}@if (fund.isArchived) {&nbsp;<span class="cf-muted">(đã tổng kết)</span>}</span>
-            <span class="cf-money">{{ fund.balance | vndMoney }}</span>
-          </div>
-        } @empty {
-          <p class="cf-muted small">Bạn chưa tham gia quỹ nào khác.</p>
-        }
-        <p class="cf-muted small">Số dư tính riêng theo từng quỹ, không chuyển qua lại.</p>
       </section>
     </div>
 

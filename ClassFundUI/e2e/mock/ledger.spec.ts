@@ -54,7 +54,7 @@ test('L-02 expense: max spend, evidence over 500k, saves with receipt', async ({
   await expect(dialog.getByRole('button', { name: 'Lưu khoản chi' })).toBeDisabled();
 
   await amount.fill('650000');
-  await expect(dialog.getByText('Khoản chi trên 500.000 đ bắt buộc có chứng từ (FR-16).')).toBeVisible();
+  await expect(dialog.getByText('Khoản chi trên 500.000 đ bắt buộc có chứng từ.')).toBeVisible();
   await dialog.locator('kendo-dropdownlist').click();
   await page.getByRole('option', { name: 'Học tập' }).click();
   await shot(page, 'app-ledger-new');
@@ -108,7 +108,7 @@ test('L-03 detail: receipts, reversal with reason, history', async ({ page }) =>
 
 test('students read only: no write button, expenses only, receipt dialog', async ({ page }) => {
   await FakeMoneyApi.open(page, student, LEDGER);
-  await expect(page.getByRole('heading', { name: 'Thu chi chung' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Chi tiêu' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Ghi giao dịch' })).toHaveCount(0);
   const grid = page.locator('kendo-grid');
   await expect(grid.getByText('Mua hoa 20/11 tặng cô chủ nhiệm')).toBeVisible();
@@ -116,7 +116,7 @@ test('students read only: no write button, expenses only, receipt dialog', async
 
   await grid.locator('tr', { hasText: 'Mua hoa 20/11' }).getByRole('button', { name: 'Xem' }).click();
   const dialog = page.locator('kendo-dialog');
-  await expect(dialog.getByText('Học sinh xem được chứng từ chi công khai', { exact: false })).toBeVisible();
+  await expect(dialog.getByText('Bạn xem được các khoản chi công khai', { exact: false })).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Xem thiep.pdf' })).toBeVisible();
   await shot(page, 'app-ledger-student');
 });

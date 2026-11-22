@@ -1,6 +1,6 @@
 import { FinancialScope } from '../../shared/models/labels';
 
-export type BalanceTransactionType = 'SettlementCredit' | 'ChargePayment' | 'Withdrawal' | 'Adjustment';
+export type BalanceTransactionType = 'SettlementCredit' | 'ChargePayment' | 'ChargeRefund' | 'Withdrawal' | 'Adjustment';
 export type WithdrawalStatus = 'Requested' | 'Paid' | 'Rejected';
 
 export interface BalanceHistoryItem {
