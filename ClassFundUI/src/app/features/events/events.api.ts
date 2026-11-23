@@ -81,6 +81,11 @@ export class EventsApi {
     return this.http.post<SettlementLine>(this.url(fundId, eventId, `/settlement/lines/${encodeURIComponent(lineId)}/refunded`), {});
   }
 
+  /** "Nhắc đóng" một người tham gia còn khoản chưa đóng (thông báo riêng cho người đó). */
+  remindParticipant(fundId: string, eventId: string, userId: string): Observable<{ reminded: number }> {
+    return this.http.post<{ reminded: number }>(this.url(fundId, eventId, `/participants/${encodeURIComponent(userId)}/remind`), {});
+  }
+
   // ---- Khoản thu sự kiện (M6b) ----
 
   createCharge(fundId: string, eventId: string, body: CreateChargeRequest): Observable<EventCharge> {

@@ -288,4 +288,45 @@ public class ChargesServiceTests
         var cancelled = await CreateService().CancelEventChargeAsync(_ctx.Fund.Id, fundEvent.Id, second.Id, default);
         Assert.Equal(ChargeStatus.Cancelled, cancelled.Status);
     }
+
+    [Fact]
+    public async Task Reminding_an_event_participant_notifies_only_that_person_and_is_throttled()
+    {
+        var fundEvent = SeedEvent();
+        _ctx.ActAs(_ctx.Treasurer);
+        await CreateService().CreateEventChargeAsync(_ctx.Fund.Id, fundEvent.Id, Input(70_000), default);
+
+        var result = await CreateService().RemindEventParticipantAsync(_ctx.Fund.Id, fundEvent.Id, _ctx.StudentA.Id, default);
+
+        Assert.Equal(1, result.Reminded);
+        var reminder = Assert.Single(_ctx.Db.Query<Notification>().Where(item => item.Type == NotificationType.EventUnpaidReminder));
+        Assert.Equal((_ctx.StudentA.Id, FinancialScope.Event, fundEvent.Id), (reminder.UserId, reminder.Scope, reminder.EventId!.Value));
+        Assert.StartsWith("[Sự kiện: Dã ngoại Ba Vì]", reminder.Title);
+        Assert.Contains("70.000", reminder.Body);
+        Assert.Contains(_ctx.AuditLogs, log => log.Action == ChargesAuditActions.EventRemind && log.Scope == FinancialScope.Event);
+
+        var tooSoon = await Assert.ThrowsAsync<ConflictException>(() => CreateService().RemindEventParticipantAsync(_ctx.Fund.Id, fundEvent.Id, _ctx.StudentA.Id, default));
+        Assert.Equal(ChargesErrors.RemindTooSoonCode, tooSoon.Code);
+
+        _ctx.Clock.Now = ServiceTestContext.Start.AddHours(2);
+        await CreateService().RemindEventParticipantAsync(_ctx.Fund.Id, fundEvent.Id, _ctx.StudentA.Id, default);
+        Assert.Equal(2, _ctx.Db.Query<Notification>().Count(item => item.Type == NotificationType.EventUnpaidReminder));
+    }
+
+    [Fact]
+    public async Task Reminding_needs_something_unpaid_and_a_counted_participant()
+    {
+        var fundEvent = SeedEvent();
+        _ctx.ActAs(_ctx.Treasurer);
+        await CreateService().CreateEventChargeAsync(_ctx.Fund.Id, fundEvent.Id, Input(70_000), default);
+        _ctx.Db.Query<ChargeAssignment>().Single(item => item.UserId == _ctx.StudentA.Id).Status = AssignmentStatus.Paid;
+
+        var nothing = await Assert.ThrowsAsync<BusinessRuleException>(() => CreateService().RemindEventParticipantAsync(_ctx.Fund.Id, fundEvent.Id, _ctx.StudentA.Id, default));
+        Assert.Equal(ChargesErrors.NothingToRemindCode, nothing.Code);
+        await Assert.ThrowsAsync<NotFoundException>(() => CreateService().RemindEventParticipantAsync(_ctx.Fund.Id, fundEvent.Id, _ctx.StudentB.Id, default)); // đã từ chối tham gia
+        Assert.Empty(_ctx.Db.Query<Notification>().Where(item => item.Type == NotificationType.EventUnpaidReminder));
+
+        _ctx.ActAs(_ctx.StudentA);
+        await Assert.ThrowsAsync<ForbiddenAccessException>(() => CreateService().RemindEventParticipantAsync(_ctx.Fund.Id, fundEvent.Id, _ctx.StudentA.Id, default));
+    }
 }

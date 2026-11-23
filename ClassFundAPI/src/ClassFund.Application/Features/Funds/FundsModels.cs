@@ -20,7 +20,10 @@ public sealed record FundSummaryDto(
     MemberRole MyRole,
     int MemberCount,
     long GeneralBalance,
-    int? PendingPaymentCount);
+    int? PendingPaymentCount,
+    long MyDueAmount = 0,
+    int MyDueCount = 0,
+    long MyBalance = 0);
 
 /// <summary>Thông tin công khai của quỹ (FR-07) kèm vai trò của người xem.</summary>
 public sealed record FundDto(

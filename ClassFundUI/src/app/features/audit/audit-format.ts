@@ -43,6 +43,7 @@ export const AUDIT_ACTION_LABEL: Readonly<Record<string, string>> = {
   'charge.event_create': 'Tạo khoản thu sự kiện',
   'charge.event_close': 'Đóng khoản thu sự kiện',
   'charge.event_cancel': 'Hủy khoản thu sự kiện',
+  'charge.event_remind': 'Nhắc đóng tiền sự kiện',
   'payment.submit': 'Nộp tiền',
   'payment.confirm': 'Xác nhận thanh toán',
   'payment.reject': 'Từ chối thanh toán',

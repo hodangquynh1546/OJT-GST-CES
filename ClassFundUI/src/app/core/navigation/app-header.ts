@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
+import { Avatar } from '../../features/attachments/avatar/avatar';
 import { NotificationsStore } from '../../features/notifications/notifications.store';
-import { initialsOf } from '../../shared/utils/initials';
 import { AuthService } from '../auth/auth.service';
 import { CurrentFund } from '../services/current-fund.service';
 import { buildNavItems } from './nav-items';
@@ -14,7 +14,7 @@ import { ROLE_DISPLAY } from './role-display';
  */
 @Component({
   selector: 'app-header',
-  imports: [RouterLink],
+  imports: [Avatar, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header class="top">
@@ -37,7 +37,11 @@ import { ROLE_DISPLAY } from './role-display';
           </a>
           <span class="pill" [class]="'pill pill--' + current.role">{{ roleBadge() }}</span>
         }
-        <a class="avatar" routerLink="/account" [attr.aria-label]="'Tài khoản của ' + (user()?.fullName ?? '')">{{ initials() }}</a>
+        <a class="avatar" routerLink="/account" [attr.aria-label]="'Tài khoản của ' + (user()?.fullName ?? '')">
+          @if (user(); as current) {
+            <app-avatar [userId]="current.id" [fullName]="current.fullName" [size]="32" />
+          }
+        </a>
       </div>
     </header>
   `,
@@ -162,7 +166,6 @@ export class AppHeader {
   protected readonly bellLabel = computed(() => (this.unread() > 0 ? `Thông báo, ${this.unread()} chưa đọc` : 'Thông báo'));
   protected readonly user = this.auth.user;
   protected readonly fund = this.currentFund.context;
-  protected readonly initials = computed(() => initialsOf(this.user()?.fullName));
   protected readonly roleBadge = computed(() => {
     const role = this.fund()?.role;
     return role ? ROLE_DISPLAY[role].badge : '';

@@ -16,4 +16,7 @@ public static class ChargesAuditActions
 
     /// <summary>Hủy khoản thu sự kiện (Scope Event).</summary>
     public const string EventCancel = "charge.event_cancel";
+
+    /// <summary>Nhắc một người tham gia đóng phần còn thiếu của sự kiện (Scope Event).</summary>
+    public const string EventRemind = "charge.event_remind";
 }

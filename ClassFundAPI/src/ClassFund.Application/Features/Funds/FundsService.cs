@@ -81,6 +81,22 @@ public sealed class FundsService(
                     cancellationToken))
                 .ToDictionary(row => row.FundId, row => row.Count);
 
+        // "Bạn cần đóng": nghĩa vụ chưa đóng của chính mình ở khoản thu đang mở (chung và sự kiện).
+        var due = (await db.ToListAsync(
+                from assignment in db.Query<ChargeAssignment>()
+                where assignment.UserId == userId && assignment.Status == AssignmentStatus.Unpaid
+                join charge in db.Query<Charge>() on assignment.ChargeId equals charge.Id
+                where fundIds.Contains(charge.FundId) && charge.Status == ChargeStatus.Open
+                group assignment by charge.FundId into fundDue
+                select new { FundId = fundDue.Key, Amount = fundDue.Sum(item => item.AmountDue), Count = fundDue.Count() },
+                cancellationToken))
+            .ToDictionary(row => row.FundId);
+
+        var myBalances = (await db.ToListAsync(
+                db.Query<PersonalBalance>().Where(item => item.UserId == userId && fundIds.Contains(item.FundId)).Select(item => new { item.FundId, item.Balance }),
+                cancellationToken))
+            .ToDictionary(row => row.FundId, row => row.Balance);
+
         return funds
             .Select(fund => new FundSummaryDto(
                 fund.Id,
@@ -90,7 +106,10 @@ public sealed class FundsService(
                 fund.Role,
                 memberCounts.GetValueOrDefault(fund.Id),
                 balances.GetValueOrDefault(fund.Id),
-                confirmFundIds.Contains(fund.Id) ? pending.GetValueOrDefault(fund.Id) : null))
+                confirmFundIds.Contains(fund.Id) ? pending.GetValueOrDefault(fund.Id) : null,
+                due.TryGetValue(fund.Id, out var mine) ? mine.Amount : 0,
+                due.TryGetValue(fund.Id, out var mineCount) ? mineCount.Count : 0,
+                myBalances.GetValueOrDefault(fund.Id)))
             .ToArray();
     }
 

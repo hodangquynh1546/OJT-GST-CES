@@ -38,7 +38,7 @@ Mã lỗi M1: `auth.invalid_credentials` (401, dùng chung cho email lạ và m�
 
 | Method | Path | Permission | FR | Trạng thái |
 |---|---|---|---|---|
-| GET | `/funds` → `[{ id, name, schoolYear, status, myRole, memberCount, generalBalance, pendingPaymentCount? }]` (chỉ quỹ mình là thành viên Active; `generalBalance` chỉ tính EventId null; `pendingPaymentCount` chỉ có với người có `Payment.Confirm`) | Đăng nhập | FR-08 | ✅ |
+| GET | `/funds` → `[{ id, name, schoolYear, status, myRole, memberCount, generalBalance, pendingPaymentCount?, myDueAmount, myDueCount, myBalance }]` (chỉ quỹ mình là thành viên Active; `myDueAmount` / `myDueCount` = khoản chưa đóng của chính mình ở khoản thu đang mở, `myBalance` = số dư cá nhân; `generalBalance` chỉ tính EventId null; `pendingPaymentCount` chỉ có với người có `Payment.Confirm`) | Đăng nhập | FR-08 | ✅ |
 | POST | `/funds` `{ name (≤100), schoolYear ("2026-2027") }` → 201 `FundDto`; người tạo là Owner + danh mục mặc định, audit `fund.create` | `Fund.Create` (cấp tài khoản) | FR-05 | ✅ |
 | GET | `/{f}` → `{ id, name, schoolYear, status, createdAt, ownerName, memberCount, myRole }` | `Fund.View` | FR-07 | ✅ |
 | PUT | `/{f}` `{ name, schoolYear }` → `FundDto`; audit `fund.update` (before/after); 422 `fund.archived` | `Fund.Manage` | FR-06 | ✅ |
@@ -119,6 +119,7 @@ M6a (✅) chỉ làm phạm vi **quỹ chung** (`EventId = null`); khoản thu s
 | GET | `/{f}/events/{eventId}/completion-preview` → `{ excluded[], underpaid[{ fullName, missing }], pendingPaymentCount, remainingCount }` | `Event.Manage` | FR-33 | ✅ |
 | POST | `/{f}/events/{eventId}/complete` – BR-19: người `Accepted` chưa đóng khoản thu nào (không `Paid`, không thanh toán chờ / đã xác nhận – kể cả khi chưa có khoản nào áp cho họ) bị loại (`IsFinal = false`, nghĩa vụ `Unpaid` → `Excluded`, thông báo `EventParticipantExcluded`); người còn nghĩa vụ `Unpaid` được nhắc (`EventUnpaidReminder`). Đã đóng ít nhất một khoản thì ở lại dù chưa đủ. Sai trạng thái → 422 `event.invalid_transition` | `Event.Manage` | FR-33 | ✅ |
 | GET | `/{f}/events/{eventId}/participants?paymentStatus=` (`Paid` / `Pending` / `Unpaid` / `NoCharge`) – chỉ người `Accepted` (sau khi kết thúc: `IsFinal`); thủ quỹ có `paid / due / paymentStatus / hasSelfDeclared`; học sinh chỉ có tên | `Event.Participate` | FR-32, FR-34 | ✅ |
+| POST | `/{f}/events/{eventId}/participants/{userId}/remind` → `{ reminded: 1 }`: "Nhắc đóng" một người tham gia còn khoản chưa đóng (thông báo `EventUnpaidReminder` riêng cho người đó, audit `charge.event_remind`). 409 `charge.remind_too_soon` (1 giờ / người / sự kiện), 422 `charge.nothing_to_remind`, 409 `charge.invalid_status` (sự kiện đã quyết toán / hủy), 404 người không được tính là tham gia | `Charge.Manage` | – | ✅ |
 | PUT | `/{f}/events/{eventId}/me/response` `{ response }` (`Accepted` / `Declined`) – chỉ khi `Open` (422 `event.not_open`); đã nộp tiền thì không đổi sang không tham gia (422 `event.response_locked`); nhận tham gia muộn được áp các khoản thu đang mở, không tham gia thì nghĩa vụ chưa đóng bị hủy | `Event.Participate` | FR-31, BR-17, BR-18 | ✅ |
 
 Nội bộ cho M3 (TD-10): `IEventInvitationService.InviteToOpenEventsAsync` – thêm / kích hoạt lại thành viên thì được mời vào các sự kiện `Open` (audit `event.invite`).

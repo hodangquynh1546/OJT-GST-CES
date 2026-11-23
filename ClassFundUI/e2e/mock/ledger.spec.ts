@@ -106,6 +106,22 @@ test('L-03 detail: receipts, reversal with reason, history', async ({ page }) =>
   await expect(page.getByRole('button', { name: 'Tạo bút toán đảo' })).toHaveCount(0);
 });
 
+test('L-01 "Xuất Excel" tải CSV các giao dịch đang lọc (TD-18)', async ({ page }) => {
+  await FakeMoneyApi.open(page, owner, LEDGER);
+  await expect(page.locator('kendo-grid').getByText('Mua hoa 20/11 tặng cô chủ nhiệm')).toBeVisible();
+
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Xuất Excel' }).click();
+  const file = await download;
+
+  expect(file.suggestedFilename()).toMatch(/^thu-chi-chung-\d{4}-\d{2}-\d{2}\.csv$/);
+  const content = (await (await import('node:fs/promises')).readFile((await file.path()) as string, 'utf-8')).replace(/^\uFEFF/, '');
+  const lines = content.split('\r\n');
+  expect(lines[0]).toBe('Ngày,Nội dung,Loại,Danh mục,Người ghi,Số tiền');
+  expect(lines.some((line) => line.includes('Mua hoa 20/11 tặng cô chủ nhiệm') && line.includes('Chi'))).toBe(true);
+  expect(lines.length).toBeGreaterThan(2);
+});
+
 test('students read only: no write button, expenses only, receipt dialog', async ({ page }) => {
   await FakeMoneyApi.open(page, student, LEDGER);
   await expect(page.getByRole('heading', { name: 'Chi tiêu' })).toBeVisible();

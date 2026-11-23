@@ -99,6 +99,20 @@ test('E-03 treasurer: KPI, participant filter, end event with preview', async ({
   await expect(page.getByRole('link', { name: 'Quyết toán' })).toBeVisible();
 });
 
+test('E-03 "Nhắc đóng" từng người chưa đóng (TD-18)', async ({ page }) => {
+  const api = await FakeMoneyApi.open(page, owner, `${EVENTS}/e1`);
+  const grid = page.locator('kendo-grid');
+
+  const row = grid.getByRole('row', { name: /Bùi Thảo My/ });
+  await row.getByRole('button', { name: 'Nhắc đóng' }).click();
+  await expect(page.getByText('Đã nhắc Bùi Thảo My đóng tiền.')).toBeVisible();
+  expect(api.last('POST', '/events/e1/participants/u-my/remind')).toBeTruthy();
+
+  await row.getByRole('button', { name: 'Nhắc đóng' }).click();
+  await expect(page.getByText('Vừa nhắc xong. Vui lòng chờ ít nhất 1 giờ rồi nhắc lại.')).toBeVisible();
+  await expect(grid.getByRole('row', { name: /Lê Thu Hà/ }).getByRole('button', { name: 'Nhắc đóng' })).toHaveCount(0);
+});
+
 test('E-03 treasurer records an event expense within the event balance', async ({ page }) => {
   const api = await FakeMoneyApi.open(page, owner, `${EVENTS}/e1`);
   await page.getByRole('tab', { name: 'Thu chi sự kiện' }).click();

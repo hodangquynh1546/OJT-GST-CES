@@ -337,6 +337,81 @@ public sealed class ChargesService(
             cancellationToken);
     }
 
+    public async Task<RemindResult> RemindEventParticipantAsync(Guid fundId, Guid eventId, Guid userId, CancellationToken cancellationToken)
+    {
+        var actorId = await EnsureManagerAsync(fundId, cancellationToken);
+
+        return await db.InTransactionAsync(
+            async token =>
+            {
+                var fund = await db.LockAsync<Fund>(fundId, token) ?? throw new NotFoundException();
+                YearEndRule.EnsureFundActive(fund.Status);
+                var fundEvent = await db.FirstOrDefaultAsync(db.Query<Event>().Where(item => item.Id == eventId && item.FundId == fundId), token)
+                    ?? throw new NotFoundException();
+                if (!EventStatusRules.AcceptsPayments(fundEvent.Status))
+                {
+                    throw new ConflictException(ChargesErrors.InvalidStatusCode, ChargesErrors.InvalidStatusMessage);
+                }
+
+                // Chỉ nhắc người đang được tính là người tham gia (đã nhận; sau khi kết thúc: còn trong danh sách).
+                var counted = await db.AnyAsync(
+                    db.Query<EventParticipant>().Where(item =>
+                        item.EventId == eventId && item.UserId == userId && item.Response == ParticipationResponse.Accepted
+                        && (fundEvent.Status == EventStatus.Open || item.IsFinal)),
+                    token);
+                if (!counted)
+                {
+                    throw new NotFoundException();
+                }
+
+                var owed = await db.ToListAsync(
+                    from assignment in db.Query<ChargeAssignment>()
+                    where assignment.UserId == userId && assignment.Status == AssignmentStatus.Unpaid
+                    join charge in db.Query<Charge>() on assignment.ChargeId equals charge.Id
+                    where charge.FundId == fundId && charge.EventId == eventId && charge.Status == ChargeStatus.Open
+                    select assignment.AmountDue,
+                    token);
+                if (owed.Count == 0)
+                {
+                    throw new BusinessRuleException(ChargesErrors.NothingToRemindCode, "Người này không còn khoản nào chưa đóng.");
+                }
+
+                var since = clock.GetUtcNow() - ChargesErrors.RemindCooldown;
+                if (await db.AnyAsync(
+                        db.Query<Notification>().Where(item =>
+                            item.UserId == userId && item.Type == NotificationType.EventUnpaidReminder && item.ReferenceId == eventId && item.CreatedAt > since),
+                        token))
+                {
+                    throw new ConflictException(ChargesErrors.RemindTooSoonCode, ChargesErrors.RemindTooSoonMessage);
+                }
+
+                var recipientName = await db.FirstOrDefaultAsync(db.Query<User>().Where(user => user.Id == userId).Select(user => user.FullName), token) ?? string.Empty;
+                notifier.Send(
+                    [userId],
+                    new NotificationMessage(
+                        fundId,
+                        FinancialScope.Event,
+                        eventId,
+                        NotificationType.EventUnpaidReminder,
+                        $"{Notifier.ScopePrefix(FinancialScope.Event, fundEvent.Name)} Nhắc đóng tiền",
+                        $"Thủ quỹ nhắc bạn đóng {owed.Sum():N0}đ còn thiếu của sự kiện.",
+                        nameof(Event),
+                        eventId));
+                audit.Record(new AuditEntry(
+                    ChargesAuditActions.EventRemind,
+                    fundId,
+                    actorId,
+                    FinancialScope.Event,
+                    EventId: eventId,
+                    EntityType: nameof(Event),
+                    EntityId: eventId,
+                    After: new { eventName = fundEvent.Name, payerName = recipientName, amount = owed.Sum() }));
+                await db.SaveChangesAsync(token);
+                return new RemindResult(1);
+            },
+            cancellationToken);
+    }
+
     public Task<EventChargeDto> CloseEventChargeAsync(Guid fundId, Guid eventId, Guid chargeId, CancellationToken cancellationToken) =>
         ChangeEventChargeStatusAsync(fundId, eventId, chargeId, ChargeStatus.Closed, ChargesAuditActions.EventClose, cancellationToken);
 
