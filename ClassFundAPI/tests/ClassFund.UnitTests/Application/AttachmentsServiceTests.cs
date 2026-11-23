@@ -28,9 +28,9 @@ public class AttachmentsServiceTests
         new(name, contentType, bytes.Length, new MemoryStream(bytes));
 
     [Fact]
-    public async Task Student_uploads_payment_proof_unattached_with_random_storage_key_BR07()
+    public async Task Treasurer_uploads_payment_proof_unattached_with_random_storage_key_BR07()
     {
-        _ctx.ActAs(_ctx.StudentA);
+        _ctx.ActAs(_ctx.Treasurer);
 
         var dto = await Service.UploadAsync(_ctx.Fund.Id, AttachmentKind.PaymentProof, Png(), default);
 
@@ -84,7 +84,7 @@ public class AttachmentsServiceTests
     [Fact]
     public async Task Student_cannot_download_other_students_payment_proof_AZ05()
     {
-        _ctx.ActAs(_ctx.StudentA);
+        _ctx.ActAs(_ctx.Treasurer);
         var proof = await Service.UploadAsync(_ctx.Fund.Id, AttachmentKind.PaymentProof, Png(), default);
         var payment = SeedPayment(_ctx.StudentA.Id);
         await Service.AttachToAsync(_ctx.Fund.Id, [proof.Id], payment.Id, ProofKinds, default);

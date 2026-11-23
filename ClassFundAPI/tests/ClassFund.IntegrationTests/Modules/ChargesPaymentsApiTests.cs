@@ -7,7 +7,7 @@ using ClassFund.Domain.Enums;
 
 namespace ClassFund.IntegrationTests.Modules;
 
-/// <summary>M6a-T4 – Khoản thu chung và thanh toán: mã trạng thái, phân quyền, vòng đời Submitted → Confirmed/Rejected, tự ghi nhận.</summary>
+/// <summary>M6a-T4 – Khoản thu chung và thanh toán: mã trạng thái, phân quyền, thủ quỹ tích đã thu / hủy thu / nhắc đóng, tự ghi nhận.</summary>
 [Collection(ApiCollection.Name)]
 public class ChargesPaymentsApiTests(ApiTestHost host)
 {
@@ -61,8 +61,8 @@ public class ChargesPaymentsApiTests(ApiTestHost host)
         return mine.GetProperty("assignmentId").GetGuid();
     }
 
-    private static Task<HttpResponseMessage> PayAsync(HttpClient client, Guid fundId, Guid assignmentId, object body) =>
-        client.PostAsJsonAsync($"{Base(fundId)}/me/assignments/{assignmentId}/payments", body);
+    private static Task<HttpResponseMessage> CollectAsync(HttpClient client, Guid fundId, Guid assignmentId, object? body = null) =>
+        client.PostAsJsonAsync($"{Base(fundId)}/assignments/{assignmentId}/collect", body ?? new { method = "Cash" });
 
     // ---------- 401 / 403 / 404 / 400 ----------
 
@@ -74,17 +74,17 @@ public class ChargesPaymentsApiTests(ApiTestHost host)
         var stranger = await host.LoginAsync(await host.CreateUserAsync());
 
         Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync($"{Base(s.FundId)}/charges")).StatusCode);
-        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync($"{Base(s.FundId)}/payments")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync($"{Base(s.FundId)}/me/assignments")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await stranger.GetAsync($"{Base(s.FundId)}/charges")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await stranger.GetAsync($"{Base(s.FundId)}/me/assignments")).StatusCode);
     }
 
     [Fact]
-    public async Task Students_cannot_create_close_cancel_list_assignments_or_handle_payments()
+    public async Task Students_cannot_create_close_cancel_list_assignments_or_collect()
     {
         var s = await SetupAsync();
         var chargeId = await CreateChargeAsync(s);
-        var paymentId = await SubmitAsync(s.StudentClient, s.FundId);
+        var assignmentId = await AssignmentIdAsync(s.StudentClient, s.FundId);
 
         var responses = new[]
         {
@@ -92,20 +92,26 @@ public class ChargesPaymentsApiTests(ApiTestHost host)
             await s.OtherClient.PostAsync($"{Base(s.FundId)}/charges/{chargeId}/close", null),
             await s.OtherClient.PostAsync($"{Base(s.FundId)}/charges/{chargeId}/cancel", null),
             await s.OtherClient.GetAsync($"{Base(s.FundId)}/charges/{chargeId}/assignments"),
-            await s.OtherClient.GetAsync($"{Base(s.FundId)}/payments"),
-            await s.OtherClient.PostAsync($"{Base(s.FundId)}/payments/{paymentId}/confirm", null),
-            await s.OtherClient.PostAsJsonAsync($"{Base(s.FundId)}/payments/{paymentId}/reject", new { reason = "x" }),
+            await s.OtherClient.PostAsJsonAsync($"{Base(s.FundId)}/assignments/{assignmentId}/collect", new { method = "Cash" }),
+            await s.OtherClient.PostAsJsonAsync($"{Base(s.FundId)}/assignments/{assignmentId}/uncollect", new { reason = "x" }),
+            await s.OtherClient.PostAsync($"{Base(s.FundId)}/assignments/{assignmentId}/remind", null),
         };
 
         Assert.All(responses, response => Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode));
     }
 
-    private async Task<Guid> SubmitAsync(HttpClient client, Guid fundId)
+    [Fact]
+    public async Task The_old_student_submit_and_approval_endpoints_are_gone()
     {
-        var assignmentId = await AssignmentIdAsync(client, fundId);
-        var response = await PayAsync(client, fundId, assignmentId, new { method = "Cash" });
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        return (await ReadAsync(response)).GetProperty("id").GetGuid();
+        var s = await SetupAsync();
+        await CreateChargeAsync(s);
+        var assignmentId = await AssignmentIdAsync(s.StudentClient, s.FundId);
+
+        var submit = await s.StudentClient.PostAsJsonAsync($"{Base(s.FundId)}/me/assignments/{assignmentId}/payments", new { method = "Cash" });
+        var queue = await s.TreasurerClient.GetAsync($"{Base(s.FundId)}/payments");
+
+        Assert.Contains(submit.StatusCode, new[] { HttpStatusCode.NotFound, HttpStatusCode.MethodNotAllowed });
+        Assert.Contains(queue.StatusCode, new[] { HttpStatusCode.NotFound, HttpStatusCode.MethodNotAllowed });
     }
 
     [Fact]
@@ -120,7 +126,7 @@ public class ChargesPaymentsApiTests(ApiTestHost host)
     }
 
     [Fact]
-    public async Task Create_needs_a_usable_income_category_and_the_confirmed_payment_carries_it()
+    public async Task Create_needs_a_usable_income_category_and_the_collected_payment_carries_it()
     {
         var s = await SetupAsync();
         var missing = await s.OwnerClient.PostAsJsonAsync($"{Base(s.FundId)}/charges", new { title = "A", amountPerPerson = 1000, dueDate = "2099-01-01" });
@@ -130,8 +136,8 @@ public class ChargesPaymentsApiTests(ApiTestHost host)
         Assert.Equal("category.unusable", await CodeOfAsync(unknown));
 
         await CreateChargeAsync(s);
-        var paymentId = await SubmitAsync(s.StudentClient, s.FundId);
-        await s.TreasurerClient.PostAsync($"{Base(s.FundId)}/payments/{paymentId}/confirm", null);
+        var collect = await CollectAsync(s.TreasurerClient, s.FundId, await AssignmentIdAsync(s.StudentClient, s.FundId));
+        var paymentId = (await ReadAsync(collect)).GetProperty("id").GetGuid();
 
         await using var db = host.CreateDbContext();
         Assert.Equal(s.CategoryId, (await db.LedgerEntries.SingleAsync(item => item.PaymentId == paymentId)).CategoryId);
@@ -140,14 +146,17 @@ public class ChargesPaymentsApiTests(ApiTestHost host)
     }
 
     [Fact]
-    public async Task Create_with_a_past_due_date_is_422()
+    public async Task Create_with_a_past_due_date_is_422_and_a_general_charge_may_have_no_due_date()
     {
         var s = await SetupAsync();
 
-        var response = await s.OwnerClient.PostAsJsonAsync($"{Base(s.FundId)}/charges", new { title = "A", amountPerPerson = 1000, dueDate = "2020-01-01", categoryId = s.CategoryId });
+        var past = await s.OwnerClient.PostAsJsonAsync($"{Base(s.FundId)}/charges", new { title = "A", amountPerPerson = 1000, dueDate = "2020-01-01", categoryId = s.CategoryId });
+        var none = await s.OwnerClient.PostAsJsonAsync($"{Base(s.FundId)}/charges", new { title = "Không hạn", amountPerPerson = 1000, categoryId = s.CategoryId });
 
-        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
-        Assert.Equal("charge.due_date_in_past", await CodeOfAsync(response));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, past.StatusCode);
+        Assert.Equal("charge.due_date_in_past", await CodeOfAsync(past));
+        Assert.Equal(HttpStatusCode.Created, none.StatusCode);
+        Assert.Equal(JsonValueKind.Null, (await ReadAsync(none)).GetProperty("dueDate").ValueKind);
     }
 
     // ---------- Khoản thu ----------
@@ -175,20 +184,20 @@ public class ChargesPaymentsApiTests(ApiTestHost host)
     {
         var s = await SetupAsync();
         var chargeId = await CreateChargeAsync(s);
-        var paymentId = await SubmitAsync(s.StudentClient, s.FundId);
-        await PayAsync(s.TreasurerClient, s.FundId, await AssignmentIdAsync(s.TreasurerClient, s.FundId), new { method = "Cash" });
+        await CollectAsync(s.TreasurerClient, s.FundId, await AssignmentIdAsync(s.StudentClient, s.FundId), new { method = "BankTransfer", transferCode = "FT1" });
+        await CollectAsync(s.TreasurerClient, s.FundId, await AssignmentIdAsync(s.TreasurerClient, s.FundId));
 
         var all = (await ReadAsync(await s.OwnerClient.GetAsync($"{Base(s.FundId)}/charges/{chargeId}/assignments"))).GetProperty("items").EnumerateArray().ToArray();
-        var awaiting = (await ReadAsync(await s.OwnerClient.GetAsync($"{Base(s.FundId)}/charges/{chargeId}/assignments?status=AwaitingConfirmation"))).GetProperty("items").EnumerateArray().ToArray();
+        var paid = (await ReadAsync(await s.OwnerClient.GetAsync($"{Base(s.FundId)}/charges/{chargeId}/assignments?status=Paid"))).GetProperty("items").EnumerateArray().ToArray();
 
         Assert.Equal(4, all.Length);
-        var row = Assert.Single(awaiting);
-        Assert.Equal(paymentId, row.GetProperty("paymentId").GetGuid());
-        Assert.Equal("Cash", row.GetProperty("method").GetString());
+        Assert.Equal(2, paid.Length);
+        var row = all.Single(item => item.GetProperty("userId").GetGuid() == s.Student.Id);
+        Assert.Equal("BankTransfer", row.GetProperty("method").GetString());
         Assert.Equal("Student", row.GetProperty("role").GetString());
+        Assert.False(row.GetProperty("isSelfDeclared").GetBoolean());
         var self = all.Single(item => item.GetProperty("userId").GetGuid() == s.Treasurer.Id);
         Assert.True(self.GetProperty("isSelfDeclared").GetBoolean());
-        Assert.Equal("Paid", self.GetProperty("status").GetString());
         Assert.Equal(HttpStatusCode.NotFound, (await s.OwnerClient.GetAsync($"{Base(s.FundId)}/charges/{Guid.NewGuid()}/assignments")).StatusCode);
     }
 
@@ -207,46 +216,19 @@ public class ChargesPaymentsApiTests(ApiTestHost host)
     }
 
     [Fact]
-    public async Task The_treasurer_records_cash_for_a_student_and_can_remind_the_rest()
+    public async Task Close_then_close_again_is_409_and_a_closed_charge_cannot_be_collected()
     {
         var s = await SetupAsync();
         var chargeId = await CreateChargeAsync(s);
-        var rows = (await ReadAsync(await s.TreasurerClient.GetAsync($"{Base(s.FundId)}/charges/{chargeId}/assignments"))).GetProperty("items").EnumerateArray().ToArray();
-        var studentRow = rows.Single(item => item.GetProperty("userId").GetGuid() == s.Student.Id);
-        var assignmentId = studentRow.GetProperty("assignmentId").GetGuid();
-
-        Assert.Equal(HttpStatusCode.Forbidden, (await s.StudentClient.PostAsync($"{Base(s.FundId)}/assignments/{assignmentId}/record-cash", null)).StatusCode);
-        var record = await s.TreasurerClient.PostAsync($"{Base(s.FundId)}/assignments/{assignmentId}/record-cash", null);
-        Assert.Equal(HttpStatusCode.Created, record.StatusCode);
-        Assert.False((await ReadAsync(record)).GetProperty("isSelfDeclared").GetBoolean());
-        Assert.Equal(HttpStatusCode.Conflict, (await s.TreasurerClient.PostAsync($"{Base(s.FundId)}/assignments/{assignmentId}/record-cash", null)).StatusCode);
-
-        var remind = await s.TreasurerClient.PostAsync($"{Base(s.FundId)}/charges/{chargeId}/remind", null);
-        Assert.Equal(HttpStatusCode.OK, remind.StatusCode);
-        Assert.Equal(3, (await ReadAsync(remind)).GetProperty("reminded").GetInt32()); // 4 người - 1 đã đóng
-        var again = await s.TreasurerClient.PostAsync($"{Base(s.FundId)}/charges/{chargeId}/remind", null);
-        Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
-        Assert.Equal("charge.remind_too_soon", await CodeOfAsync(again));
-        Assert.Equal(HttpStatusCode.Forbidden, (await s.StudentClient.PostAsync($"{Base(s.FundId)}/charges/{chargeId}/remind", null)).StatusCode);
-
-        await using var db = host.CreateDbContext();
-        Assert.True(await db.LedgerEntries.AnyAsync(item => item.FundId == s.FundId && item.Amount == 50_000 && !item.IsSelfDeclared));
-        Assert.Equal(3, await db.Notifications.CountAsync(item => item.FundId == s.FundId && item.Type == NotificationType.ChargeDueSoon));
-    }
-
-    [Fact]
-    public async Task Close_then_close_again_is_409_and_a_closed_charge_takes_no_payments()
-    {
-        var s = await SetupAsync();
-        var chargeId = await CreateChargeAsync(s);
+        var assignmentId = await AssignmentIdAsync(s.StudentClient, s.FundId);
 
         Assert.Equal(HttpStatusCode.OK, (await s.TreasurerClient.PostAsync($"{Base(s.FundId)}/charges/{chargeId}/close", null)).StatusCode);
         var again = await s.TreasurerClient.PostAsync($"{Base(s.FundId)}/charges/{chargeId}/close", null);
-        var pay = await PayAsync(s.StudentClient, s.FundId, await AssignmentIdAsync(s.StudentClient, s.FundId), new { method = "Cash" });
+        var collect = await CollectAsync(s.TreasurerClient, s.FundId, assignmentId);
 
         Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
-        Assert.Equal(HttpStatusCode.Conflict, pay.StatusCode);
-        Assert.Equal("payment.charge_not_open", await CodeOfAsync(pay));
+        Assert.Equal(HttpStatusCode.Conflict, collect.StatusCode);
+        Assert.Equal("payment.charge_not_open", await CodeOfAsync(collect));
     }
 
     [Fact]
@@ -254,7 +236,7 @@ public class ChargesPaymentsApiTests(ApiTestHost host)
     {
         var s = await SetupAsync();
         var chargeId = await CreateChargeAsync(s);
-        await SubmitAsync(s.StudentClient, s.FundId);
+        await CollectAsync(s.TreasurerClient, s.FundId, await AssignmentIdAsync(s.StudentClient, s.FundId));
 
         var response = await s.OwnerClient.PostAsync($"{Base(s.FundId)}/charges/{chargeId}/cancel", null);
 
@@ -262,99 +244,152 @@ public class ChargesPaymentsApiTests(ApiTestHost host)
         Assert.Equal("charge.has_payments", await CodeOfAsync(response));
     }
 
-    // ---------- Thanh toán ----------
+    // ---------- Thu tiền (thủ quỹ tích) ----------
 
     [Fact]
-    public async Task A_student_submits_a_treasurer_confirms_once_and_one_income_entry_is_written()
+    public async Task The_treasurer_collects_once_and_one_income_entry_is_written()
     {
         var s = await SetupAsync();
         await CreateChargeAsync(s);
-        var paymentId = await SubmitAsync(s.StudentClient, s.FundId);
+        var assignmentId = await AssignmentIdAsync(s.StudentClient, s.FundId);
 
-        var duplicate = await PayAsync(s.StudentClient, s.FundId, await AssignmentIdAsync(s.StudentClient, s.FundId), new { method = "Cash" });
-        Assert.Equal(HttpStatusCode.Conflict, duplicate.StatusCode);
-        Assert.Equal("payment.not_payable", await CodeOfAsync(duplicate));
-
-        var queue = (await ReadAsync(await s.TreasurerClient.GetAsync($"{Base(s.FundId)}/payments"))).GetProperty("items").EnumerateArray().ToArray();
-        Assert.Equal(paymentId, Assert.Single(queue).GetProperty("id").GetGuid());
-
-        var confirm = await s.TreasurerClient.PostAsync($"{Base(s.FundId)}/payments/{paymentId}/confirm", null);
-        Assert.Equal(HttpStatusCode.OK, confirm.StatusCode);
-        Assert.Equal("Confirmed", (await ReadAsync(confirm)).GetProperty("status").GetString());
-
-        var second = await s.OwnerClient.PostAsync($"{Base(s.FundId)}/payments/{paymentId}/confirm", null);
-        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
-        Assert.Equal("payment.already_processed", await CodeOfAsync(second));
-
-        await using var db = host.CreateDbContext();
-        var entry = await db.LedgerEntries.SingleAsync(item => item.PaymentId == paymentId);
-        Assert.Equal((LedgerType.Income, LedgerSource.Payment, false, 50_000L), (entry.Type, entry.Source, entry.IsSelfDeclared, entry.Amount));
-        Assert.Equal(AssignmentStatus.Paid, (await db.ChargeAssignments.SingleAsync(item => item.UserId == s.Student.Id)).Status);
-        Assert.True(await db.Notifications.AnyAsync(item => item.UserId == s.Student.Id && item.Type == NotificationType.PaymentConfirmed));
-    }
-
-    [Fact]
-    public async Task A_treasurer_paying_for_themselves_is_self_declared_in_the_ledger_and_audit()
-    {
-        var s = await SetupAsync();
-        await CreateChargeAsync(s);
-
-        var response = await PayAsync(s.TreasurerClient, s.FundId, await AssignmentIdAsync(s.TreasurerClient, s.FundId), new { method = "Cash" });
-
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var body = await ReadAsync(response);
+        var collect = await CollectAsync(s.TreasurerClient, s.FundId, assignmentId, new { method = "BankTransfer", transferCode = "FT9" });
+        Assert.Equal(HttpStatusCode.Created, collect.StatusCode);
+        var body = await ReadAsync(collect);
         Assert.Equal("Confirmed", body.GetProperty("status").GetString());
-        Assert.True(body.GetProperty("isSelfDeclared").GetBoolean());
+        Assert.False(body.GetProperty("isSelfDeclared").GetBoolean());
+
+        var second = await CollectAsync(s.OwnerClient, s.FundId, assignmentId);
+        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
+        Assert.Equal("payment.not_payable", await CodeOfAsync(second));
+
+        var mine = (await ReadAsync(await s.StudentClient.GetAsync($"{Base(s.FundId)}/me/assignments"))).EnumerateArray().Single();
+        Assert.Equal("Paid", mine.GetProperty("status").GetString());
+
         await using var db = host.CreateDbContext();
-        Assert.True((await db.LedgerEntries.SingleAsync(item => item.PaymentId == body.GetProperty("id").GetGuid())).IsSelfDeclared);
-        Assert.True(await db.AuditLogs.AnyAsync(item => item.Action == "payment.confirm" && item.IsSelfAction && item.ActorUserId == s.Treasurer.Id));
+        var entry = await db.LedgerEntries.SingleAsync(item => item.PaymentId == body.GetProperty("id").GetGuid());
+        Assert.Equal((LedgerType.Income, LedgerSource.Payment, false, 50_000L), (entry.Type, entry.Source, entry.IsSelfDeclared, entry.Amount));
+        Assert.True(await db.AuditLogs.AnyAsync(item => item.Action == "payment.collect" && item.ActorUserId == s.Treasurer.Id));
     }
 
     [Fact]
-    public async Task Bank_transfer_needs_proof_and_someone_elses_obligation_is_404()
+    public async Task Personal_balance_is_not_a_collect_method_and_the_body_is_validated()
     {
         var s = await SetupAsync();
         await CreateChargeAsync(s);
-        var mine = await AssignmentIdAsync(s.StudentClient, s.FundId);
-        var theirs = await AssignmentIdAsync(s.OtherClient, s.FundId);
+        var assignmentId = await AssignmentIdAsync(s.StudentClient, s.FundId);
 
-        var noProof = await PayAsync(s.StudentClient, s.FundId, mine, new { method = "BankTransfer", transferCode = "FT1" });
-        Assert.Equal(HttpStatusCode.UnprocessableEntity, noProof.StatusCode);
-        Assert.Equal("payment.proof_required", await CodeOfAsync(noProof));
-        Assert.Equal(HttpStatusCode.NotFound, (await PayAsync(s.StudentClient, s.FundId, theirs, new { method = "Cash" })).StatusCode);
+        var balance = await CollectAsync(s.TreasurerClient, s.FundId, assignmentId, new { method = "PersonalBalance" });
+        var empty = await CollectAsync(s.TreasurerClient, s.FundId, assignmentId, new { });
 
-        var upload = await s.StudentClient.PostAsync($"{Base(s.FundId)}/attachments", ApiTestHost.Multipart(ApiTestHost.Png, "bill.png", "image/png", "PaymentProof"));
-        var proofId = (await ReadAsync(upload)).GetProperty("id").GetGuid();
-        var ok = await PayAsync(s.StudentClient, s.FundId, mine, new { method = "BankTransfer", transferCode = "FT1", attachmentId = proofId });
-        Assert.Equal(HttpStatusCode.Created, ok.StatusCode);
-
-        // Thủ quỹ thấy ảnh minh chứng trong hàng chờ và tải được; học sinh khác thì không.
-        var item = (await ReadAsync(await s.TreasurerClient.GetAsync($"{Base(s.FundId)}/payments"))).GetProperty("items").EnumerateArray().Single();
-        Assert.Equal(proofId, item.GetProperty("attachments")[0].GetProperty("id").GetGuid());
-        Assert.Equal(HttpStatusCode.OK, (await s.TreasurerClient.GetAsync($"{Base(s.FundId)}/attachments/{proofId}")).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await s.OtherClient.GetAsync($"{Base(s.FundId)}/attachments/{proofId}")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, balance.StatusCode);
+        Assert.Equal("validation_failed", await CodeOfAsync(balance));
+        Assert.Equal(HttpStatusCode.BadRequest, empty.StatusCode);
     }
 
     [Fact]
-    public async Task Reject_needs_a_reason_then_the_student_can_pay_again()
+    public async Task Uncollect_needs_a_reason_reverses_the_ledger_and_allows_collecting_again()
     {
         var s = await SetupAsync();
         await CreateChargeAsync(s);
-        var paymentId = await SubmitAsync(s.StudentClient, s.FundId);
+        var assignmentId = await AssignmentIdAsync(s.StudentClient, s.FundId);
+        var notCollected = await s.TreasurerClient.PostAsJsonAsync($"{Base(s.FundId)}/assignments/{assignmentId}/uncollect", new { reason = "Tích nhầm" });
+        Assert.Equal(HttpStatusCode.Conflict, notCollected.StatusCode);
+        Assert.Equal("payment.not_collected", await CodeOfAsync(notCollected));
+        await CollectAsync(s.TreasurerClient, s.FundId, assignmentId);
 
-        var blank = await s.TreasurerClient.PostAsJsonAsync($"{Base(s.FundId)}/payments/{paymentId}/reject", new { reason = " " });
+        var blank = await s.TreasurerClient.PostAsJsonAsync($"{Base(s.FundId)}/assignments/{assignmentId}/uncollect", new { reason = " " });
         Assert.Equal(HttpStatusCode.BadRequest, blank.StatusCode);
-
-        var reject = await s.TreasurerClient.PostAsJsonAsync($"{Base(s.FundId)}/payments/{paymentId}/reject", new { reason = "Chưa nhận được tiền" });
-        Assert.Equal(HttpStatusCode.OK, reject.StatusCode);
+        var undo = await s.TreasurerClient.PostAsJsonAsync($"{Base(s.FundId)}/assignments/{assignmentId}/uncollect", new { reason = "Tích nhầm người" });
+        Assert.Equal(HttpStatusCode.OK, undo.StatusCode);
 
         var mine = (await ReadAsync(await s.StudentClient.GetAsync($"{Base(s.FundId)}/me/assignments"))).EnumerateArray().Single();
         Assert.Equal("Unpaid", mine.GetProperty("status").GetString());
-        Assert.Equal("Chưa nhận được tiền", mine.GetProperty("rejectionReason").GetString());
+        await using (var db = host.CreateDbContext())
+        {
+            var entries = await db.LedgerEntries.Where(item => item.FundId == s.FundId).ToListAsync();
+            Assert.Equal(0, entries.Where(item => item.Type == LedgerType.Income).Sum(item => item.Amount) - entries.Where(item => item.Type == LedgerType.Expense).Sum(item => item.Amount));
+            Assert.True(await db.AuditLogs.AnyAsync(item => item.Action == "payment.uncollect" && item.FundId == s.FundId));
+        }
 
-        // Chỉ mục duy nhất một lần nộp đang hoạt động không chặn lần nộp lại sau khi bị từ chối (BR-14).
-        Assert.Equal(HttpStatusCode.Created, (await PayAsync(s.StudentClient, s.FundId, mine.GetProperty("assignmentId").GetGuid(), new { method = "Cash" })).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await CollectAsync(s.TreasurerClient, s.FundId, assignmentId)).StatusCode);
+    }
+
+    [Fact]
+    public async Task A_treasurer_collecting_for_themselves_is_self_declared_in_the_ledger_and_audit()
+    {
+        var s = await SetupAsync();
+        await CreateChargeAsync(s);
+
+        var response = await CollectAsync(s.TreasurerClient, s.FundId, await AssignmentIdAsync(s.TreasurerClient, s.FundId));
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var body = await ReadAsync(response);
+        Assert.True(body.GetProperty("isSelfDeclared").GetBoolean());
         await using var db = host.CreateDbContext();
-        Assert.Equal(0, await db.LedgerEntries.CountAsync(item => item.FundId == s.FundId));
+        Assert.True((await db.LedgerEntries.SingleAsync(item => item.PaymentId == body.GetProperty("id").GetGuid())).IsSelfDeclared);
+        Assert.True(await db.AuditLogs.AnyAsync(item => item.Action == "payment.collect" && item.IsSelfAction && item.ActorUserId == s.Treasurer.Id));
+    }
+
+    [Fact]
+    public async Task Someone_elses_obligation_is_404_for_a_student_view_and_unknown_assignment_is_404_for_the_treasurer()
+    {
+        var s = await SetupAsync();
+        await CreateChargeAsync(s);
+
+        var unknown = await CollectAsync(s.TreasurerClient, s.FundId, Guid.NewGuid());
+
+        Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
+        var mine = (await ReadAsync(await s.StudentClient.GetAsync($"{Base(s.FundId)}/me/assignments"))).EnumerateArray().ToArray();
+        Assert.Single(mine);
+    }
+
+    // ---------- Nhắc đóng ----------
+
+    [Fact]
+    public async Task Remind_one_person_logs_it_notifies_and_is_throttled()
+    {
+        var s = await SetupAsync();
+        await CreateChargeAsync(s);
+        var assignmentId = await AssignmentIdAsync(s.StudentClient, s.FundId);
+
+        var remind = await s.TreasurerClient.PostAsync($"{Base(s.FundId)}/assignments/{assignmentId}/remind", null);
+        Assert.Equal(HttpStatusCode.OK, remind.StatusCode);
+        Assert.Equal(1, (await ReadAsync(remind)).GetProperty("reminded").GetInt32());
+        var again = await s.TreasurerClient.PostAsync($"{Base(s.FundId)}/assignments/{assignmentId}/remind", null);
+        Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
+        Assert.Equal("charge.remind_too_soon", await CodeOfAsync(again));
+
+        await using var db = host.CreateDbContext();
+        Assert.Equal(1, await db.PaymentReminders.CountAsync(item => item.FundId == s.FundId && item.UserId == s.Student.Id && item.Kind == ReminderKind.Manual));
+        Assert.True(await db.Notifications.AnyAsync(item => item.UserId == s.Student.Id && item.Type == NotificationType.ChargeDueSoon));
+        Assert.True(await db.AuditLogs.AnyAsync(item => item.Action == "payment.remind" && item.FundId == s.FundId));
+    }
+
+    [Fact]
+    public async Task Remind_someone_who_already_paid_is_422()
+    {
+        var s = await SetupAsync();
+        await CreateChargeAsync(s);
+        var assignmentId = await AssignmentIdAsync(s.StudentClient, s.FundId);
+        await CollectAsync(s.TreasurerClient, s.FundId, assignmentId);
+
+        var response = await s.TreasurerClient.PostAsync($"{Base(s.FundId)}/assignments/{assignmentId}/remind", null);
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Remind_the_whole_charge_reaches_everyone_unpaid()
+    {
+        var s = await SetupAsync();
+        var chargeId = await CreateChargeAsync(s);
+        await CollectAsync(s.TreasurerClient, s.FundId, await AssignmentIdAsync(s.StudentClient, s.FundId));
+
+        var remind = await s.TreasurerClient.PostAsync($"{Base(s.FundId)}/charges/{chargeId}/remind", null);
+
+        Assert.Equal(HttpStatusCode.OK, remind.StatusCode);
+        Assert.Equal(3, (await ReadAsync(remind)).GetProperty("reminded").GetInt32());
+        Assert.Equal(HttpStatusCode.Forbidden, (await s.StudentClient.PostAsync($"{Base(s.FundId)}/charges/{chargeId}/remind", null)).StatusCode);
     }
 }

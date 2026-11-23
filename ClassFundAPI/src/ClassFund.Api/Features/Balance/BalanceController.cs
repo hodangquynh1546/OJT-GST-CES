@@ -3,13 +3,14 @@ using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using ClassFund.Api.Authorization;
 using ClassFund.Api.Common;
+using ClassFund.Application.Common.Paging;
 using ClassFund.Application.Features.Balance;
 using ClassFund.Domain.Authorization;
-using ClassFund.Domain.Enums;
+using ClassFund.Domain.Rules;
 
 namespace ClassFund.Api.Features.Balance;
 
-/// <summary>M10 – Số dư cá nhân của tôi (B-01).</summary>
+/// <summary>M10 – Số dư cá nhân của tôi (B-01): chỉ xem số dư và lịch sử biến động.</summary>
 [ApiVersion(1)]
 [Route(ApiRoutes.Fund + "/me")]
 public sealed class MyBalanceController(IBalanceService service) : ApiControllerBase
@@ -18,54 +19,48 @@ public sealed class MyBalanceController(IBalanceService service) : ApiController
     [RequirePermission(Permissions.BalanceViewOwn)]
     [ProducesResponseType<MyBalanceDto>(StatusCodes.Status200OK)]
     public Task<MyBalanceDto> Get(Guid fundId, CancellationToken ct) => service.GetMineAsync(fundId, ct);
-
-    /// <summary>Rút toàn bộ số dư (không có body, OQ-11). 422 <c>withdrawal.nothing_to_withdraw</c> / <c>withdrawal.pending_exists</c>.</summary>
-    [HttpPost("withdrawal-requests")]
-    [RequirePermission(Permissions.BalanceWithdraw)]
-    [ProducesResponseType<MyBalanceDto>(StatusCodes.Status201Created)]
-    public async Task<ActionResult<MyBalanceDto>> RequestWithdrawal(Guid fundId, CancellationToken ct)
-    {
-        var result = await service.RequestWithdrawalAsync(fundId, ct);
-        return StatusCode(StatusCodes.Status201Created, result);
-    }
 }
 
-/// <summary>M10 – Thủ quỹ xử lý yêu cầu rút (B-02).</summary>
+/// <summary>M10 – "Rút số dư" của thủ quỹ (B-02): danh sách thành viên kèm số dư, rút theo số tiền nhập, lịch sử rút.</summary>
 [ApiVersion(1)]
-[Route(ApiRoutes.Fund + "/withdrawal-requests")]
+[Route(ApiRoutes.Fund)]
 [RequirePermission(Permissions.BalanceHandle)]
 public sealed class WithdrawalsController(IWithdrawalsService service) : ApiControllerBase
 {
-    [HttpGet]
-    [ProducesResponseType<WithdrawalListResult>(StatusCodes.Status200OK)]
-    public Task<WithdrawalListResult> List(Guid fundId, [FromQuery] WithdrawalListQuery query, CancellationToken ct) =>
-        service.ListAsync(fundId, query.Status, ct);
+    [HttpGet("balances")]
+    [ProducesResponseType<MemberBalancesResult>(StatusCodes.Status200OK)]
+    public Task<MemberBalancesResult> Balances(Guid fundId, [FromQuery] BalanceListRequest request, CancellationToken ct) =>
+        service.ListBalancesAsync(fundId, request.Search, request.Page, request.PageSize, ct);
 
-    /// <summary>Đã trả tiền: trừ đúng số tiền yêu cầu; đã xử lý → 409 <c>withdrawal.not_pending</c>.</summary>
-    [HttpPost("{requestId:guid}/paid")]
-    [ProducesResponseType<WithdrawalRequestDto>(StatusCodes.Status200OK)]
-    public Task<WithdrawalRequestDto> Paid(Guid fundId, Guid requestId, CancellationToken ct) => service.MarkPaidAsync(fundId, requestId, ct);
+    /// <summary>Rút số tiền nhập: 400 sai định dạng (&lt; 10.000đ hoặc không chẵn nghìn), 422 <c>balance.insufficient</c> khi vượt số dư.</summary>
+    [HttpPost("balances/{userId:guid}/withdraw")]
+    [ProducesResponseType<MemberBalanceDto>(StatusCodes.Status200OK)]
+    public Task<MemberBalanceDto> Withdraw(Guid fundId, Guid userId, WithdrawRequest request, CancellationToken ct) =>
+        service.WithdrawAsync(fundId, userId, request.Amount, ct);
 
-    [HttpPost("{requestId:guid}/reject")]
-    [ProducesResponseType<WithdrawalRequestDto>(StatusCodes.Status200OK)]
-    public Task<WithdrawalRequestDto> Reject(Guid fundId, Guid requestId, RejectWithdrawalRequest request, CancellationToken ct) =>
-        service.RejectAsync(fundId, requestId, request.Reason, ct);
+    [HttpGet("withdrawals")]
+    [ProducesResponseType<PagedResult<WithdrawalDto>>(StatusCodes.Status200OK)]
+    public Task<PagedResult<WithdrawalDto>> History(Guid fundId, [FromQuery] PageRequest request, CancellationToken ct) =>
+        service.HistoryAsync(fundId, request.Page, request.PageSize, ct);
 }
 
-/// <summary><c>GET /withdrawal-requests?status=Requested|Paid|Rejected</c>.</summary>
-public sealed record WithdrawalListQuery
+/// <summary><c>GET /balances?search=&amp;page=&amp;pageSize=</c>.</summary>
+public sealed record BalanceListRequest : PageRequest
 {
-    public WithdrawalStatus? Status { get; init; }
+    public string? Search { get; init; }
 }
 
-public sealed record RejectWithdrawalRequest(string Reason);
-
-public sealed class RejectWithdrawalRequestValidator : AbstractValidator<RejectWithdrawalRequest>
+public sealed class BalanceListRequestValidator : AbstractValidator<BalanceListRequest>
 {
-    public const int ReasonMaxLength = 500;
+    public BalanceListRequestValidator() => this.ValidatePaging();
+}
 
-    public RejectWithdrawalRequestValidator() =>
-        RuleFor(request => request.Reason)
-            .Must(reason => !string.IsNullOrWhiteSpace(reason)).WithMessage("Vui lòng nhập lý do từ chối.")
-            .Must(reason => reason is null || reason.Trim().Length <= ReasonMaxLength).WithMessage($"Lý do tối đa {ReasonMaxLength} ký tự.");
+public sealed record WithdrawRequest(long Amount);
+
+public sealed class WithdrawRequestValidator : AbstractValidator<WithdrawRequest>
+{
+    public WithdrawRequestValidator() =>
+        RuleFor(request => request.Amount)
+            .GreaterThanOrEqualTo(WithdrawalRule.MinAmount).WithMessage("Số tiền rút tối thiểu 10.000đ.")
+            .Must(amount => amount % WithdrawalRule.Step == 0).WithMessage("Số tiền rút phải là bội của 1.000đ (dạng xx.000).");
 }

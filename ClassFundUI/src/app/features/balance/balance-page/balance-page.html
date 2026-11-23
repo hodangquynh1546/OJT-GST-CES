@@ -4,7 +4,9 @@
   <div class="page">
     <div class="head-t">
       <h1>Số dư cá nhân</h1>
-      <p class="cf-muted">Tiền thừa sau quyết toán được cộng vào đây. Dùng để đóng khoản thu (chung hoặc sự kiện) hoặc rút toàn bộ.</p>
+      <p class="cf-muted">
+        Số dư chỉ phát sinh từ tiền thừa sau quyết toán và tiền được hoàn khi sự kiện đóng danh sách. Bạn chỉ xem; khi cần rút, hãy liên hệ thủ quỹ.
+      </p>
     </div>
 
     <div class="split">
@@ -13,33 +15,7 @@
           <span class="cf-muted label">Số dư hiện có · {{ data.fundName }}</span>
           <span class="big">{{ data.balance | vndMoney }}</span>
         </div>
-
-        @if (data.latestWithdrawal; as request) {
-          @switch (request.status) {
-            @case ('Requested') {
-              <div class="cf-alert cf-alert--warning" role="status">
-                Đã gửi yêu cầu rút {{ request.amount | vndMoney }} lúc {{ time(request.requestedAt) }}. Thủ quỹ sẽ liên hệ trả tiền rồi xác nhận.
-                Trong lúc chờ, số dư bị giữ, không dùng đóng khoản thu được.
-              </div>
-            }
-            @case ('Rejected') {
-              <div class="cf-alert cf-alert--danger" role="status">Yêu cầu rút bị từ chối: “{{ request.rejectionReason }}” Số dư đã được mở lại.</div>
-            }
-            @case ('Paid') {
-              <div class="cf-alert cf-alert--success" role="status">
-                Thủ quỹ đã trả {{ request.amount | vndMoney }} và xác nhận lúc {{ time(request.handledAt) }}.
-              </div>
-            }
-          }
-        }
-
-        <div class="actions">
-          <button kendoButton themeColor="primary" type="button" [disabled]="pending() || data.balance <= 0" (click)="confirming.set(true)">
-            {{ withdrawLabel() }}
-          </button>
-          <a class="cf-link-button" [routerLink]="['/funds', fundId(), 'my-payments']">Dùng đóng khoản thu</a>
-        </div>
-        <p class="cf-muted small">Rút tiền luôn là rút toàn bộ số dư; mỗi lúc chỉ có một yêu cầu đang chờ.</p>
+        <p class="cf-muted small">Thủ quỹ sẽ trả tiền mặt hoặc chuyển khoản cho bạn và ghi nhận việc rút trên hệ thống.</p>
       </section>
     </div>
 
@@ -70,19 +46,9 @@
           <ng-template kendoGridCellTemplate let-row><span class="cf-money block">{{ row.balanceAfter | vndMoney }}</span></ng-template>
         </kendo-grid-column>
         <ng-template kendoGridNoRecordsTemplate>
-          <app-state kind="empty" title="Chưa có biến động" message="Số dư được cộng khi sự kiện quyết toán có tiền thừa." />
+          <app-state kind="empty" title="Chưa có biến động" message="Số dư được cộng khi quyết toán có tiền thừa hoặc khi bạn bị loại khỏi danh sách sự kiện và được hoàn tiền đã đóng." />
         </ng-template>
       </kendo-grid>
     </section>
   </div>
-
-  @if (confirming()) {
-    <kendo-dialog [title]="'Rút toàn bộ ' + (data.balance | vndMoney) + '?'" [width]="440" [maxWidth]="'calc(100vw - 32px)'" (close)="confirming.set(false)">
-      <p class="cf-muted dlg-text">Yêu cầu được gửi tới thủ quỹ. Thủ quỹ liên hệ trả tiền mặt hoặc chuyển khoản, sau đó xác nhận trên hệ thống.</p>
-      <kendo-dialog-actions layout="end">
-        <button kendoButton type="button" (click)="confirming.set(false)">Hủy</button>
-        <button kendoButton themeColor="primary" type="button" [disabled]="busy()" (click)="withdraw()">Gửi yêu cầu rút</button>
-      </kendo-dialog-actions>
-    </kendo-dialog>
-  }
 }

@@ -29,7 +29,7 @@ import { emailFormatValidator } from './auth-validators';
         <div class="pitch">
           <p class="headline">Quỹ lớp minh bạch, tách bạch quỹ chung và quỹ sự kiện.</p>
           <p class="lead">
-            Thu tiền, xác nhận thanh toán, ghi thu chi có chứng từ và quyết toán từng sự kiện – mọi thao tác đều có nhật ký.
+            Thu tiền, nhắc đóng, ghi thu chi có chứng từ và quyết toán từng sự kiện – mọi thao tác đều có nhật ký.
           </p>
         </div>
         <p class="audience">Dành cho thủ quỹ và học sinh trong lớp.</p>

@@ -56,6 +56,12 @@ import { EVENT_DESCRIPTION_MAX, EVENT_NAME_MAX, EventDetail } from '../events.mo
           <kendo-datepicker #dateInput formControlName="eventDate" format="dd/MM/yyyy" />
           <kendo-formerror>{{ serverError(form.controls.eventDate) ?? 'Vui lòng chọn ngày diễn ra.' }}</kendo-formerror>
         </kendo-formfield>
+        <kendo-formfield class="field cf-required date">
+          <kendo-label [for]="deadlineInput" text="Hạn đóng danh sách" />
+          <kendo-datepicker #deadlineInput formControlName="listDeadline" format="dd/MM/yyyy" />
+          <kendo-formerror>{{ serverError(form.controls.listDeadline) ?? 'Vui lòng chọn hạn đóng danh sách.' }}</kendo-formerror>
+        </kendo-formfield>
+        <p class="hint">Mọi khoản thu của sự kiện phải được nộp đủ trước hạn này. Đến hạn, thủ quỹ đóng danh sách: ai chưa nộp đủ bị loại và được hoàn tiền đã nộp vào số dư cá nhân; hệ thống tự nhắc đóng trước hạn.</p>
         @if (!event()) {
           <div class="cf-alert">Khoản thu của sự kiện được tạo sau, trong trang chi tiết, và chỉ áp cho người đã xác nhận tham gia.</div>
         }
@@ -93,6 +99,11 @@ import { EVENT_DESCRIPTION_MAX, EVENT_NAME_MAX, EventDetail } from '../events.mo
     .date {
       max-width: 240px;
     }
+    .hint {
+      margin: 0;
+      color: var(--cf-text-muted);
+      font-size: 13px;
+    }
   `,
 })
 export class EventFormDialog implements OnInit {
@@ -115,12 +126,13 @@ export class EventFormDialog implements OnInit {
     name: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(EVENT_NAME_MAX)] }),
     description: new FormControl('', { nonNullable: true, validators: [Validators.maxLength(EVENT_DESCRIPTION_MAX)] }),
     eventDate: new FormControl<Date | null>(null, { validators: [Validators.required] }),
+    listDeadline: new FormControl<Date | null>(null, { validators: [Validators.required] }),
   });
 
   ngOnInit(): void {
     const current = this.event();
     if (current) {
-      this.form.setValue({ name: current.name, description: current.description ?? '', eventDate: fromApiDate(current.eventDate) });
+      this.form.setValue({ name: current.name, description: current.description ?? '', eventDate: fromApiDate(current.eventDate), listDeadline: fromApiDate(current.listDeadline) });
     }
   }
 
@@ -133,7 +145,7 @@ export class EventFormDialog implements OnInit {
       return;
     }
     const value = this.form.getRawValue();
-    const body = { name: value.name.trim(), description: value.description.trim() || null, eventDate: toApiDate(value.eventDate!) };
+    const body = { name: value.name.trim(), description: value.description.trim() || null, eventDate: toApiDate(value.eventDate!), listDeadline: toApiDate(value.listDeadline!) };
     const current = this.event();
     this.busy.set(true);
     try {

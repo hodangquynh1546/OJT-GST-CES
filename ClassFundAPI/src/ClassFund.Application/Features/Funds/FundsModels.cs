@@ -9,7 +9,7 @@ public sealed record CreateFundInput(string Name, string SchoolYear);
 public sealed record UpdateFundInput(string Name, string SchoolYear);
 
 /// <summary>
-/// Một thẻ quỹ ở F-01 (FR-08). <see cref="PendingPaymentCount"/> chỉ có giá trị với người có quyền xác nhận thanh toán.
+/// Một thẻ quỹ ở F-01 (FR-08).
 /// <see cref="GeneralBalance"/> là số dư quỹ chung (không cộng tiền sự kiện, BR-02).
 /// </summary>
 public sealed record FundSummaryDto(
@@ -20,7 +20,6 @@ public sealed record FundSummaryDto(
     MemberRole MyRole,
     int MemberCount,
     long GeneralBalance,
-    int? PendingPaymentCount,
     long MyDueAmount = 0,
     int MyDueCount = 0,
     long MyBalance = 0);

@@ -14,26 +14,16 @@ public sealed record ParticipantMoney(
     long Due,
     long Paid,
     long UnpaidAmount,
-    int PendingCount,
     bool HasSelfDeclared,
-    bool HasAssignment,
-    bool HasAnyPayment)
+    bool HasAssignment)
 {
-    public static ParticipantMoney None(Guid eventId, Guid userId) => new(eventId, userId, 0, 0, 0, 0, false, false, false);
+    public static ParticipantMoney None(Guid eventId, Guid userId) => new(eventId, userId, 0, 0, 0, false, false);
 
-    /// <summary>Chờ xác nhận ưu tiên; chưa có khoản nào → NoCharge; còn nghĩa vụ Unpaid → Chưa đóng; còn lại Đã đóng.</summary>
+    /// <summary>Chưa có khoản nào → NoCharge; còn nghĩa vụ Unpaid → Chưa đóng; còn lại Đã đóng.</summary>
     public ParticipantPaymentStatus Status =>
-        PendingCount > 0 ? ParticipantPaymentStatus.Pending
-        : !HasAssignment ? ParticipantPaymentStatus.NoCharge
+        !HasAssignment ? ParticipantPaymentStatus.NoCharge
         : UnpaidAmount > 0 ? ParticipantPaymentStatus.Unpaid
         : ParticipantPaymentStatus.Paid;
-
-    /// <summary>
-    /// BR-19 (nhóm chốt 2026-11-19): bị loại khi kết thúc nếu chưa đóng khoản thu nào của sự kiện
-    /// (không có khoản Paid, không có thanh toán chờ / đã xác nhận) – kể cả khi sự kiện chưa áp khoản thu nào cho người này.
-    /// Đã đóng ít nhất một khoản thì giữ lại, đóng đủ hay chưa đều được (quyết toán chia tiền thừa theo tỷ lệ số đã đóng).
-    /// </summary>
-    public bool ExcludedOnCompletion => !HasAnyPayment;
 }
 
 public static class EventMoney
@@ -84,10 +74,8 @@ public static class EventMoney
                 Due: mine.Where(row => row.Status != AssignmentStatus.Excluded).Sum(row => row.AmountDue),
                 Paid: paid.Where(row => row.Status == PaymentStatus.Confirmed).Sum(row => row.Amount),
                 UnpaidAmount: mine.Where(row => row.Status == AssignmentStatus.Unpaid).Sum(row => row.AmountDue),
-                PendingCount: paid.Count(row => row.Status == PaymentStatus.Submitted),
                 HasSelfDeclared: paid.Any(row => row.Status == PaymentStatus.Confirmed && row.ConfirmationMode == ConfirmationMode.SelfDeclared),
-                HasAssignment: mine.Any(row => row.Status != AssignmentStatus.Excluded),
-                HasAnyPayment: paid.Length > 0 || mine.Any(row => row.Status == AssignmentStatus.Paid));
+                HasAssignment: mine.Any(row => row.Status != AssignmentStatus.Excluded));
         }
 
         return result;

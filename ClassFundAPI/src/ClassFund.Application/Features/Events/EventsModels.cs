@@ -2,18 +2,15 @@ using ClassFund.Domain.Enums;
 
 namespace ClassFund.Application.Features.Events;
 
-public sealed record CreateEventInput(string Name, string? Description, DateOnly EventDate);
+public sealed record CreateEventInput(string Name, string? Description, DateOnly EventDate, DateOnly ListDeadline);
 
-public sealed record UpdateEventInput(string Name, string? Description, DateOnly EventDate);
+public sealed record UpdateEventInput(string Name, string? Description, DateOnly EventDate, DateOnly ListDeadline);
 
-/// <summary>Tình trạng đóng tiền của một người tham gia với cả sự kiện (FR-32): Đã đóng / Chờ xác nhận / Chưa đóng.</summary>
+/// <summary>Tình trạng đóng tiền của một người tham gia với cả sự kiện (FR-32): Đã đóng / Chưa đóng (thủ quỹ ghi nhận khi nhận tiền).</summary>
 public enum ParticipantPaymentStatus
 {
     /// <summary>Đã đóng đủ mọi khoản của sự kiện.</summary>
     Paid = 1,
-
-    /// <summary>Có thanh toán đang chờ thủ quỹ xác nhận.</summary>
-    Pending = 2,
 
     /// <summary>Còn khoản chưa đóng.</summary>
     Unpaid = 3,
@@ -28,6 +25,7 @@ public sealed record EventSummaryDto(
     string Name,
     string? Description,
     DateOnly? EventDate,
+    DateOnly? ListDeadline,
     EventStatus Status,
     int InvitedCount,
     int ParticipantCount,
@@ -43,7 +41,7 @@ public sealed record EventSummaryDto(
 public sealed record MyParticipationDto(ParticipationResponse Response, bool IsFinal, string? ExclusionReason);
 
 /// <summary>Một nghĩa vụ của tôi với khoản thu của sự kiện (E-03 học sinh: "Phần của bạn").</summary>
-public sealed record MyEventChargeDto(Guid ChargeId, string Title, long AmountDue, DateOnly DueDate, AssignmentStatus Status);
+public sealed record MyEventChargeDto(Guid ChargeId, string Title, long AmountDue, DateOnly? DueDate, AssignmentStatus Status);
 
 /// <summary>Khoản thu của sự kiện kèm số người đã đóng / chờ / chưa đóng (tab Khoản thu sự kiện).</summary>
 public sealed record EventChargeDto(
@@ -51,11 +49,13 @@ public sealed record EventChargeDto(
     string Title,
     string? Purpose,
     long AmountPerPerson,
-    DateOnly DueDate,
+    DateOnly? DueDate,
     ChargeStatus Status,
     int PaidCount,
-    int PendingCount,
     int UnpaidCount);
+
+/// <summary>Một người bị loại khi đóng danh sách (E-03 "Lịch sử đóng danh sách"): lý do, số tiền hoàn vào số dư, thời điểm.</summary>
+public sealed record EventExclusionDto(Guid UserId, string FullName, string? Reason, long RefundedAmount, DateTimeOffset? ExcludedAt);
 
 /// <summary>E-03. <c>AmountPerPerson</c> = tổng mỗi người phải đóng theo các khoản thu đang mở (KPI "430.000 đ/người").</summary>
 public sealed record EventDetailDto(
@@ -63,6 +63,7 @@ public sealed record EventDetailDto(
     string Name,
     string? Description,
     DateOnly? EventDate,
+    DateOnly? ListDeadline,
     EventStatus Status,
     DateTimeOffset CreatedAt,
     DateTimeOffset? CompletedAt,
@@ -78,7 +79,8 @@ public sealed record EventDetailDto(
     long AmountPerPerson,
     MyParticipationDto? Me,
     IReadOnlyList<MyEventChargeDto> MyCharges,
-    IReadOnlyList<EventChargeDto> Charges);
+    IReadOnlyList<EventChargeDto> Charges,
+    IReadOnlyList<EventExclusionDto> Exclusions);
 
 /// <summary>
 /// Một người tham gia (FR-32). Thủ quỹ thấy đủ cột; học sinh chỉ thấy tên (các cột tiền = 0, trạng thái NoCharge).
@@ -91,26 +93,25 @@ public sealed record EventParticipantDto(
     long Paid,
     long Due,
     ParticipantPaymentStatus PaymentStatus,
-    bool HasSelfDeclared,
-    int PendingPaymentCount);
+    bool HasSelfDeclared);
 
 public sealed record EventParticipantsResult(
     IReadOnlyList<EventParticipantDto> Items,
     int Total,
     int PaidCount,
-    int PendingCount,
     int UnpaidCount);
 
-public sealed record PersonDto(Guid UserId, string FullName);
-
-public sealed record UnderpaidPersonDto(Guid UserId, string FullName, long Missing);
+/// <summary>Người sẽ bị loại khi đóng danh sách: số tiền đã đóng (hoàn vào số dư cá nhân) và lý do.</summary>
+public sealed record ExcludedPersonDto(Guid UserId, string FullName, long Paid, long Refund, string Reason);
 
 /// <summary>
-/// Xem trước khi kết thúc (hộp thoại "Kết thúc sự kiện?"): ai bị loại vì chưa đóng khoản nào,
-/// ai chưa đóng đủ (được nhắc, vẫn tham gia), bao nhiêu thanh toán đang chờ, còn lại bao nhiêu người.
+/// Xem trước khi đóng danh sách (hộp thoại "Đóng danh sách?"): ai bị loại (chưa đóng đủ tất cả khoản thu đang mở) kèm số tiền hoàn,
+/// còn lại bao nhiêu người, hạn đóng danh sách và có đang đóng sớm hơn hạn không.
 /// </summary>
-public sealed record EventCompletionPreviewDto(
-    IReadOnlyList<PersonDto> Excluded,
-    IReadOnlyList<UnderpaidPersonDto> Underpaid,
-    int PendingPaymentCount,
-    int RemainingCount);
+public sealed record EventCloseListPreviewDto(
+    IReadOnlyList<ExcludedPersonDto> Excluded,
+    int RemainingCount,
+    int OpenChargeCount,
+    long TotalRefund,
+    DateOnly? ListDeadline,
+    bool BeforeDeadline);

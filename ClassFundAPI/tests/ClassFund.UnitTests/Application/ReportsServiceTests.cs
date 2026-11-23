@@ -1,5 +1,6 @@
 using ClassFund.Application.Common.Exceptions;
 using ClassFund.Application.Common.Notifications;
+using ClassFund.Application.Features.Balance;
 using ClassFund.Application.Features.Events;
 using ClassFund.Application.Features.Reports;
 using ClassFund.Domain.Entities;
@@ -31,7 +32,15 @@ public class ReportsServiceTests
         _ctx.Db,
         _ctx.CurrentUser,
         _ctx.Access,
-        new EventsService(_ctx.Db, _ctx.CurrentUser, _ctx.Access, _ctx.Audit, new Notifier(_ctx.Db, _ctx.Clock), _ctx.Clock));
+        new EventsService(
+            _ctx.Db,
+            _ctx.CurrentUser,
+            _ctx.Access,
+            new BalanceService(_ctx.Db, _ctx.CurrentUser, _ctx.Access, _ctx.Clock),
+            _ctx.Audit,
+            new Notifier(_ctx.Db, _ctx.Clock),
+            _ctx.Clock),
+        _ctx.Clock);
 
     private LedgerEntry Entry(LedgerType type, long amount, DateOnly date, Guid? eventId = null, Guid? categoryId = null, bool self = false, Guid? reverses = null, LedgerSource source = LedgerSource.Manual)
     {

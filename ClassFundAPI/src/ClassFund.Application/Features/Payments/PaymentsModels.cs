@@ -1,31 +1,30 @@
-using ClassFund.Application.Features.Attachments;
 using ClassFund.Domain.Enums;
 
 namespace ClassFund.Application.Features.Payments;
 
-/// <summary>Một khoản cần đóng của chính người dùng (H-03). Chỉ có nghĩa vụ của mình (AZ-04).</summary>
+/// <summary>
+/// Một khoản cần đóng của chính người dùng (H-03, chỉ xem): Đã nộp / Chưa nộp (<see cref="Status"/>). Chỉ có nghĩa vụ của mình (AZ-04).
+/// <see cref="Method"/> / <see cref="PaidAt"/> có khi đã được thủ quỹ ghi nhận đã thu.
+/// </summary>
 public sealed record MyAssignmentItemDto(
     Guid AssignmentId,
     Guid ChargeId,
     string Title,
     string? Purpose,
     long AmountDue,
-    DateOnly DueDate,
+    DateOnly? DueDate,
     ChargeStatus ChargeStatus,
     AssignmentStatus Status,
-    Guid? PaymentId,
     PaymentMethod? Method,
-    PaymentStatus? PaymentStatus,
-    string? RejectionReason,
+    DateTimeOffset? PaidAt,
     bool IsSelfDeclared,
     Guid? EventId = null,
-    string? EventName = null,
-    long BalanceApplied = 0);
+    string? EventName = null);
 
-/// <param name="UseBalance">Dùng số dư cá nhân trước; phần còn thiếu đóng bằng <paramref name="Method"/> (tiền mặt / chuyển khoản).</param>
-public sealed record SubmitPaymentInput(PaymentMethod Method, string? TransferCode, Guid? AttachmentId, bool UseBalance = false);
+/// <summary>Thủ quỹ ghi nhận đã thu: chỉ Tiền mặt hoặc Chuyển khoản (số dư cá nhân không dùng để đóng khoản thu).</summary>
+public sealed record CollectPaymentInput(PaymentMethod Method, string? TransferCode);
 
-/// <summary>Kết quả nộp tiền. Thủ quỹ tự nộp cho mình thì <see cref="Status"/> = Confirmed và <see cref="IsSelfDeclared"/> = true.</summary>
+/// <summary>Kết quả ghi nhận thu. Thủ quỹ tích cho chính mình thì <see cref="IsSelfDeclared"/> = true.</summary>
 public sealed record PaymentDto(
     Guid Id,
     Guid AssignmentId,
@@ -33,31 +32,5 @@ public sealed record PaymentDto(
     PaymentMethod Method,
     string? TransferCode,
     PaymentStatus Status,
-    DateTimeOffset SubmittedAt,
-    bool IsSelfDeclared,
-    long BalanceApplied = 0);
-
-/// <summary>Một dòng trong hàng chờ xác nhận (H-04) kèm ảnh minh chứng.</summary>
-public sealed record PaymentQueueItemDto(
-    Guid Id,
-    Guid AssignmentId,
-    Guid ChargeId,
-    string ChargeTitle,
-    Guid PayerUserId,
-    string PayerName,
-    string PayerEmail,
-    long Amount,
-    PaymentMethod Method,
-    string? TransferCode,
-    PaymentStatus Status,
-    DateTimeOffset SubmittedAt,
     DateTimeOffset? ConfirmedAt,
-    bool IsSelfDeclared,
-    string? RejectionReason,
-    IReadOnlyList<AttachmentDto> Attachments,
-    long BalanceApplied = 0,
-    Guid? EventId = null,
-    string? EventName = null);
-
-/// <summary><see cref="Status"/> mặc định <c>Submitted</c> (chờ xác nhận).</summary>
-public sealed record PaymentFilter(PaymentStatus? Status, int Page, int PageSize);
+    bool IsSelfDeclared);

@@ -75,12 +75,12 @@
 | TC-M14-02 | Quỹ chung dư 300.000đ, 30 thành viên đã đóng bằng nhau, cộng số dư (theo tỷ lệ – OQ-19) | BR-36 | Mỗi người +10.000đ, quỹ `Archived`, thông báo cả lớp (Quỹ chung) | `YearEndSettlementServiceTests.Crediting_the_balance_archives_the_fund_…`; `YearEndSettlementApiTests.Surplus_is_split_across_the_class_…` |
 | TC-M14-03 | Quyết toán cuối năm lần thứ hai | BR-34 | 422 `year_end.already_closed` | `YearEndSettlementServiceTests.The_year_end_can_only_be_done_once`; `…Two_treasurers_closing_the_year_at_once_…` |
 | TC-M14-04 | Tạo khoản thu sau khi quỹ Archived | BR-37 | 422 `fund.archived` | `YearEndSettlementApiTests.After_the_year_end_new_writes_are_refused_…` (khoản thu, chi, sự kiện, danh mục, thành viên, thủ quỹ) |
-| TC-M14-05 | Quỹ Archived: học sinh có số dư gửi yêu cầu rút, thủ quỹ xác nhận đã trả | BR-37, OQ-11 | Thành công; số dư về 0; không bị chặn `fund.archived` | `YearEndSettlementApiTests.After_the_year_end_new_writes_are_refused_but_withdrawals_and_refunds_still_work` |
+| TC-M14-05 | Quỹ Archived: thủ quỹ vẫn rút số dư cho học sinh | BR-37, BR-26 | Thành công; số dư về 0; không bị chặn `fund.archived` | `YearEndSettlementApiTests.After_the_year_end_new_writes_are_refused_but_withdrawals_and_refunds_still_work` |
 | TC-M2-01 | Tài khoản tự đăng ký tạo quỹ | FR-05 | 201, là Owner, có đủ danh mục mặc định, audit `fund.create` | `FundsApiTests.Self_registered_user_creates_fund_and_becomes_owner_with_default_categories_FR05` |
 | TC-M2-02 | Tài khoản Provisioned (học sinh) tạo quỹ | FR-05 | 403 | `FundsApiTests.Provisioned_account_cannot_create_fund_403` |
 | TC-M2-03 | Người ngoài quỹ xem quỹ | FR-07 | 404 (thành viên: 200) | `FundsApiTests.Outsider_viewing_fund_is_404_member_is_200_FR07` |
 | TC-M2-04 | Học sinh sửa thông tin quỹ / sửa quỹ đã Archived | FR-06, BR-37 | 403 / 422 `fund.archived` | `FundsApiTests.Update_requires_fund_manage_FR06`, `FundsServiceTests.Archived_fund_cannot_be_updated_BR37` |
-| TC-M2-05 | Danh sách quỹ: số dư quỹ chung không cộng tiền sự kiện; chỉ thủ quỹ thấy số thanh toán chờ | FR-08, BR-02 | Đúng số dư; `pendingPaymentCount` null với học sinh | `FundsServiceTests.List_mine_shows_role_members_general_balance_only_and_pending_for_confirmers` |
+| TC-M2-05 | Danh sách quỹ: số dư quỹ chung không cộng tiền sự kiện; thẻ có số tiền chưa nộp và số dư cá nhân | FR-08, BR-02 | Đúng số dư; `myDueAmount` / `myBalance` đúng | `FundsServiceTests.List_mine_shows_role_members_general_balance_only_and_pending_for_confirmers` |
 | TC-M5-01 | Upload ảnh đại diện PDF hoặc > 2 MB | BR-07 | 422 `file.invalid` | `CategoriesAndFilesApiTests.Avatar_upload_rules_and_visibility_TC_M5_01`, `AttachmentsServiceTests.Avatar_must_be_small_image_TC_M5_01` |
 | TC-M5-02 | Học sinh tải bill chuyển khoản của học sinh khác | AZ-05 | 404 | `CategoriesAndFilesApiTests.Upload_and_download_follow_kind_permissions_and_AZ05_TC_M5_02` |
 | TC-M5-03 | Upload file khai `application/pdf` nhưng nội dung không phải PDF; hóa đơn > 5 MB | BR-07 | 422 `file.invalid`, không lưu object | `CategoriesAndFilesApiTests.Wrong_type_or_oversized_file_is_422_file_invalid` |
@@ -90,3 +90,25 @@
 | TC-M5-07 | Gắn file đã gắn / sai loại / do người khác tải lên | FR-15 | 422 `attachment.unusable` | `AttachmentsServiceTests.Attach_rejects_reuse_wrong_kind_and_foreign_uploads` |
 | TC-M5-08 | File tải lên quá 24h chưa gắn | TD-01 | Bị dọn khi có upload mới, không tải / gắn được nữa | `AttachmentsServiceTests.Unattached_files_older_than_24h_are_cleaned_on_next_upload_TD01` |
 | TC-M5-09 | Thêm danh mục trùng tên (khác hoa thường) cùng loại; ngừng dùng danh mục đã có giao dịch | FR-14 | 409 `category.duplicate_name`; ngừng dùng thành công, không xóa | `CategoriesAndFilesApiTests.Categories_crud_with_permissions_FR14`, `CategoriesServiceTests` |
+
+## Luồng theo góp ý mentor (OQ-21, 2026-11-23)
+
+| Mã | Kịch bản | Quy tắc | Kết quả mong đợi | Test |
+|---|---|---|---|---|
+| TC-MF-01 | Thủ quỹ tích "đã thu" bằng Tiền mặt / Chuyển khoản | BR-10 | 201, nghĩa vụ `Paid`, một dòng thu đúng phạm vi, audit `payment.collect`; tích lần hai 409 `payment.not_payable` | `ChargesPaymentsApiTests.The_treasurer_collects_once_and_one_income_entry_is_written` |
+| TC-MF-02 | Chọn số dư làm phương thức thu / học sinh gọi collect | BR-10 | 400 `validation_failed` / 403 | `ChargesPaymentsApiTests.Personal_balance_is_not_a_collect_method_and_the_body_is_validated`, `Students_cannot_create_close_cancel_list_assignments_or_collect` |
+| TC-MF-03 | Bỏ xác nhận thu thiếu lý do / có lý do, rồi tích lại | BR-14 | 400 / bút toán đảo, nghĩa vụ `Unpaid`, tích lại được | `ChargesPaymentsApiTests.Uncollect_needs_a_reason_reverses_the_ledger_and_allows_collecting_again` |
+| TC-MF-04 | Endpoint học sinh tự nộp và hàng chờ xác nhận | BR-10 | Không còn (404/405) | `ChargesPaymentsApiTests.The_old_student_submit_and_approval_endpoints_are_gone` |
+| TC-MF-05 | Nhắc đóng từng người hai lần liên tiếp / người đã nộp | BR-15 | Lần 1 200 + ghi `PaymentReminder` + thông báo; lần 2 409; người đã nộp 422 | `ChargesPaymentsApiTests.Remind_one_person_logs_it_notifies_and_is_throttled`, `Remind_someone_who_already_paid_is_422` |
+| TC-MF-06 | Nhắc tự động D-3…D-1, mỗi người một lần/ngày | BR-15 | Có thông báo + `PaymentReminder(Auto)`, lần gọi sau cùng ngày không tạo thêm | `NotificationsServiceTests` |
+| TC-MF-07 | Người đóng 1/2 khoản khi đóng danh sách | BR-19 | Bị loại, số tiền đã đóng hoàn vào số dư (`ListCloseRefund`), có lịch sử trên trang sự kiện + audit | `EventChargesAndBalancePaymentsApiTests.Close_list_excludes_the_person_who_paid_only_one_of_two_charges_and_refunds_to_their_balance` |
+| TC-MF-08 | Đóng danh sách sớm hơn hạn | BR-19 | 422 `event.list_deadline_not_reached`; có `confirmEarly` thì 200 | `EventsAndLedgerApiTests.Closing_the_list_before_the_deadline_needs_confirm_early` |
+| TC-MF-09 | Ghi chi sự kiện khi còn `Open` | BR-20 | 422 `event.list_not_closed`; sau khi đóng danh sách ghi được, không vượt số dư | `EventsAndLedgerApiTests.Event_lifecycle_invite_respond_close_list_spend_and_closed_scope_BR19_BR20` |
+| TC-MF-10 | Quyết toán chia đều, làm tròn xuống 1.000đ | BR-22 | Mỗi người phần bằng nhau; phần lẻ < 1.000đ không chia | `SettlementApiTests.Equal_split_rounds_down_to_thousands_and_leaves_the_remainder_unallocated`, `SettlementCalculatorTests` |
+| TC-MF-11 | Tổng kết cuối năm khi còn người chưa nộp | BR-35 | 422 `year_end.unpaid_obligations`, quỹ vẫn `Active`; đủ thì chia đều | `YearEndSettlementApiTests.Someone_who_has_not_paid_every_general_charge_blocks_the_year_end` |
+| TC-MF-12 | Thủ quỹ rút số dư hợp lệ / sai số tiền / vượt số dư / thành viên lạ | BR-26 | 200 + lịch sử + audit / 400 / 422 `balance.insufficient` / 404 | `BalanceAndReportsApiTests` (4 test), `BalanceServiceTests` |
+| TC-MF-13 | Hai thủ quỹ rút đồng thời quá số dư | BR-26 | Chỉ một thành công, số dư không âm | `BalanceAndReportsApiTests.Concurrent_withdrawals_never_overdraw_the_balance` |
+| TC-MF-14 | Học sinh xem số dư, gọi rút / danh sách | AZ-01 | `GET me/balance` 200; còn lại 403 | `BalanceAndReportsApiTests.Students_only_view_their_balance_and_cannot_withdraw_or_list` |
+| TC-MF-15 | Khoản thu chung không hạn | BR-04 | 201, `dueDate = null` | `ChargesPaymentsApiTests.Create_with_a_past_due_date_is_422_and_a_general_charge_may_have_no_due_date` |
+| TC-MF-16 | FE: H-01b tích đã thu chọn Tiền mặt / Chuyển khoản, bỏ tích cần lý do, nhắc đóng; H-03 chỉ xem; B-02 kiểm số tiền; E-03 đóng danh sách | FR-21, FR-41 | Theo `e2e/mock/charges.spec.ts`, `balance-reports.spec.ts`, `events.spec.ts` | E2E mock |
+

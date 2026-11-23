@@ -11,11 +11,11 @@ export const BALANCE_ROUTES: Routes = [
   },
 ];
 
-/** B-02 Yêu cầu rút tiền (guard Balance.Handle ở app.routes.ts). */
+/** B-02 Rút số dư (guard Balance.Handle ở app.routes.ts). */
 export const WITHDRAWAL_ROUTES: Routes = [
   {
     path: '',
-    title: 'Yêu cầu rút tiền · ClassFund',
+    title: 'Rút số dư · ClassFund',
     loadComponent: () => import('./withdrawals-page/withdrawals-page').then((m) => m.WithdrawalsPage),
   },
 ];

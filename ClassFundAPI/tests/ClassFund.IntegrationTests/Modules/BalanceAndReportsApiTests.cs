@@ -40,82 +40,100 @@ public class BalanceAndReportsApiTests(ApiTestHost host)
     }
 
     [Fact]
-    public async Task Withdrawal_flow_permissions_and_rules_on_postgres()
+    public async Task Students_only_view_their_balance_and_cannot_withdraw_or_list()
+    {
+        var (fund, _, student) = await SetupAsync();
+        await SeedBalanceAsync(fund, student, 38_000);
+        var studentClient = await host.LoginAsync(student);
+
+        var mine = await studentClient.GetFromJsonAsync<JsonElement>(Url(fund.Id, "/me/balance"));
+        Assert.Equal(38_000, mine.GetProperty("balance").GetInt64());
+        Assert.Equal(1, mine.GetProperty("history").GetArrayLength());
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await studentClient.GetAsync(Url(fund.Id, "/balances"))).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await studentClient.GetAsync(Url(fund.Id, "/withdrawals"))).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await studentClient.PostAsJsonAsync(Url(fund.Id, $"/balances/{student.Id}/withdraw"), new { amount = 10_000 })).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await host.Anonymous().GetAsync(Url(fund.Id, "/balances"))).StatusCode);
+    }
+
+    [Fact]
+    public async Task Treasurer_lists_balances_and_withdraws_a_valid_amount_with_history_and_audit()
     {
         var (fund, owner, student) = await SetupAsync();
-        var studentClient = await host.LoginAsync(student);
+        await SeedBalanceAsync(fund, student, 38_000);
         var ownerClient = await host.LoginAsync(owner);
 
-        Assert.Equal("withdrawal.nothing_to_withdraw", await CodeOf(await studentClient.PostAsync(Url(fund.Id, "/me/withdrawal-requests"), null)));
-        await SeedBalanceAsync(fund, student, 38_000);
+        var list = await ownerClient.GetFromJsonAsync<JsonElement>(Url(fund.Id, "/balances"));
+        var row = list.GetProperty("items").EnumerateArray().Single(item => item.GetProperty("userId").GetGuid() == student.Id);
+        Assert.Equal(38_000, row.GetProperty("balance").GetInt64());
+        Assert.Equal(38_000, list.GetProperty("heldTotal").GetInt64());
 
-        var created = await studentClient.PostAsync(Url(fund.Id, "/me/withdrawal-requests"), null);
-        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
-        var mine = await created.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal(38_000, mine.GetProperty("balance").GetInt64());
-        Assert.Equal("Requested", mine.GetProperty("latestWithdrawal").GetProperty("status").GetString());
-        Assert.Equal("withdrawal.pending_exists", await CodeOf(await studentClient.PostAsync(Url(fund.Id, "/me/withdrawal-requests"), null)));
+        var withdraw = await ownerClient.PostAsJsonAsync(Url(fund.Id, $"/balances/{student.Id}/withdraw"), new { amount = 30_000 });
+        Assert.Equal(HttpStatusCode.OK, withdraw.StatusCode);
+        Assert.Equal(8_000, (await withdraw.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("balance").GetInt64());
 
-        Assert.Equal(HttpStatusCode.Forbidden, (await studentClient.GetAsync(Url(fund.Id, "/withdrawal-requests"))).StatusCode);
-        var list = await ownerClient.GetFromJsonAsync<JsonElement>(Url(fund.Id, "/withdrawal-requests?status=Requested"));
-        var requestId = Assert.Single(list.GetProperty("items").EnumerateArray()).GetProperty("id").GetGuid();
-        Assert.Equal(1, list.GetProperty("requestedCount").GetInt32());
+        var history = await ownerClient.GetFromJsonAsync<JsonElement>(Url(fund.Id, "/withdrawals"));
+        var item = Assert.Single(history.GetProperty("items").EnumerateArray());
+        Assert.Equal((student.Id, 30_000L), (item.GetProperty("userId").GetGuid(), item.GetProperty("amount").GetInt64()));
 
-        // Hai thủ quỹ bấm "Đã trả tiền" cùng lúc: chỉ một lần trừ.
-        var second = await host.LoginAsync(owner);
-        var results = await Task.WhenAll(
-            ownerClient.PostAsync(Url(fund.Id, $"/withdrawal-requests/{requestId}/paid"), null),
-            second.PostAsync(Url(fund.Id, $"/withdrawal-requests/{requestId}/paid"), null));
-        Assert.Single(results, response => response.StatusCode == HttpStatusCode.OK);
-        Assert.Single(results, response => response.StatusCode == HttpStatusCode.Conflict);
-
-        var after = await studentClient.GetFromJsonAsync<JsonElement>(Url(fund.Id, "/me/balance"));
-        Assert.Equal(0, after.GetProperty("balance").GetInt64());
-        Assert.Equal("Paid", after.GetProperty("latestWithdrawal").GetProperty("status").GetString());
-        var history = after.GetProperty("history").EnumerateArray().ToArray();
-        Assert.Equal(2, history.Length);
-        Assert.Equal((-38_000L, 0L), (history[0].GetProperty("amount").GetInt64(), history[0].GetProperty("balanceAfter").GetInt64()));
+        var mine = await (await host.LoginAsync(student)).GetFromJsonAsync<JsonElement>(Url(fund.Id, "/me/balance"));
+        Assert.Equal(8_000, mine.GetProperty("balance").GetInt64());
+        Assert.Equal(-30_000, mine.GetProperty("history")[0].GetProperty("amount").GetInt64());
 
         await using var db = host.CreateDbContext();
         Assert.False(await db.LedgerEntries.AnyAsync(entry => entry.FundId == fund.Id));
-        Assert.True(await db.AuditLogs.AnyAsync(log => log.FundId == fund.Id && log.Action == "withdrawal.paid"));
+        Assert.True(await db.AuditLogs.AnyAsync(log => log.FundId == fund.Id && log.Action == "balance.withdraw"));
     }
 
-    [Fact]
-    public async Task Concurrent_requests_create_only_one_pending_withdrawal()
-    {
-        var (fund, _, student) = await SetupAsync();
-        await SeedBalanceAsync(fund, student, 50_000);
-        var a = await host.LoginAsync(student);
-        var b = await host.LoginAsync(student);
-
-        var results = await Task.WhenAll(
-            a.PostAsync(Url(fund.Id, "/me/withdrawal-requests"), null),
-            b.PostAsync(Url(fund.Id, "/me/withdrawal-requests"), null));
-
-        Assert.Single(results, response => response.StatusCode == HttpStatusCode.Created);
-        Assert.Single(results, response => response.StatusCode == HttpStatusCode.UnprocessableEntity);
-        await using var db = host.CreateDbContext();
-        Assert.Equal(1, await db.WithdrawalRequests.CountAsync(request => request.FundId == fund.Id));
-    }
-
-    [Fact]
-    public async Task Reject_requires_reason_and_reopens_balance()
+    [Theory]
+    [InlineData(5_000)]
+    [InlineData(10_500)]
+    [InlineData(0)]
+    [InlineData(-10_000)]
+    public async Task Withdraw_rejects_a_bad_amount_with_400(long amount)
     {
         var (fund, owner, student) = await SetupAsync();
-        await SeedBalanceAsync(fund, student, 25_000);
-        var studentClient = await host.LoginAsync(student);
-        await studentClient.PostAsync(Url(fund.Id, "/me/withdrawal-requests"), null);
+        await SeedBalanceAsync(fund, student, 50_000);
+
+        var response = await (await host.LoginAsync(owner)).PostAsJsonAsync(Url(fund.Id, $"/balances/{student.Id}/withdraw"), new { amount });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("validation_failed", await CodeOf(response));
+    }
+
+    [Fact]
+    public async Task Withdraw_more_than_the_balance_is_422_and_an_unknown_member_is_404()
+    {
+        var (fund, owner, student) = await SetupAsync();
+        await SeedBalanceAsync(fund, student, 20_000);
         var ownerClient = await host.LoginAsync(owner);
-        var requestId = (await ownerClient.GetFromJsonAsync<JsonElement>(Url(fund.Id, "/withdrawal-requests"))).GetProperty("items")[0].GetProperty("id").GetGuid();
 
-        Assert.Equal(HttpStatusCode.BadRequest, (await ownerClient.PostAsJsonAsync(Url(fund.Id, $"/withdrawal-requests/{requestId}/reject"), new { reason = "" })).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await ownerClient.PostAsJsonAsync(Url(fund.Id, $"/withdrawal-requests/{requestId}/reject"), new { reason = "Đóng khoản Dã ngoại trước" })).StatusCode);
+        var over = await ownerClient.PostAsJsonAsync(Url(fund.Id, $"/balances/{student.Id}/withdraw"), new { amount = 30_000 });
+        var unknown = await ownerClient.PostAsJsonAsync(Url(fund.Id, $"/balances/{Guid.NewGuid()}/withdraw"), new { amount = 10_000 });
 
-        var mine = await studentClient.GetFromJsonAsync<JsonElement>(Url(fund.Id, "/me/balance"));
-        Assert.Equal(25_000, mine.GetProperty("balance").GetInt64());
-        Assert.Equal("Đóng khoản Dã ngoại trước", mine.GetProperty("latestWithdrawal").GetProperty("rejectionReason").GetString());
-        Assert.Equal(HttpStatusCode.Created, (await studentClient.PostAsync(Url(fund.Id, "/me/withdrawal-requests"), null)).StatusCode);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, over.StatusCode);
+        Assert.Equal("balance.insufficient", await CodeOf(over));
+        Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
+        Assert.Equal(20_000, (await ownerClient.GetFromJsonAsync<JsonElement>(Url(fund.Id, "/balances"))).GetProperty("heldTotal").GetInt64());
+    }
+
+    [Fact]
+    public async Task Concurrent_withdrawals_never_overdraw_the_balance()
+    {
+        var (fund, owner, student) = await SetupAsync();
+        await SeedBalanceAsync(fund, student, 50_000);
+        var a = await host.LoginAsync(owner);
+        var b = await host.LoginAsync(owner);
+
+        var results = await Task.WhenAll(
+            a.PostAsJsonAsync(Url(fund.Id, $"/balances/{student.Id}/withdraw"), new { amount = 30_000 }),
+            b.PostAsJsonAsync(Url(fund.Id, $"/balances/{student.Id}/withdraw"), new { amount = 30_000 }));
+
+        Assert.Single(results, response => response.StatusCode == HttpStatusCode.OK);
+        Assert.Single(results, response => response.StatusCode == HttpStatusCode.UnprocessableEntity);
+        await using var db = host.CreateDbContext();
+        Assert.Equal(20_000, (await db.PersonalBalances.SingleAsync(item => item.FundId == fund.Id && item.UserId == student.Id)).Balance);
+        Assert.Equal(1, await db.WithdrawalRequests.CountAsync(item => item.FundId == fund.Id));
     }
 
     [Fact]

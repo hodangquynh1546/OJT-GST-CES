@@ -23,7 +23,7 @@ test('student sees general fund and events but not management menu', async ({ pa
             fundId: 'f1',
             fundName: 'Lớp 10A1',
             role: 'Student',
-            permissions: ['Fund.View', 'Event.Participate', 'Payment.Submit', 'Balance.ViewOwn', 'Balance.Withdraw'],
+            permissions: ['Fund.View', 'Event.Participate', 'Balance.ViewOwn', 'Balance.Withdraw'],
           },
         ],
       },

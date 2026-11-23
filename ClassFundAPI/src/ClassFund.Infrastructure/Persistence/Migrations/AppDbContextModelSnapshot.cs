@@ -245,7 +245,7 @@ namespace ClassFund.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("CreatedByUserId")
                         .HasColumnType("uuid");
 
-                    b.Property<DateOnly>("DueDate")
+                    b.Property<DateOnly?>("DueDate")
                         .HasColumnType("date");
 
                     b.Property<Guid?>("EventId")
@@ -346,6 +346,9 @@ namespace ClassFund.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("FundId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateOnly?>("ListDeadline")
+                        .HasColumnType("date");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(150)
@@ -372,12 +375,18 @@ namespace ClassFund.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("EventId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("ExcludedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("ExclusionReason")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
                     b.Property<bool>("IsFinal")
                         .HasColumnType("boolean");
+
+                    b.Property<long?>("RefundedAmount")
+                        .HasColumnType("bigint");
 
                     b.Property<DateTimeOffset?>("RespondedAt")
                         .HasColumnType("timestamp with time zone");
@@ -686,6 +695,56 @@ namespace ClassFund.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("CK_Payment_Amount", "\"Amount\" > 0");
                         });
+                });
+
+            modelBuilder.Entity("ClassFund.Domain.Entities.PaymentReminder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ChargeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("EventId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("FundId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateOnly>("ReminderDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset>("SentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("SentByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChargeId");
+
+                    b.HasIndex("EventId");
+
+                    b.HasIndex("SentByUserId");
+
+                    b.HasIndex("FundId", "EventId", "SentAt")
+                        .HasDatabaseName("IX_PaymentReminder_Fund_Event_SentAt");
+
+                    b.HasIndex("UserId", "EventId", "ReminderDate")
+                        .IsUnique()
+                        .HasDatabaseName("UX_PaymentReminder_AutoPerDay")
+                        .HasFilter("\"Kind\" = 'Auto' AND \"EventId\" IS NOT NULL");
+
+                    b.ToTable("PaymentReminder", (string)null);
                 });
 
             modelBuilder.Entity("ClassFund.Domain.Entities.PersonalBalance", b =>
@@ -1083,6 +1142,36 @@ namespace ClassFund.Infrastructure.Persistence.Migrations
                     b.HasOne("ClassFund.Domain.Entities.User", null)
                         .WithMany()
                         .HasForeignKey("PayerUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ClassFund.Domain.Entities.PaymentReminder", b =>
+                {
+                    b.HasOne("ClassFund.Domain.Entities.Charge", null)
+                        .WithMany()
+                        .HasForeignKey("ChargeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ClassFund.Domain.Entities.Event", null)
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ClassFund.Domain.Entities.Fund", null)
+                        .WithMany()
+                        .HasForeignKey("FundId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ClassFund.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("SentByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ClassFund.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

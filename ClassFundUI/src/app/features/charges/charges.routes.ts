@@ -4,7 +4,6 @@ import './charges.errors';
 import { ChargeDetailPage } from './charge-detail-page';
 import { ChargesPage } from './charges-page';
 import { MyPaymentsPage } from './my-payments-page';
-import { PaymentsPage } from './payments-page';
 import { Permissions } from '../../core/auth/permissions';
 import { fundPermissionGuard } from '../../core/auth/auth.guards';
 
@@ -15,8 +14,5 @@ export const CHARGE_ROUTES: Routes = [
   { path: ':chargeId', component: ChargeDetailPage, canActivate: [fundPermissionGuard(Permissions.ChargeManage)], title: 'Theo dõi khoản thu · ClassFund' },
 ];
 
-/** H-03 Khoản cần đóng của tôi (cần `Payment.Submit`, guard ở `app.routes.ts`). */
+/** H-03 Khoản cần đóng của tôi (chỉ xem; guard `Fund.View` ở `app.routes.ts`). */
 export const MY_PAYMENT_ROUTES: Routes = [{ path: '', component: MyPaymentsPage, title: 'Khoản cần đóng · ClassFund' }];
-
-/** H-04 Xác nhận thanh toán (cần `Payment.Confirm`, guard ở `app.routes.ts`). */
-export const PAYMENT_CONFIRM_ROUTES: Routes = [{ path: '', component: PaymentsPage, title: 'Xác nhận thanh toán · ClassFund' }];

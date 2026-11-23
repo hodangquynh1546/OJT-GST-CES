@@ -4,6 +4,7 @@ using ClassFund.Application.Common.Notifications;
 using ClassFund.Application.Common.Persistence;
 using ClassFund.Application.Common.Security;
 using ClassFund.Application.Features.AuditLogs;
+using ClassFund.Application.Features.Balance;
 using ClassFund.Application.Features.Ledger;
 using ClassFund.Domain.Authorization;
 using ClassFund.Domain.Entities;
@@ -15,7 +16,7 @@ namespace ClassFund.Application.Features.Events;
 
 /// <summary>
 /// Sự kiện – phạm vi tài chính riêng (FR-30 → FR-34, BR-16 → BR-20, OQ-18).
-/// Vòng đời Open → Completed → Settled; Open → Cancelled khi chưa có tiền. Quyết toán (Settled) thuộc M9.
+/// Vòng đời Open → Đóng danh sách (Completed) → Settled; Open → Cancelled khi chưa có tiền. Quyết toán (Settled) thuộc M9.
 /// </summary>
 public interface IEventsService
 {
@@ -39,10 +40,14 @@ public interface IEventsService
     /// <summary>Chỉ người đã nhận tham gia (sau khi kết thúc: người còn trong danh sách), lọc theo tình trạng đóng tiền (FR-32).</summary>
     Task<EventParticipantsResult> ListParticipantsAsync(Guid fundId, Guid eventId, ParticipantPaymentStatus? status, CancellationToken cancellationToken);
 
-    Task<EventCompletionPreviewDto> PreviewCompletionAsync(Guid fundId, Guid eventId, CancellationToken cancellationToken);
+    Task<EventCloseListPreviewDto> PreviewCloseListAsync(Guid fundId, Guid eventId, CancellationToken cancellationToken);
 
-    /// <summary>Kết thúc (BR-19): loại người chưa đóng khoản nào, nhắc người chưa đóng đủ.</summary>
-    Task<EventCompletionPreviewDto> CompleteAsync(Guid fundId, Guid eventId, CancellationToken cancellationToken);
+    /// <summary>
+    /// Đóng danh sách (BR-19): người chưa đóng đủ TẤT CẢ khoản thu đang mở bị loại, số tiền đã đóng được hoàn vào số dư cá nhân
+    /// (kèm bút toán chi hoàn tiền của sự kiện); nghĩa vụ của họ được gỡ. Đóng sớm hơn hạn cần <paramref name="confirmEarly"/>.
+    /// Từ đó sự kiện không nhận người mới / khoản thu mới và mới được ghi chi.
+    /// </summary>
+    Task<EventCloseListPreviewDto> CloseListAsync(Guid fundId, Guid eventId, bool confirmEarly, CancellationToken cancellationToken);
 }
 
 /// <inheritdoc />
@@ -50,6 +55,7 @@ public sealed class EventsService(
     IAppDb db,
     ICurrentUser currentUser,
     IAccessService accessService,
+    IBalanceService balances,
     AuditTrail audit,
     Notifier notifier,
     TimeProvider clock) : IEventsService
@@ -84,6 +90,7 @@ public sealed class EventsService(
                     item.Name,
                     item.Description,
                     item.EventDate,
+                    item.ListDeadline,
                     item.Status,
                     mine.Length,
                     counted.Length,
@@ -110,6 +117,7 @@ public sealed class EventsService(
         var (userId, access) = await ManagerAsync(fundId, cancellationToken);
         var name = Clean(input.Name)!;
         var description = Clean(input.Description);
+        EnsureDeadlineNotInPast(input.ListDeadline);
 
         var created = await db.InTransactionAsync(
             async token =>
@@ -118,7 +126,7 @@ public sealed class EventsService(
                 YearEndRule.EnsureFundActive(fund.Status);
 
                 var now = clock.GetUtcNow();
-                var fundEvent = new Event(fundId, name, description, input.EventDate, userId, now);
+                var fundEvent = new Event(fundId, name, description, input.EventDate, userId, now) { ListDeadline = input.ListDeadline };
                 db.Add(fundEvent);
 
                 var members = await db.ToListAsync(
@@ -142,7 +150,7 @@ public sealed class EventsService(
                     EventId: fundEvent.Id,
                     EntityType: nameof(Event),
                     EntityId: fundEvent.Id,
-                    After: new { fundEvent.Name, fundEvent.EventDate, fundEvent.Description, invitedCount = members.Count }));
+                    After: new { fundEvent.Name, fundEvent.EventDate, fundEvent.ListDeadline, fundEvent.Description, invitedCount = members.Count }));
                 await db.SaveChangesAsync(token);
                 return fundEvent;
             },
@@ -168,15 +176,21 @@ public sealed class EventsService(
                     throw new BusinessRuleException(EventsErrors.NotEditable, EventsErrors.NotEditableMessage);
                 }
 
-                if (fundEvent.Name == name && fundEvent.Description == description && fundEvent.EventDate == input.EventDate)
+                if (fundEvent.Name == name && fundEvent.Description == description && fundEvent.EventDate == input.EventDate && fundEvent.ListDeadline == input.ListDeadline)
                 {
                     return fundEvent;
                 }
 
-                var before = new { fundEvent.Name, fundEvent.EventDate, fundEvent.Description };
+                if (fundEvent.ListDeadline != input.ListDeadline)
+                {
+                    EnsureDeadlineNotInPast(input.ListDeadline);
+                }
+
+                var before = new { fundEvent.Name, fundEvent.EventDate, fundEvent.ListDeadline, fundEvent.Description };
                 fundEvent.Name = name;
                 fundEvent.Description = description;
                 fundEvent.EventDate = input.EventDate;
+                fundEvent.ListDeadline = input.ListDeadline;
                 audit.Record(new AuditEntry(
                     EventsAuditActions.Update,
                     fundId,
@@ -186,7 +200,7 @@ public sealed class EventsService(
                     EntityType: nameof(Event),
                     EntityId: fundEvent.Id,
                     Before: before,
-                    After: new { fundEvent.Name, fundEvent.EventDate, fundEvent.Description }));
+                    After: new { fundEvent.Name, fundEvent.EventDate, fundEvent.ListDeadline, fundEvent.Description }));
                 await db.SaveChangesAsync(token);
                 return fundEvent;
             },
@@ -297,12 +311,7 @@ public sealed class EventsService(
 
                 if (response == ParticipationResponse.Declined)
                 {
-                    var assignmentIds = assignments.Select(assignment => assignment.Id).ToArray();
-                    var hasPaid = assignments.Any(assignment => assignment.Status is AssignmentStatus.Paid or AssignmentStatus.AwaitingConfirmation)
-                        || await db.AnyAsync(
-                            db.Query<Payment>().Where(payment => assignmentIds.Contains(payment.AssignmentId) && payment.Status != PaymentStatus.Rejected),
-                            token);
-                    if (hasPaid)
+                    if (assignments.Any(assignment => assignment.Status == AssignmentStatus.Paid))
                     {
                         throw new BusinessRuleException(EventsErrors.ResponseLocked, EventsErrors.ResponseLockedMessage);
                     }
@@ -387,8 +396,7 @@ public sealed class EventsService(
                     value.Paid,
                     value.Due,
                     value.Status,
-                    value.HasSelfDeclared,
-                    value.PendingCount);
+                    value.HasSelfDeclared);
             })
             .OrderBy(item => item.Role == MemberRole.Owner ? 0 : item.Role == MemberRole.Treasurer ? 1 : 2)
             .ThenBy(item => item.FullName)
@@ -400,88 +408,124 @@ public sealed class EventsService(
             filtered,
             all.Length,
             all.Count(item => item.PaymentStatus == ParticipantPaymentStatus.Paid),
-            all.Count(item => item.PaymentStatus == ParticipantPaymentStatus.Pending),
             all.Count(item => item.PaymentStatus == ParticipantPaymentStatus.Unpaid));
     }
 
-    public async Task<EventCompletionPreviewDto> PreviewCompletionAsync(Guid fundId, Guid eventId, CancellationToken cancellationToken)
+    public async Task<EventCloseListPreviewDto> PreviewCloseListAsync(Guid fundId, Guid eventId, CancellationToken cancellationToken)
     {
         await ManagerAsync(fundId, cancellationToken);
         var fundEvent = await db.FirstOrDefaultAsync(
             db.Query<Event>().Where(item => item.Id == eventId && item.FundId == fundId), cancellationToken) ?? throw new NotFoundException();
         EventStatusRules.EnsureCanTransition(fundEvent.Status, EventStatus.Completed);
 
-        var plan = await PlanCompletionAsync(eventId, cancellationToken);
+        var plan = await PlanCloseAsync(fundEvent, cancellationToken);
         return plan.Preview;
     }
 
-    public async Task<EventCompletionPreviewDto> CompleteAsync(Guid fundId, Guid eventId, CancellationToken cancellationToken)
+    public async Task<EventCloseListPreviewDto> CloseListAsync(Guid fundId, Guid eventId, bool confirmEarly, CancellationToken cancellationToken)
     {
         var (userId, _) = await ManagerAsync(fundId, cancellationToken);
 
         return await db.InTransactionAsync(
             async token =>
             {
+                var fund = await db.LockAsync<Fund>(fundId, token) ?? throw new NotFoundException();
                 var fundEvent = await LockEventAsync(fundId, eventId, token);
+                YearEndRule.EnsureFundActive(fund.Status);
                 EventStatusRules.EnsureCanTransition(fundEvent.Status, EventStatus.Completed);
 
-                var plan = await PlanCompletionAsync(eventId, token);
-                var excludedIds = plan.Preview.Excluded.Select(person => person.UserId).ToHashSet();
+                var now = clock.GetUtcNow();
+                var today = VietnamTime.DateOf(now);
+                if (fundEvent.ListDeadline is { } deadline && today < deadline && !confirmEarly)
+                {
+                    throw new BusinessRuleException(EventStatusRules.ListDeadlineNotReachedCode, EventStatusRules.ListDeadlineNotReachedMessage);
+                }
+
+                var plan = await PlanCloseAsync(fundEvent, token);
+                var excluded = plan.Preview.Excluded.ToDictionary(person => person.UserId);
+
+                var chargeIds = await db.ToListAsync(db.Query<Charge>().Where(charge => charge.EventId == eventId).Select(charge => charge.Id), token);
+                var dropped = excluded.Count == 0
+                    ? []
+                    : await db.ToListAsync(
+                        db.Query<ChargeAssignment>().Where(assignment =>
+                            chargeIds.Contains(assignment.ChargeId)
+                            && excluded.Keys.Contains(assignment.UserId)
+                            && (assignment.Status == AssignmentStatus.Unpaid || assignment.Status == AssignmentStatus.Paid)),
+                        token);
 
                 foreach (var participant in plan.Participants)
                 {
-                    var stays = participant.Response == ParticipationResponse.Accepted && !excludedIds.Contains(participant.UserId);
-                    participant.IsFinal = stays;
-                    participant.ExclusionReason = excludedIds.Contains(participant.UserId) ? EventsErrors.ExclusionReason : null;
-                }
-
-                if (excludedIds.Count > 0)
-                {
-                    var chargeIds = db.Query<Charge>().Where(charge => charge.EventId == eventId).Select(charge => charge.Id);
-                    var dropped = await db.ToListAsync(
-                        db.Query<ChargeAssignment>().Where(assignment =>
-                            chargeIds.Contains(assignment.ChargeId)
-                            && excludedIds.Contains(assignment.UserId)
-                            && assignment.Status == AssignmentStatus.Unpaid),
-                        token);
-                    foreach (var assignment in dropped)
+                    if (participant.Response != ParticipationResponse.Accepted)
                     {
-                        assignment.Status = AssignmentStatus.Excluded;
+                        participant.IsFinal = false;
+                        continue;
                     }
-                }
 
-                fundEvent.Status = EventStatus.Completed;
-                fundEvent.CompletedAt = clock.GetUtcNow();
+                    if (!excluded.TryGetValue(participant.UserId, out var person))
+                    {
+                        participant.IsFinal = true;
+                        continue;
+                    }
 
-                
-                notifier.Send(
-                    excludedIds,
-                    new NotificationMessage(
+                    participant.IsFinal = false;
+                    participant.ExclusionReason = person.Reason;
+                    participant.ExcludedAt = now;
+                    participant.RefundedAmount = person.Refund;
+
+                    if (person.Refund > 0)
+                    {
+                        // Tiền đã đóng chuyển về số dư cá nhân (giữ hộ) và rời sổ sự kiện bằng một dòng chi hoàn tiền,
+                        // để tiền thừa / thiếu của sự kiện không tính cả phần đã hoàn.
+                        await balances.CreditAsync(fundId, person.UserId, person.Refund, BalanceTransactionType.ListCloseRefund, eventId, userId, token);
+                        db.Add(new LedgerEntry(
+                            fundId,
+                            eventId,
+                            LedgerType.Expense,
+                            LedgerSource.Refund,
+                            null,
+                            $"Hoàn tiền người bị loại: {person.FullName}",
+                            "Hoàn vào số dư cá nhân khi đóng danh sách",
+                            person.Refund,
+                            today,
+                            userId,
+                            now));
+                    }
+
+                    audit.Record(new AuditEntry(
+                        EventsAuditActions.Exclude,
                         fundId,
+                        userId,
                         FinancialScope.Event,
-                        eventId,
-                        NotificationType.EventParticipantExcluded,
-                        NotificationTitle(fundEvent.Name, "Bạn không còn trong danh sách tham gia"),
-                        "Sự kiện đã kết thúc khi bạn chưa đóng khoản nào nên bạn không còn trong danh sách tham gia; khoản phải đóng của bạn đã được hủy.",
-                        nameof(Event),
-                        eventId));
-                foreach (var person in plan.Preview.Underpaid)
-                {
+                        EventId: eventId,
+                        EntityType: nameof(EventParticipant),
+                        EntityId: participant.Id,
+                        After: new { payerName = person.FullName, refundedAmount = person.Refund, reason = person.Reason }));
                     notifier.Send(
                         [person.UserId],
                         new NotificationMessage(
                             fundId,
                             FinancialScope.Event,
                             eventId,
-                            NotificationType.EventUnpaidReminder,
-                            NotificationTitle(fundEvent.Name, "Nhắc đóng phần còn lại"),
-                            $"Sự kiện đã kết thúc, bạn còn thiếu {AuditSummary.FormatMoney(person.Missing)}. Bạn vẫn nộp được phần còn lại.",
+                            NotificationType.EventParticipantExcluded,
+                            NotificationTitle(fundEvent.Name, "Bạn không còn trong danh sách tham gia"),
+                            person.Refund > 0
+                                ? $"Bạn chưa đóng đủ các khoản thu khi đóng danh sách nên không còn trong sự kiện. {AuditSummary.FormatMoney(person.Refund)} bạn đã đóng được hoàn vào số dư cá nhân."
+                                : "Bạn chưa đóng khoản nào khi đóng danh sách nên không còn trong sự kiện; khoản phải đóng của bạn đã được gỡ.",
                             nameof(Event),
                             eventId));
                 }
 
+                foreach (var assignment in dropped)
+                {
+                    assignment.Status = AssignmentStatus.Excluded;
+                }
+
+                fundEvent.Status = EventStatus.Completed;
+                fundEvent.CompletedAt = now;
+
                 audit.Record(new AuditEntry(
-                    EventsAuditActions.Complete,
+                    EventsAuditActions.CloseList,
                     fundId,
                     userId,
                     FinancialScope.Event,
@@ -494,9 +538,10 @@ public sealed class EventsService(
                         status = nameof(EventStatus.Completed),
                         participantCount = plan.Preview.RemainingCount,
                         excludedCount = plan.Preview.Excluded.Count,
-                        remindedCount = plan.Preview.Underpaid.Count,
+                        total = plan.Preview.TotalRefund,
                         excluded = plan.Preview.Excluded.Select(person => person.FullName).ToArray(),
-                    }));
+                    },
+                    Note: plan.Preview.BeforeDeadline ? "Đóng danh sách sớm hơn hạn." : null));
                 await db.SaveChangesAsync(token);
                 return plan.Preview;
             },
@@ -505,43 +550,77 @@ public sealed class EventsService(
 
     // ---------- Nội bộ ----------
 
-    private sealed record CompletionPlan(IReadOnlyList<EventParticipant> Participants, EventCompletionPreviewDto Preview);
+    private sealed record ClosePlan(IReadOnlyList<EventParticipant> Participants, EventCloseListPreviewDto Preview);
 
-    /// <summary>Tính ai bị loại / được nhắc theo BR-19 (dùng chung cho xem trước và kết thúc thật).</summary>
-    private async Task<CompletionPlan> PlanCompletionAsync(Guid eventId, CancellationToken cancellationToken)
+    /// <summary>
+    /// Ai bị loại khi đóng danh sách (dùng chung cho xem trước và đóng thật): người đã nhận tham gia mà chưa đóng đủ TẤT CẢ khoản thu
+    /// đang mở. Sự kiện chưa có khoản thu đang mở thì không ai bị loại. Số tiền hoàn = tổng đã đóng cho mọi khoản thu của sự kiện.
+    /// </summary>
+    private async Task<ClosePlan> PlanCloseAsync(Event fundEvent, CancellationToken cancellationToken)
     {
+        var eventId = fundEvent.Id;
         var participants = await db.ToListAsync(db.Query<EventParticipant>().Where(participant => participant.EventId == eventId), cancellationToken);
         var acceptedIds = participants.Where(participant => participant.Response == ParticipationResponse.Accepted).Select(participant => participant.UserId).ToArray();
         var names = (await db.ToListAsync(
                 db.Query<User>().Where(user => acceptedIds.Contains(user.Id)).Select(user => new { user.Id, user.FullName }),
                 cancellationToken))
             .ToDictionary(user => user.Id, user => user.FullName);
-        var money = await EventMoney.LoadAsync(db, [eventId], cancellationToken);
 
-        var excluded = new List<PersonDto>();
-        var underpaid = new List<UnderpaidPersonDto>();
-        var pending = 0;
+        var charges = await db.ToListAsync(
+            db.Query<Charge>().Where(charge => charge.EventId == eventId && charge.Status != ChargeStatus.Cancelled),
+            cancellationToken);
+        var openChargeIds = charges.Where(charge => charge.Status == ChargeStatus.Open).Select(charge => charge.Id).ToArray();
+        var chargeIds = charges.Select(charge => charge.Id).ToArray();
+
+        var assignments = await db.ToListAsync(
+            db.Query<ChargeAssignment>().Where(assignment => chargeIds.Contains(assignment.ChargeId)),
+            cancellationToken);
+        var paidByUser = (await db.ToListAsync(
+                from payment in db.Query<Payment>()
+                where payment.Status == PaymentStatus.Confirmed
+                join assignment in db.Query<ChargeAssignment>() on payment.AssignmentId equals assignment.Id
+                where chargeIds.Contains(assignment.ChargeId)
+                select new { payment.PayerUserId, payment.Amount },
+                cancellationToken))
+            .GroupBy(row => row.PayerUserId)
+            .ToDictionary(group => group.Key, group => group.Sum(row => row.Amount));
+
+        var excluded = new List<ExcludedPersonDto>();
         foreach (var userId in acceptedIds)
         {
-            var value = EventMoney.For(money, eventId, userId);
-            var name = names.GetValueOrDefault(userId, string.Empty);
-            pending += value.PendingCount;
-            if (value.ExcludedOnCompletion)
+            var complete = openChargeIds.All(chargeId =>
+                assignments.Any(item => item.ChargeId == chargeId && item.UserId == userId && item.Status == AssignmentStatus.Paid));
+            if (openChargeIds.Length == 0 || complete)
             {
-                excluded.Add(new PersonDto(userId, name));
+                continue;
             }
-            else if (value.UnpaidAmount > 0)
-            {
-                underpaid.Add(new UnderpaidPersonDto(userId, name, value.UnpaidAmount));
-            }
+
+            var paid = paidByUser.GetValueOrDefault(userId);
+            excluded.Add(new ExcludedPersonDto(
+                userId,
+                names.GetValueOrDefault(userId, string.Empty),
+                paid,
+                paid,
+                paid > 0 ? EventsErrors.ExclusionReasonUnderpaid : EventsErrors.ExclusionReasonNothingPaid));
         }
 
-        var preview = new EventCompletionPreviewDto(
+        var today = VietnamTime.DateOf(clock.GetUtcNow());
+        var preview = new EventCloseListPreviewDto(
             excluded.OrderBy(person => person.FullName).ToArray(),
-            underpaid.OrderBy(person => person.FullName).ToArray(),
-            pending,
-            acceptedIds.Length - excluded.Count);
-        return new CompletionPlan(participants, preview);
+            acceptedIds.Length - excluded.Count,
+            openChargeIds.Length,
+            excluded.Sum(person => person.Refund),
+            fundEvent.ListDeadline,
+            fundEvent.ListDeadline is { } deadline && today < deadline);
+        return new ClosePlan(participants, preview);
+    }
+
+    private void EnsureDeadlineNotInPast(DateOnly deadline)
+    {
+        if (deadline < VietnamTime.DateOf(clock.GetUtcNow()))
+        {
+            throw new BusinessRuleException(EventsErrors.ListDeadlineInPast, EventsErrors.ListDeadlineInPastMessage);
+        }
     }
 
     private async Task<EventDetailDto> DetailAsync(Event fundEvent, Guid userId, FundAccess access, CancellationToken cancellationToken)
@@ -552,7 +631,7 @@ public sealed class EventsService(
         var me = participants.FirstOrDefault(participant => participant.UserId == userId);
 
         var charges = await db.ToListAsync(
-            db.Query<Charge>().Where(charge => charge.EventId == fundEvent.Id && charge.Status != ChargeStatus.Cancelled).OrderBy(charge => charge.DueDate).ThenBy(charge => charge.CreatedAt),
+            db.Query<Charge>().Where(charge => charge.EventId == fundEvent.Id && charge.Status != ChargeStatus.Cancelled).OrderBy(charge => charge.CreatedAt),
             cancellationToken);
         var chargeIds = charges.Select(charge => charge.Id).ToArray();
         var assignments = await db.ToListAsync(
@@ -577,10 +656,13 @@ public sealed class EventsService(
                         charge.DueDate,
                         charge.Status,
                         mine.Count(item => item.Status == AssignmentStatus.Paid),
-                        mine.Count(item => item.Status == AssignmentStatus.AwaitingConfirmation),
                         mine.Count(item => item.Status == AssignmentStatus.Unpaid));
                 })
                 .ToArray()
+            : [];
+
+        IReadOnlyList<EventExclusionDto> exclusions = CanManage(access)
+            ? await ExclusionsAsync(participants, cancellationToken)
             : [];
 
         return new EventDetailDto(
@@ -588,6 +670,7 @@ public sealed class EventsService(
             fundEvent.Name,
             fundEvent.Description,
             fundEvent.EventDate,
+            fundEvent.ListDeadline,
             fundEvent.Status,
             fundEvent.CreatedAt,
             fundEvent.CompletedAt,
@@ -603,7 +686,32 @@ public sealed class EventsService(
             charges.Where(charge => charge.Status == ChargeStatus.Open).Sum(charge => charge.AmountPerPerson),
             me is null ? null : new MyParticipationDto(me.Response, me.IsFinal, me.ExclusionReason),
             myCharges,
-            chargeSummaries);
+            chargeSummaries,
+            exclusions);
+    }
+
+    /// <summary>Lịch sử người bị loại khi đóng danh sách (chỉ thủ quỹ xem): ai, lý do, số tiền hoàn, thời điểm.</summary>
+    private async Task<IReadOnlyList<EventExclusionDto>> ExclusionsAsync(IReadOnlyList<EventParticipant> participants, CancellationToken cancellationToken)
+    {
+        var excluded = participants.Where(participant => participant.ExcludedAt is not null).ToArray();
+        if (excluded.Length == 0)
+        {
+            return [];
+        }
+
+        var ids = excluded.Select(participant => participant.UserId).ToArray();
+        var names = (await db.ToListAsync(db.Query<User>().Where(user => ids.Contains(user.Id)).Select(user => new { user.Id, user.FullName }), cancellationToken))
+            .ToDictionary(user => user.Id, user => user.FullName);
+        return excluded
+            .OrderBy(participant => participant.ExcludedAt)
+            .ThenBy(participant => names.GetValueOrDefault(participant.UserId, string.Empty))
+            .Select(participant => new EventExclusionDto(
+                participant.UserId,
+                names.GetValueOrDefault(participant.UserId, string.Empty),
+                participant.ExclusionReason,
+                participant.RefundedAmount ?? 0,
+                participant.ExcludedAt))
+            .ToArray();
     }
 
     /// <summary>Người được tính là người tham gia: đã nhận tham gia; sau khi kết thúc chỉ người còn trong danh sách (IsFinal).</summary>

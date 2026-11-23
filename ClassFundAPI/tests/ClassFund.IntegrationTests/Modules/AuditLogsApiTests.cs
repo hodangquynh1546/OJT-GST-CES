@@ -150,11 +150,25 @@ public class AuditLogsApiTests(ApiTestHost host)
         await client.PostAsync($"/api/v1/funds/{fundId}/members/{memberId}/remove", null);
 
         // M8 – sự kiện (tạo, sửa, trả lời, hủy). M7 ghi chi / đảo cần số dư nên kiểm ở EventsAndLedgerApiTests.
-        var fundEvent = await client.PostAsJsonAsync($"/api/v1/funds/{fundId}/events", new { name = "Văn nghệ", eventDate = "2026-11-19" });
+        var today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(7)).ToString("yyyy-MM-dd");
+        var eventDate = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(7).AddDays(10)).ToString("yyyy-MM-dd");
+        var fundEvent = await client.PostAsJsonAsync($"/api/v1/funds/{fundId}/events", new { name = "Văn nghệ", eventDate, listDeadline = eventDate });
         var eventId = (await fundEvent.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
-        await client.PutAsJsonAsync($"/api/v1/funds/{fundId}/events/{eventId}", new { name = "Văn nghệ 20/11", eventDate = "2026-11-19" });
+        await client.PutAsJsonAsync($"/api/v1/funds/{fundId}/events/{eventId}", new { name = "Văn nghệ 20/11", eventDate, listDeadline = eventDate });
         await client.PutAsJsonAsync($"/api/v1/funds/{fundId}/events/{eventId}/me/response", new { response = "Accepted" });
         await client.PostAsJsonAsync($"/api/v1/funds/{fundId}/events/{eventId}/cancel", new { reason = "Đổi lịch" });
+        var closing = await client.PostAsJsonAsync($"/api/v1/funds/{fundId}/events", new { name = "Cắm trại", eventDate, listDeadline = today });
+        var closingId = (await closing.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        await client.PostAsJsonAsync($"/api/v1/funds/{fundId}/events/{closingId}/close-list", new { });
+
+        // M6 – khoản thu chung, thủ quỹ tích đã thu / hủy thu cho chính mình (tự ghi nhận).
+        var income = await client.PostAsJsonAsync($"/api/v1/funds/{fundId}/categories", new { name = "Quỹ lớp", type = "Income" });
+        var incomeId = (await income.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        await client.PostAsJsonAsync($"/api/v1/funds/{fundId}/charges", new { categoryId = incomeId, title = "Quỹ lớp HK1", amountPerPerson = 50_000 });
+        var mine = (await client.GetFromJsonAsync<JsonElement>($"/api/v1/funds/{fundId}/me/assignments")).EnumerateArray().First();
+        var assignmentId = mine.GetProperty("assignmentId").GetGuid();
+        await client.PostAsJsonAsync($"/api/v1/funds/{fundId}/assignments/{assignmentId}/collect", new { method = "Cash" });
+        await client.PostAsJsonAsync($"/api/v1/funds/{fundId}/assignments/{assignmentId}/uncollect", new { reason = "Tích nhầm" });
 
         // M1 / M5 cấp tài khoản (FundId null, phạm vi System).
         await client.PutAsJsonAsync("/api/v1/auth/me", new { fullName = "Thủ Quỹ Audit" });
@@ -164,7 +178,8 @@ public class AuditLogsApiTests(ApiTestHost host)
         [
             "fund.create", "fund.update", "category.create", "category.update", "attachment.upload",
             "member.add", "member.update", "member.reset_password", "member.remove", "treasurer.grant", "treasurer.revoke",
-            "event.create", "event.update", "event.respond", "event.cancel",
+            "event.create", "event.update", "event.respond", "event.cancel", "event.close_list",
+            "charge.create", "payment.collect", "payment.uncollect",
         ];
         string[] expectedAccountActions = ["auth.update_profile", "user.avatar_update"];
 

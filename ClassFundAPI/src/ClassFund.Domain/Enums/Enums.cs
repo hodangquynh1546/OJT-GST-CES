@@ -44,12 +44,15 @@ public enum SettlementOutcome { Balanced = 1, Surplus = 2 }
 
 public enum SettlementLineStatus { PendingRefund = 1, Refunded = 2, CreditedToBalance = 3 }
 
-public enum BalanceTransactionType { SettlementCredit = 1, ChargePayment = 2, Withdrawal = 3, Adjustment = 4, ChargeRefund = 5 }
+public enum BalanceTransactionType { SettlementCredit = 1, ChargePayment = 2, Withdrawal = 3, Adjustment = 4, ChargeRefund = 5, ListCloseRefund = 6 }
 
 public enum WithdrawalStatus { Requested = 1, Paid = 2, Rejected = 3 }
 
 /// <summary>Receipt: ảnh hóa đơn/chứng từ chi; PaymentProof: bill chuyển khoản; Avatar: ảnh đại diện; Document: tài liệu.</summary>
 public enum AttachmentKind { Receipt = 1, PaymentProof = 2, Avatar = 3, Document = 4 }
+
+/// <summary>Nhắc đóng tiền: <c>Auto</c> = hệ thống nhắc trước hạn đóng danh sách; <c>Manual</c> = thủ quỹ bấm "Nhắc đóng".</summary>
+public enum ReminderKind { Manual = 1, Auto = 2 }
 
 public enum NotificationType
 {

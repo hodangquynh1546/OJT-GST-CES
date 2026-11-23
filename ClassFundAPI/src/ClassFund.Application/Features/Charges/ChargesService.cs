@@ -64,7 +64,7 @@ public sealed class ChargesService(
         MoneyRule.EnsureValid(input.AmountPerPerson);
         var title = input.Title.Trim();
         var purpose = string.IsNullOrWhiteSpace(input.Purpose) ? null : input.Purpose.Trim();
-        if (input.DueDate < VietnamTime.DateOf(clock.GetUtcNow()))
+        if (input.DueDate is { } dueDate && dueDate < VietnamTime.DateOf(clock.GetUtcNow()))
         {
             throw new BusinessRuleException(ChargesErrors.DueDateInPastCode, ChargesErrors.DueDateInPastMessage);
         }
@@ -96,7 +96,7 @@ public sealed class ChargesService(
                     FinancialScope.General,
                     EntityType: nameof(Charge),
                     EntityId: created.Id,
-                    After: new { title, categoryId = input.CategoryId, amountPerPerson = input.AmountPerPerson, dueDate = input.DueDate.ToString("yyyy-MM-dd"), count = memberIds.Count }));
+                    After: new { title, categoryId = input.CategoryId, amountPerPerson = input.AmountPerPerson, dueDate = input.DueDate?.ToString("yyyy-MM-dd"), count = memberIds.Count }));
                 notifier.Send(
                     memberIds,
                     new NotificationMessage(
@@ -105,7 +105,7 @@ public sealed class ChargesService(
                         null,
                         NotificationType.GeneralChargeCreated,
                         $"{Notifier.GeneralPrefix} Khoản thu mới: {title}",
-                        $"Mỗi người đóng {input.AmountPerPerson:N0}đ, hạn đóng {input.DueDate:dd/MM/yyyy}.",
+                        $"Mỗi người đóng {input.AmountPerPerson:N0}đ{DueText(input.DueDate)}. Thủ quỹ sẽ ghi nhận khi nhận tiền.",
                         nameof(Charge),
                         created.Id));
                 await db.SaveChangesAsync(token);
@@ -244,6 +244,12 @@ public sealed class ChargesService(
                     throw new BusinessRuleException(ChargesErrors.NothingToRemindCode, ChargesErrors.NothingToRemindMessage);
                 }
 
+                var reminderNow = clock.GetUtcNow();
+                foreach (var recipient in unpaid)
+                {
+                    db.Add(new PaymentReminder(fundId, null, charge.Id, recipient, ReminderKind.Manual, actorId, reminderNow, VietnamTime.DateOf(reminderNow)));
+                }
+
                 notifier.Send(
                     unpaid,
                     new NotificationMessage(
@@ -252,7 +258,7 @@ public sealed class ChargesService(
                         null,
                         NotificationType.ChargeDueSoon,
                         $"{Notifier.GeneralPrefix} Nhắc đóng: {charge.Title}",
-                        $"Bạn chưa đóng {charge.AmountPerPerson:N0}đ, hạn đóng {charge.DueDate:dd/MM/yyyy}.",
+                        $"Bạn chưa đóng {charge.AmountPerPerson:N0}đ{DueText(charge.DueDate)}.",
                         nameof(Charge),
                         charge.Id));
                 audit.Record(new AuditEntry(
@@ -277,7 +283,7 @@ public sealed class ChargesService(
         MoneyRule.EnsureValid(input.AmountPerPerson);
         var title = input.Title.Trim();
         var purpose = string.IsNullOrWhiteSpace(input.Purpose) ? null : input.Purpose.Trim();
-        if (input.DueDate < VietnamTime.DateOf(clock.GetUtcNow()))
+        if (input.DueDate is { } dueDate && dueDate < VietnamTime.DateOf(clock.GetUtcNow()))
         {
             throw new BusinessRuleException(ChargesErrors.DueDateInPastCode, ChargesErrors.DueDateInPastMessage);
         }
@@ -292,7 +298,7 @@ public sealed class ChargesService(
                 var fundEvent = await db.FirstOrDefaultAsync(
                     db.Query<Event>().Where(e => e.Id == eventId && e.FundId == fundId), token)
                     ?? throw new NotFoundException();
-                if (!EventStatusRules.AcceptsNewChargesAndExpenses(fundEvent.Status))
+                if (!EventStatusRules.AcceptsNewCharges(fundEvent.Status))
                 {
                     throw new BusinessRuleException(EventsErrors.NotOpen, EventsErrors.NotOpenMessage);
                 }
@@ -319,7 +325,7 @@ public sealed class ChargesService(
                     EventId: eventId,
                     EntityType: nameof(Charge),
                     EntityId: created.Id,
-                    After: new { title, categoryId = input.CategoryId, amountPerPerson = input.AmountPerPerson, dueDate = input.DueDate.ToString("yyyy-MM-dd"), count = acceptedIds.Count }));
+                    After: new { title, categoryId = input.CategoryId, amountPerPerson = input.AmountPerPerson, dueDate = input.DueDate?.ToString("yyyy-MM-dd"), count = acceptedIds.Count }));
                 notifier.Send(
                     acceptedIds,
                     new NotificationMessage(
@@ -328,11 +334,11 @@ public sealed class ChargesService(
                         eventId,
                         NotificationType.EventChargeCreated,
                         $"{Notifier.ScopePrefix(FinancialScope.Event, fundEvent.Name)} Khoản thu mới: {title}",
-                        $"Mỗi người đóng {input.AmountPerPerson:N0}đ, hạn đóng {input.DueDate:dd/MM/yyyy}.",
+                        $"Mỗi người đóng {input.AmountPerPerson:N0}đ{DeadlineText(fundEvent.ListDeadline)}.",
                         nameof(Charge),
                         created.Id));
                 await db.SaveChangesAsync(token);
-                return ToEventChargeDto(created, acceptedIds.Count, 0, 0);
+                return ToEventChargeDto(created, acceptedIds.Count, 0);
             },
             cancellationToken);
     }
@@ -378,8 +384,8 @@ public sealed class ChargesService(
 
                 var since = clock.GetUtcNow() - ChargesErrors.RemindCooldown;
                 if (await db.AnyAsync(
-                        db.Query<Notification>().Where(item =>
-                            item.UserId == userId && item.Type == NotificationType.EventUnpaidReminder && item.ReferenceId == eventId && item.CreatedAt > since),
+                        db.Query<PaymentReminder>().Where(item =>
+                            item.UserId == userId && item.EventId == eventId && item.ChargeId == null && item.Kind == ReminderKind.Manual && item.SentAt > since),
                         token))
                 {
                     throw new ConflictException(ChargesErrors.RemindTooSoonCode, ChargesErrors.RemindTooSoonMessage);
@@ -397,6 +403,7 @@ public sealed class ChargesService(
                         $"Thủ quỹ nhắc bạn đóng {owed.Sum():N0}đ còn thiếu của sự kiện.",
                         nameof(Event),
                         eventId));
+                db.Add(new PaymentReminder(fundId, eventId, null, userId, ReminderKind.Manual, actorId, clock.GetUtcNow(), VietnamTime.DateOf(clock.GetUtcNow())));
                 audit.Record(new AuditEntry(
                     ChargesAuditActions.EventRemind,
                     fundId,
@@ -492,16 +499,13 @@ public sealed class ChargesService(
                 var allAssignments = await db.ToListAsync(
                     db.Query<ChargeAssignment>().Where(item => item.ChargeId == chargeId && item.Status != AssignmentStatus.Cancelled),
                     token);
-                return ToEventChargeDto(locked, allAssignments.Count,
-                    allAssignments.Count(a => a.Status == AssignmentStatus.Paid),
-                    allAssignments.Count(a => a.Status == AssignmentStatus.AwaitingConfirmation));
+                return ToEventChargeDto(locked, allAssignments.Count, allAssignments.Count(a => a.Status == AssignmentStatus.Paid));
             },
             cancellationToken);
     }
 
-    private static EventChargeDto ToEventChargeDto(Charge charge, int assigned, int paid, int pending) =>
-        new(charge.Id, charge.Title, charge.Purpose, charge.AmountPerPerson, charge.DueDate, charge.Status,
-            paid, pending, assigned - paid - pending);
+    private static EventChargeDto ToEventChargeDto(Charge charge, int assigned, int paid) =>
+        new(charge.Id, charge.Title, charge.Purpose, charge.AmountPerPerson, charge.DueDate, charge.Status, paid, assigned - paid);
 
     private async Task<ChargeDto> ChangeStatusAsync(Guid fundId, Guid chargeId, ChargeStatus target, string action, CancellationToken cancellationToken)
     {
@@ -591,7 +595,6 @@ public sealed class ChargesService(
                 progress[group.Key] = new ChargeProgressDto(
                     group.Count(),
                     group.Count(row => row.Status == AssignmentStatus.Paid),
-                    group.Count(row => row.Status == AssignmentStatus.AwaitingConfirmation),
                     group.Where(row => row.Status == AssignmentStatus.Paid).Sum(row => row.AmountDue));
             }
         }
@@ -617,12 +620,16 @@ public sealed class ChargesService(
                 charge.CreatedAt,
                 charge.CategoryId,
                 charge.CategoryId is { } categoryId ? categoryNames.GetValueOrDefault(categoryId) : null,
-                progress.GetValueOrDefault(charge.Id) ?? (canManage ? new ChargeProgressDto(0, 0, 0, 0) : null),
+                progress.GetValueOrDefault(charge.Id) ?? (canManage ? new ChargeProgressDto(0, 0, 0) : null),
                 mine.TryGetValue(charge.Id, out var assignment) ? new MyAssignmentDto(assignment.Id, assignment.Status, assignment.AmountDue) : null))
             .ToArray();
     }
 
     /// <summary>Route đã yêu cầu <c>Charge.Manage</c>; kiểm lại ở service để không phụ thuộc vào controller.</summary>
+    private static string DueText(DateOnly? due) => due is { } value ? $", hạn đóng {value:dd/MM/yyyy}" : string.Empty;
+
+    private static string DeadlineText(DateOnly? deadline) => deadline is { } value ? $", đóng trước hạn đóng danh sách {value:dd/MM/yyyy}" : string.Empty;
+
     private async Task<Guid> EnsureManagerAsync(Guid fundId, CancellationToken cancellationToken)
     {
         var userId = CurrentUserId();

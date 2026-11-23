@@ -14,7 +14,6 @@ import { ScopeBadge } from '../../shared/components/scope-badge/scope-badge';
 import { ApiError } from '../../shared/models/api-error';
 import { PagedResult } from '../../shared/models/paged-result';
 import { ASSIGNMENT_STATUS_LABEL, AssignmentStatus } from '../../shared/models/labels';
-import { VnDatePipe } from '../../shared/pipes/vn-date.pipe';
 import { VndMoneyPipe } from '../../shared/pipes/vnd-money.pipe';
 import { LOADING, LoadState, stateKind, toLoadState } from '../../shared/state/load-state';
 import { CategoriesApi } from '../categories/categories.api';
@@ -23,8 +22,7 @@ import { MembersApi } from '../members/members.api';
 import { ChargesApi } from './charges.api';
 import { CHARGE_FIELD_FOR } from './charges.errors';
 import { CHARGE_STATUS_LABEL, Charge } from './charges.models';
-import { percentOf, todayInVietnam } from './charges.utils';
-import { PayDialog, PayTarget } from './pay-dialog';
+import { percentOf } from './charges.utils';
 
 type Tab = 'Open' | 'Closed';
 
@@ -35,11 +33,11 @@ interface Lists {
 
 /**
  * H-01 Khoản thu chung và H-02 tạo khoản thu (FR-18, FR-24): thủ quỹ thấy tiến độ thu và mở trang theo dõi;
- * học sinh thấy tình trạng của mình và nộp tiền ngay trên dòng.
+ * học sinh chỉ xem tình trạng của mình (Đã nộp / Chưa nộp). Khoản thu chung không có hạn: thủ quỹ nhắc đóng đến khi mọi người nộp đủ.
  */
 @Component({
   selector: 'app-charges-page',
-  imports: [FormsModule, RouterLink, ButtonComponent, DialogComponent, DialogActionsComponent, ScopeBadge, AppState, PayDialog, VndMoneyPipe, VnDatePipe],
+  imports: [FormsModule, RouterLink, ButtonComponent, DialogComponent, DialogActionsComponent, ScopeBadge, AppState, VndMoneyPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page">
@@ -50,7 +48,7 @@ interface Lists {
             <app-scope-badge scope="General" />
           </div>
           <span class="cf-muted">
-            {{ canManage() ? 'Chọn một khoản thu để theo dõi ai đã đóng / chưa đóng.' : 'Các khoản thu chung của lớp và tình trạng của bạn. Nộp tiền ngay trên từng khoản.' }}
+            {{ canManage() ? 'Chọn một khoản thu để theo dõi ai đã nộp / chưa nộp và tích “đã thu”.' : 'Các khoản thu chung của lớp và tình trạng của bạn. Khi nộp tiền, hãy đưa cho thủ quỹ.' }}
           </span>
         </div>
         @if (canManage() && !archived()) {
@@ -82,28 +80,20 @@ interface Lists {
                   }
                 </div>
                 <div class="cf-muted meta">
-                  {{ charge.amountPerPerson | vndMoney }}/người · hạn {{ charge.dueDate | vnDate }}@if (charge.categoryName) { · {{ charge.categoryName }} }@if (charge.purpose) { · {{ charge.purpose }} }
+                  {{ charge.amountPerPerson | vndMoney }}/người · không có hạn@if (charge.categoryName) { · {{ charge.categoryName }} }@if (charge.purpose) { · {{ charge.purpose }} }
                 </div>
                 @if (charge.progress; as progress) {
                   <div class="progress">
                     <div class="bar" role="progressbar" [attr.aria-valuenow]="percent(progress.paidCount, progress.assignedCount)" aria-valuemin="0" aria-valuemax="100">
                       <span class="paid" [style.width.%]="percent(progress.paidCount, progress.assignedCount)"></span>
-                      <span class="await" [style.width.%]="percent(progress.awaitingCount, progress.assignedCount)"></span>
                     </div>
-                    <span class="cf-muted count">{{ progress.paidCount }}/{{ progress.assignedCount }} đã đóng</span>
+                    <span class="cf-muted count">{{ progress.paidCount }}/{{ progress.assignedCount }} đã nộp</span>
                   </div>
                 }
               </div>
               <div class="side">
-                @if (charge.progress; as progress) {
-                  <span class="cf-muted">{{ progress.awaitingCount }} chờ xác nhận</span>
-                }
                 @if (canManage()) {
                   <a class="cf-link-button" [routerLink]="['/funds', fundId(), 'charges', charge.id]">Theo dõi</a>
-                } @else if (charge.mine?.status === 'Unpaid' && charge.status === 'Open') {
-                  <button kendoButton themeColor="primary" type="button" (click)="pay(charge)">Nộp tiền</button>
-                } @else if (charge.mine?.status === 'AwaitingConfirmation') {
-                  <a class="cf-link-button" [routerLink]="['/funds', fundId(), 'my-payments']">Xem</a>
                 }
               </div>
             </article>
@@ -116,7 +106,7 @@ interface Lists {
 
     @if (creating()) {
       <kendo-dialog title="Tạo khoản thu chung" [width]="520" (close)="closeCreate()">
-        <p class="cf-muted dlg-sub">Áp cho mọi thành viên đang hoạt động, gồm cả thủ quỹ.</p>
+        <p class="cf-muted dlg-sub">Áp cho mọi thành viên đang hoạt động, gồm cả thủ quỹ. Khoản thu chung không có hạn đóng – thủ quỹ nhắc đóng đến khi mọi người đã nộp.</p>
         <form class="form" novalidate (submit)="$event.preventDefault()">
           <div class="field">
             <label for="charge-title">Tên khoản thu <span class="req" aria-hidden="true">*</span></label>
@@ -146,11 +136,6 @@ interface Lists {
               <input id="charge-amount" class="text money" inputmode="numeric" autocomplete="off" [class.invalid]="errors().amount" [ngModel]="amountText()" (ngModelChange)="setAmount($event)" name="amount" />
               @if (errors().amount; as message) { <span class="k-form-error" role="alert">{{ message }}</span> }
             </div>
-            <div class="field">
-              <label for="charge-due">Hạn đóng <span class="req" aria-hidden="true">*</span></label>
-              <input id="charge-due" type="date" class="text" [min]="today" [class.invalid]="errors().dueDate" [ngModel]="dueDate()" (ngModelChange)="dueDate.set($event)" name="dueDate" />
-              @if (errors().dueDate; as message) { <span class="k-form-error" role="alert">{{ message }}</span> }
-            </div>
           </div>
           <p class="preview" aria-live="polite">
             Áp cho <b>{{ memberCount() }} thành viên</b> → tổng phải thu <b>{{ total() | vndMoney }}</b>. Mọi người nhận thông báo “[Quỹ chung] Khoản thu mới”.
@@ -166,9 +151,6 @@ interface Lists {
       </kendo-dialog>
     }
 
-    @if (paying(); as target) {
-      <app-pay-dialog [fundId]="fundId()" [target]="target" (closed)="paying.set(null)" (paid)="onPaid($event)" />
-    }
   `,
   styles: `
     /* Theo canvas ChargeListBody (.page gap 24 px, .head, .tabs inline-flex ôm vừa nội dung). */
@@ -282,9 +264,6 @@ interface Lists {
     .paid {
       background: var(--cf-ink);
     }
-    .await {
-      background: #f59e0b;
-    }
     .count {
       min-width: 110px;
       font-size: 13px;
@@ -303,10 +282,6 @@ interface Lists {
       color: var(--cf-success-fg);
       font-weight: 600;
     }
-    .status-Awaiting {
-      color: var(--cf-warning-fg);
-      font-weight: 600;
-    }
     .status-Unpaid {
       color: var(--cf-text);
       font-weight: 600;
@@ -321,7 +296,7 @@ interface Lists {
     }
     .row {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr;
       gap: 12px;
     }
     .field {
@@ -374,7 +349,6 @@ export class ChargesPage {
 
   readonly fundId = input.required<string>();
 
-  protected readonly today = todayInVietnam();
   protected readonly canManage = computed(() => this.fund.can(Permissions.ChargeManage));
   protected readonly tab = signal<Tab>('Open');
   protected readonly archived = signal(false);
@@ -420,23 +394,7 @@ export class ChargesPage {
   }
 
   protected mineClass(status: AssignmentStatus): string {
-    return status === 'Paid' ? 'status-Paid' : status === 'AwaitingConfirmation' ? 'status-Awaiting' : 'status-Unpaid';
-  }
-
-  // ---------- Nộp tiền ----------
-
-  protected readonly paying = signal<PayTarget | null>(null);
-
-  protected pay(charge: Charge): void {
-    if (charge.mine) {
-      this.paying.set({ assignmentId: charge.mine.assignmentId, title: charge.title, amountDue: charge.mine.amountDue });
-    }
-  }
-
-  protected onPaid(result: { selfDeclared: boolean }): void {
-    this.paying.set(null);
-    this.refresh.update((value) => value + 1);
-    this.notifications.success(result.selfDeclared ? 'Đã tự ghi nhận khoản đóng của bạn.' : 'Đã gửi. Thủ quỹ sẽ xác nhận khoản đóng của bạn.');
+    return status === 'Paid' ? 'status-Paid' : 'status-Unpaid';
   }
 
   // ---------- Tạo khoản thu ----------
@@ -447,10 +405,9 @@ export class ChargesPage {
   protected readonly title = signal('');
   protected readonly purpose = signal('');
   protected readonly amount = signal(0);
-  protected readonly dueDate = signal('');
   protected readonly categoryId = signal('');
   protected readonly categories = signal<Category[]>([]);
-  protected readonly errors = signal<{ title?: string; category?: string; amount?: string; dueDate?: string }>({});
+  protected readonly errors = signal<{ title?: string; category?: string; amount?: string }>({});
   protected readonly memberCount = signal(0);
   protected readonly total = computed(() => this.amount() * this.memberCount());
   protected readonly amountText = computed(() => (this.amount() > 0 ? this.amount().toLocaleString('vi-VN') : ''));
@@ -465,7 +422,6 @@ export class ChargesPage {
     this.title.set('');
     this.purpose.set('');
     this.amount.set(0);
-    this.dueDate.set('');
     this.categoryId.set('');
     this.errors.set({});
     this.createError.set(null);
@@ -487,7 +443,7 @@ export class ChargesPage {
   }
 
   protected async create(): Promise<void> {
-    const errors: { title?: string; category?: string; amount?: string; dueDate?: string } = {};
+    const errors: { title?: string; category?: string; amount?: string } = {};
     if (!this.title().trim()) {
       errors.title = 'Vui lòng nhập tên khoản thu.';
     }
@@ -496,11 +452,6 @@ export class ChargesPage {
     }
     if (this.amount() <= 0) {
       errors.amount = 'Số tiền mỗi người phải lớn hơn 0.';
-    }
-    if (!this.dueDate()) {
-      errors.dueDate = 'Vui lòng chọn hạn đóng.';
-    } else if (this.dueDate() < this.today) {
-      errors.dueDate = 'Hạn đóng không được trước ngày hôm nay.';
     }
     this.errors.set(errors);
     this.createError.set(null);
@@ -515,7 +466,7 @@ export class ChargesPage {
           title: this.title().trim(),
           purpose: this.purpose().trim() || null,
           amountPerPerson: this.amount(),
-          dueDate: this.dueDate(),
+          dueDate: null,
           categoryId: this.categoryId(),
         }),
       );
@@ -541,11 +492,9 @@ export class ChargesPage {
     if (error.code === 'fund.archived') {
       this.archived.set(true);
     }
-    const next: { title?: string; category?: string; amount?: string; dueDate?: string } = {};
+    const next: { title?: string; category?: string; amount?: string } = {};
     const field = CHARGE_FIELD_FOR[error.code];
-    if (field === 'dueDate') {
-      next.dueDate = error.message;
-    } else if (field === 'amountPerPerson') {
+    if (field === 'amountPerPerson') {
       next.amount = error.message;
     } else if (field === 'categoryId') {
       next.category = error.message;
@@ -553,7 +502,6 @@ export class ChargesPage {
     for (const [name, messages] of Object.entries(error.fieldErrors)) {
       if (name === 'title') next.title = messages[0];
       if (name === 'amountPerPerson') next.amount = messages[0];
-      if (name === 'dueDate') next.dueDate = messages[0];
       if (name === 'categoryId') next.category = messages[0];
     }
     this.errors.set(next);

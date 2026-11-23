@@ -7,10 +7,10 @@ import { AN, FakeAuthApi, FakeUser } from '../support/fake-auth-api';
 const FUND_ID = 'f1';
 const OWNER_PERMISSIONS = [
   'Fund.View', 'Fund.Manage', 'Member.Manage', 'Treasurer.Manage', 'Category.Manage', 'Event.Manage', 'Event.Participate',
-  'Charge.Manage', 'Ledger.Manage', 'Payment.Submit', 'Payment.Confirm', 'Settlement.Execute', 'Balance.ViewOwn',
-  'Balance.Withdraw', 'Balance.Handle', 'Report.View', 'Audit.View',
+  'Charge.Manage', 'Ledger.Manage', 'Payment.Confirm', 'Settlement.Execute', 'Balance.ViewOwn',
+  'Balance.Handle', 'Report.View', 'Audit.View',
 ];
-const STUDENT_PERMISSIONS = ['Fund.View', 'Event.Participate', 'Payment.Submit', 'Balance.ViewOwn', 'Balance.Withdraw'];
+const STUDENT_PERMISSIONS = ['Fund.View', 'Event.Participate', 'Balance.ViewOwn', 'Balance.Withdraw'];
 
 const owner: FakeUser = {
   ...AN,

@@ -17,11 +17,9 @@ public static class Permissions
     public const string EventParticipate = "Event.Participate";
     public const string ChargeManage = "Charge.Manage";
     public const string LedgerManage = "Ledger.Manage";
-    public const string PaymentSubmit = "Payment.Submit";
     public const string PaymentConfirm = "Payment.Confirm";
     public const string SettlementExecute = "Settlement.Execute";
     public const string BalanceViewOwn = "Balance.ViewOwn";
-    public const string BalanceWithdraw = "Balance.Withdraw";
     public const string BalanceHandle = "Balance.Handle";
     public const string ReportView = "Report.View";
     public const string AuditView = "Audit.View";
@@ -34,9 +32,7 @@ public static class RolePermissions
     [
         Permissions.FundView,
         Permissions.EventParticipate,
-        Permissions.PaymentSubmit,
         Permissions.BalanceViewOwn,
-        Permissions.BalanceWithdraw,
     ];
 
     private static readonly string[] TreasurerExtra =

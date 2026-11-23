@@ -203,3 +203,16 @@ Ký hiệu: **BE** backend, **FE** frontend, **T** test. Mỗi task kết thúc 
 | M14-T2 BE | Rà soát các service ghi (M2, M3, M5–M8): gọi `YearEndRule.EnsureFundActive` để chặn tạo mới khi quỹ `Archived` (ngoại lệ: xác nhận hoàn tiền, gửi yêu cầu rút và xác nhận rút số dư – BR-37). |
 | M14-T3 FE | S-05: tổng kết + chọn phương án + xem trước + xác nhận (cảnh báo: "Chỉ làm một lần. Quỹ sẽ đóng: không tạo khoản thu, giao dịch hay sự kiện mới. Vẫn xem báo cáo, rút số dư cá nhân và xác nhận hoàn tiền."); banner "Quỹ đã tổng kết" trên các trang khi `Archived`, cùng nội dung nói rõ những gì vẫn làm được. |
 | M14-T4 T | Còn sự kiện chưa quyết toán → 422; quyết toán lần hai → 422/409; tổng chia = số dư; không dùng giao dịch sự kiện; sau Archived tạo khoản thu/giao dịch → 422; vẫn rút được số dư: học sinh gửi yêu cầu rút và thủ quỹ xác nhận thành công (TC-M14-05). |
+
+### MF – Luồng theo góp ý mentor (OQ-21, BR-10 → BR-26, BR-35/36)
+
+> ✅ **Đã làm 2026-11-23** (nhánh `feature/mentor-feedback-flow`, chưa commit/merge). Thay thế các phần tương ứng của M6a/M6b/M8/M9/M10/M14 (đã ghi chú trong từng mục). Migration `MentorFeedbackFlowSchema` (**người dùng đã áp lên Neon**; không tự áp).
+
+| Task | Nội dung |
+|---|---|
+| MF-T1 BE thu tiền | Bỏ nộp tiền của học sinh, hàng chờ và duyệt/từ chối. `PaymentsService`: `CollectAsync` (Tiền mặt / Chuyển khoản), `UncollectAsync` (bút toán đảo + lý do), `RemindAsync`, `ListMineAsync` (chỉ xem). Bỏ permission `Payment.Submit`, `Balance.Withdraw`. Khoản thu chung `DueDate` nullable. Bảng `PaymentReminder` (nhật ký nhắc) + nhắc tự động D-3…D-1 (`Reminders:ListDeadlineDays`). |
+| MF-T2 BE sự kiện | `Event.ListDeadline`; `CloseListAsync` / preview (loại người chưa nộp đủ, hoàn số dư `ListCloseRefund`, `confirmEarly`); chỉ ghi chi sau khi đóng danh sách; lịch sử loại trong `EventDetailDto.Exclusions` + audit. |
+| MF-T3 BE quyết toán / số dư | `SettlementCalculator.AllocateEqually` (chia đều, bội 1.000đ); quyết toán sự kiện và cuối năm chặn khi còn nghĩa vụ chưa nộp; `WithdrawalsService`: danh sách số dư, rút theo số tiền (FluentValidation + kiểm dưới khóa dòng), lịch sử; bản chuyển dữ liệu cũ trong migration. |
+| MF-T4 FE | H-01/H-02 (không hạn), H-01b + component `ChargeCollectList` dùng lại ở E-03, H-03 chỉ xem, bỏ `PayDialog` và trang H-04, B-01 chỉ xem, B-02 "Rút số dư", E-02 (hạn đóng danh sách), E-03 (Đóng danh sách, lịch sử), E-04 / S-05 (chia đều), S-01, F-01, nhãn audit, thông báo lỗi. |
+| MF-T5 T | Unit (376 BE), integration, spec FE, e2e mock viết lại; `docs/testing/test-cases.md` mục TC-MF. |
+

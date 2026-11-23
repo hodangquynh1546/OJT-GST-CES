@@ -62,7 +62,7 @@ public sealed class AttachmentsService(
         var required = kind switch
         {
             AttachmentKind.Receipt or AttachmentKind.Document => Permissions.LedgerManage,
-            AttachmentKind.PaymentProof => Permissions.PaymentSubmit,
+            AttachmentKind.PaymentProof => Permissions.PaymentConfirm,
             _ => throw new BusinessRuleException(FileRule.InvalidFileCode, "Loại file không được tải lên ở đây."),
         };
         if (!access.Permissions.Contains(required))

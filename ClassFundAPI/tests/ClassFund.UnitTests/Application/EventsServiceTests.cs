@@ -1,5 +1,6 @@
 using ClassFund.Application.Common.Exceptions;
 using ClassFund.Application.Common.Notifications;
+using ClassFund.Application.Features.Balance;
 using ClassFund.Application.Features.Events;
 using ClassFund.Domain.Entities;
 using ClassFund.Domain.Enums;
@@ -8,21 +9,26 @@ using ClassFund.Domain.Rules;
 
 namespace ClassFund.UnitTests.Application;
 
-/// <summary>M8-T3: EventsService + EventInvitationService (FR-30 → FR-34, BR-16 → BR-20, OQ-18).</summary>
+/// <summary>M8: EventsService + EventInvitationService (FR-30 → FR-34, BR-16 → BR-20); luồng mentor 2026-11: Đang mở → Đóng danh sách → Quyết toán.</summary>
 public class EventsServiceTests
 {
     private static readonly DateOnly Day = new(2026, 11, 20);
 
+    /// <summary>Hạn đóng danh sách mặc định của test: sau "hôm nay" (18/11) nên đóng ngay là đóng sớm.</summary>
+    private static readonly DateOnly Deadline = new(2026, 11, 25);
+
     private readonly ServiceTestContext _ctx = new();
 
-    private EventsService Service => new(_ctx.Db, _ctx.CurrentUser, _ctx.Access, _ctx.Audit, new Notifier(_ctx.Db, _ctx.Clock), _ctx.Clock);
+    private BalanceService Balances => new(_ctx.Db, _ctx.CurrentUser, _ctx.Access, _ctx.Clock);
+
+    private EventsService Service => new(_ctx.Db, _ctx.CurrentUser, _ctx.Access, Balances, _ctx.Audit, new Notifier(_ctx.Db, _ctx.Clock), _ctx.Clock);
 
     private EventInvitationService Invitations => new(_ctx.Db, _ctx.Audit, new Notifier(_ctx.Db, _ctx.Clock));
 
     private IEnumerable<Notification> Notifications => _ctx.Db.Query<Notification>();
 
     private Task<EventDetailDto> CreatePicnic() =>
-        Service.CreateAsync(_ctx.Fund.Id, new CreateEventInput("  Dã ngoại Ba Vì ", " Xe 45 chỗ ", Day), default);
+        Service.CreateAsync(_ctx.Fund.Id, new CreateEventInput("  Dã ngoại Ba Vì ", " Xe 45 chỗ ", Day, Deadline), default);
 
     private EventParticipant Participant(Guid eventId, User user) =>
         _ctx.Db.Query<EventParticipant>().Single(item => item.EventId == eventId && item.UserId == user.Id);
@@ -56,12 +62,11 @@ public class EventsServiceTests
             Status = status,
             ConfirmationMode = mode ?? (status == PaymentStatus.Confirmed ? ConfirmationMode.Verified : null),
         });
-        assignment.Status = status switch
+        assignment.Status = status == PaymentStatus.Confirmed ? AssignmentStatus.Paid : assignment.Status;
+        if (status == PaymentStatus.Confirmed)
         {
-            PaymentStatus.Confirmed => AssignmentStatus.Paid,
-            PaymentStatus.Submitted => AssignmentStatus.AwaitingConfirmation,
-            _ => assignment.Status,
-        };
+            _ctx.Db.Seed(new LedgerEntry(_ctx.Fund.Id, _ctx.Db.Query<Charge>().Single(item => item.Id == assignment.ChargeId).EventId, LedgerType.Income, LedgerSource.Payment, null, "Thu", null, assignment.AmountDue, Day, _ctx.Owner.Id, ServiceTestContext.Start));
+        }
     }
 
     [Fact]
@@ -74,6 +79,7 @@ public class EventsServiceTests
         Assert.Equal("Dã ngoại Ba Vì", detail.Name);
         Assert.Equal("Xe 45 chỗ", detail.Description);
         Assert.Equal(EventStatus.Open, detail.Status);
+        Assert.Equal(Deadline, detail.ListDeadline);
         Assert.Equal(3, detail.InvitedCount);
         Assert.Equal(3, detail.PendingCount);
         Assert.Equal(ParticipationResponse.Pending, detail.Me!.Response);
@@ -164,7 +170,7 @@ public class EventsServiceTests
     {
         var picnic = await CreatePicnic();
         Accept(picnic.Id, _ctx.StudentA);
-        Pay(Assign(SeedCharge(picnic.Id, 350_000), _ctx.StudentA), PaymentStatus.Submitted);
+        Pay(Assign(SeedCharge(picnic.Id, 350_000), _ctx.StudentA), PaymentStatus.Confirmed);
 
         _ctx.ActAs(_ctx.StudentA);
         var error = await Assert.ThrowsAsync<BusinessRuleException>(() =>
@@ -182,21 +188,21 @@ public class EventsServiceTests
         Pay(Assign(fee, _ctx.Owner), PaymentStatus.Confirmed, ConfirmationMode.SelfDeclared);
         Pay(Assign(lunch, _ctx.Owner), PaymentStatus.Confirmed, ConfirmationMode.SelfDeclared);
         Pay(Assign(fee, _ctx.Treasurer), PaymentStatus.Confirmed);
-        Pay(Assign(lunch, _ctx.Treasurer), PaymentStatus.Submitted);
+        Assign(lunch, _ctx.Treasurer);
         Assign(fee, _ctx.StudentA);
         Assign(lunch, _ctx.StudentA);
 
         var all = await Service.ListParticipantsAsync(_ctx.Fund.Id, picnic.Id, null, default);
 
         Assert.Equal(3, all.Total);
-        Assert.Equal((1, 1, 1), (all.PaidCount, all.PendingCount, all.UnpaidCount));
+        Assert.Equal((1, 2), (all.PaidCount, all.UnpaidCount));
         var owner = all.Items[0];
         Assert.Equal((MemberRole.Owner, 430_000L, 430_000L, ParticipantPaymentStatus.Paid, true), (owner.Role, owner.Paid, owner.Due, owner.PaymentStatus, owner.HasSelfDeclared));
         var treasurer = all.Items.Single(item => item.UserId == _ctx.Treasurer.Id);
-        Assert.Equal((350_000L, ParticipantPaymentStatus.Pending, 1), (treasurer.Paid, treasurer.PaymentStatus, treasurer.PendingPaymentCount));
+        Assert.Equal((350_000L, ParticipantPaymentStatus.Unpaid), (treasurer.Paid, treasurer.PaymentStatus));
 
         var unpaid = await Service.ListParticipantsAsync(_ctx.Fund.Id, picnic.Id, ParticipantPaymentStatus.Unpaid, default);
-        Assert.Equal(_ctx.StudentA.Id, Assert.Single(unpaid.Items).UserId);
+        Assert.Equal(2, unpaid.Items.Count);
         Assert.Equal(3, unpaid.Total);
 
         // Học sinh chỉ thấy tên, không thấy tiền của người khác.
@@ -205,113 +211,167 @@ public class EventsServiceTests
         Assert.All(names.Items, item => Assert.Equal((0L, ParticipantPaymentStatus.NoCharge), (item.Paid, item.PaymentStatus)));
     }
 
-    [Fact]
-    public async Task Complete_excludes_people_who_paid_nothing_and_reminds_the_underpaid_BR19()
+    // ---------- Đóng danh sách (BR-19) ----------
+
+    /// <summary>Sự kiện có hai khoản thu: Owner đóng đủ, Treasurer chỉ đóng phí (350.000), StudentA chưa đóng gì, StudentB không tham gia.</summary>
+    private async Task<(EventDetailDto Event, Charge Fee, Charge Lunch)> PicnicWithMixedPaymentsAsync()
     {
         var picnic = await CreatePicnic();
-        Accept(picnic.Id, _ctx.Owner, _ctx.Treasurer, _ctx.StudentA, _ctx.StudentB);
+        Accept(picnic.Id, _ctx.Owner, _ctx.Treasurer, _ctx.StudentA);
+        Participant(picnic.Id, _ctx.StudentB).Response = ParticipationResponse.Declined;
         var fee = SeedCharge(picnic.Id, 350_000);
         var lunch = SeedCharge(picnic.Id, 80_000, "Tiền ăn trưa");
-        Pay(Assign(fee, _ctx.Owner), PaymentStatus.Confirmed);
-        Pay(Assign(lunch, _ctx.Owner), PaymentStatus.Confirmed);            // đủ
+        Pay(Assign(fee, _ctx.Owner), PaymentStatus.Confirmed, ConfirmationMode.SelfDeclared);
+        Pay(Assign(lunch, _ctx.Owner), PaymentStatus.Confirmed, ConfirmationMode.SelfDeclared);
         Pay(Assign(fee, _ctx.Treasurer), PaymentStatus.Confirmed);
-        var treasurerLunch = Assign(lunch, _ctx.Treasurer);                  // thiếu 80.000 → nhắc
-        Pay(Assign(fee, _ctx.StudentA), PaymentStatus.Submitted);            // đang chờ → giữ
-        var aLunch = Assign(lunch, _ctx.StudentA);
-        var bFee = Assign(fee, _ctx.StudentB);                               // chưa đóng gì → loại
-        var bLunch = Assign(lunch, _ctx.StudentB);
+        Assign(lunch, _ctx.Treasurer);
+        Assign(fee, _ctx.StudentA);
+        Assign(lunch, _ctx.StudentA);
+        return (picnic, fee, lunch);
+    }
 
-        var preview = await Service.PreviewCompletionAsync(_ctx.Fund.Id, picnic.Id, default);
-        Assert.Equal(_ctx.StudentB.Id, Assert.Single(preview.Excluded).UserId);
-        Assert.Equal(new[] { _ctx.Treasurer.Id, _ctx.StudentA.Id }.Order(), preview.Underpaid.Select(person => person.UserId).Order());
-        Assert.Equal(80_000, preview.Underpaid.Single(person => person.UserId == _ctx.Treasurer.Id).Missing);
-        Assert.Equal((1, 3), (preview.PendingPaymentCount, preview.RemainingCount));
-        Assert.Equal(EventStatus.Open, _ctx.Db.Query<Event>().Single().Status); // xem trước không ghi gì
+    private long BalanceOf(User user) => _ctx.Db.Query<PersonalBalance>().SingleOrDefault(item => item.UserId == user.Id)?.Balance ?? 0;
 
-        var before = Notifications.Count();
-        var result = await Service.CompleteAsync(_ctx.Fund.Id, picnic.Id, default);
+    [Fact]
+    public async Task Closing_the_list_excludes_the_underpaid_refunds_their_money_into_the_balance_and_records_the_history()
+    {
+        var (picnic, fee, _) = await PicnicWithMixedPaymentsAsync();
 
-        Assert.Equal(preview.Excluded, result.Excluded);
-        Assert.Equal(preview.Underpaid, result.Underpaid);
-        Assert.Equal((preview.PendingPaymentCount, preview.RemainingCount), (result.PendingPaymentCount, result.RemainingCount));
-        var fundEvent = _ctx.Db.Query<Event>().Single();
-        Assert.Equal(EventStatus.Completed, fundEvent.Status);
-        Assert.Equal(ServiceTestContext.Start, fundEvent.CompletedAt);
-        Assert.False(Participant(picnic.Id, _ctx.StudentB).IsFinal);
-        Assert.Equal(EventsErrors.ExclusionReason, Participant(picnic.Id, _ctx.StudentB).ExclusionReason);
-        Assert.True(Participant(picnic.Id, _ctx.StudentA).IsFinal);
-        Assert.Equal((AssignmentStatus.Excluded, AssignmentStatus.Excluded), (bFee.Status, bLunch.Status));
-        Assert.Equal((AssignmentStatus.Unpaid, AssignmentStatus.Unpaid), (treasurerLunch.Status, aLunch.Status)); // vẫn nộp được
+        var result = await Service.CloseListAsync(_ctx.Fund.Id, picnic.Id, confirmEarly: true, default);
 
-        var sent = Notifications.Skip(before).ToArray();
-        Assert.Equal(_ctx.StudentB.Id, Assert.Single(sent, item => item.Type == NotificationType.EventParticipantExcluded).UserId);
-        Assert.Equal(2, sent.Count(item => item.Type == NotificationType.EventUnpaidReminder));
-        Assert.Contains("80.000 đ", sent.Single(item => item.UserId == _ctx.Treasurer.Id).Body);
+        Assert.Equal((2, 1, 350_000L), (result.Excluded.Count, result.RemainingCount, result.TotalRefund));
+        var treasurer = Participant(picnic.Id, _ctx.Treasurer);
+        Assert.Equal((false, 350_000L, EventsErrors.ExclusionReasonUnderpaid), (treasurer.IsFinal, treasurer.RefundedAmount, treasurer.ExclusionReason));
+        Assert.Equal(ServiceTestContext.Start, treasurer.ExcludedAt);
+        var student = Participant(picnic.Id, _ctx.StudentA);
+        Assert.Equal((false, 0L, EventsErrors.ExclusionReasonNothingPaid), (student.IsFinal, student.RefundedAmount, student.ExclusionReason));
+        Assert.True(Participant(picnic.Id, _ctx.Owner).IsFinal);
+        Assert.Null(Participant(picnic.Id, _ctx.StudentB).ExclusionReason);
 
+        // Tiền đã đóng của người bị loại về số dư cá nhân; sổ sự kiện có dòng chi hoàn tiền tương ứng.
+        Assert.Equal(350_000, BalanceOf(_ctx.Treasurer));
+        Assert.Equal(0, BalanceOf(_ctx.StudentA));
+        var credit = _ctx.Db.Query<BalanceTransaction>().Single();
+        Assert.Equal((BalanceTransactionType.ListCloseRefund, picnic.Id), (credit.Type, credit.ReferenceId!.Value));
+        var refund = _ctx.Db.Query<LedgerEntry>().Single(item => item.Source == LedgerSource.Refund);
+        Assert.Equal((LedgerType.Expense, 350_000L, (Guid?)picnic.Id), (refund.Type, refund.Amount, refund.EventId));
+
+        // Gỡ nghĩa vụ của người bị loại, người còn lại giữ nguyên.
+        Assert.All(_ctx.Db.Query<ChargeAssignment>().Where(item => item.UserId == _ctx.Treasurer.Id || item.UserId == _ctx.StudentA.Id),
+            item => Assert.Equal(AssignmentStatus.Excluded, item.Status));
+        Assert.All(_ctx.Db.Query<ChargeAssignment>().Where(item => item.UserId == _ctx.Owner.Id), item => Assert.Equal(AssignmentStatus.Paid, item.Status));
+        var closed = _ctx.Db.Query<Event>().Single();
+        Assert.Equal((EventStatus.Completed, ServiceTestContext.Start), (closed.Status, closed.CompletedAt!.Value));
+        Assert.NotNull(fee);
+
+        // Thông báo và nhật ký rõ ràng.
+        var excludedNotes = Notifications.Where(item => item.Type == NotificationType.EventParticipantExcluded).ToArray();
+        Assert.Equal(2, excludedNotes.Length);
+        Assert.Contains("350.000", excludedNotes.Single(item => item.UserId == _ctx.Treasurer.Id).Body);
+        Assert.Contains(_ctx.AuditLogs, log => log.Action == EventsAuditActions.CloseList && log.Scope == FinancialScope.Event && log.EventId == picnic.Id);
+        Assert.Equal(2, _ctx.AuditLogs.Count(log => log.Action == EventsAuditActions.Exclude));
+
+        // Trang sự kiện hiển thị lịch sử cho thủ quỹ, học sinh không thấy danh sách người bị loại.
         var detail = await Service.GetAsync(_ctx.Fund.Id, picnic.Id, default);
-        Assert.Equal((3, 1), (detail.ParticipantCount, detail.ExcludedCount));
-        var participants = await Service.ListParticipantsAsync(_ctx.Fund.Id, picnic.Id, null, default);
-        Assert.DoesNotContain(participants.Items, item => item.UserId == _ctx.StudentB.Id);
-
-        Assert.Single(_ctx.AuditLogs, item => item.Action == EventsAuditActions.Complete);
-        var twice = await Assert.ThrowsAsync<BusinessRuleException>(() => Service.CompleteAsync(_ctx.Fund.Id, picnic.Id, default));
-        Assert.Equal(EventStatusRules.InvalidTransitionCode, twice.Code);
-    }
-
-    [Fact]
-    public async Task Complete_excludes_everyone_who_paid_nothing_even_without_assigned_charges()
-    {
-        var picnic = await CreatePicnic();
-        Accept(picnic.Id, _ctx.StudentA, _ctx.Treasurer);
-        var fee = SeedCharge(picnic.Id, 350_000);
-        SeedCharge(picnic.Id, 80_000, "Tiền ăn trưa");
-        Pay(Assign(fee, _ctx.Treasurer), PaymentStatus.Confirmed); // đóng 1/2 khoản → vẫn ở lại
-
-        var result = await Service.CompleteAsync(_ctx.Fund.Id, picnic.Id, default);
-
-        // StudentA nhận tham gia nhưng chưa có / chưa đóng khoản nào → bị loại.
-        Assert.Equal(_ctx.StudentA.Id, Assert.Single(result.Excluded).UserId);
-        Assert.Equal(1, result.RemainingCount);
-        Assert.True(Participant(picnic.Id, _ctx.Treasurer).IsFinal);
-        Assert.False(Participant(picnic.Id, _ctx.StudentB).IsFinal); // chưa trả lời → không tính
-    }
-
-    [Fact]
-    public async Task Late_acceptance_while_open_can_pay_and_stay_but_not_after_completion()
-    {
-        var picnic = await CreatePicnic();
-        var fee = SeedCharge(picnic.Id, 350_000);
-        SeedCharge(picnic.Id, 80_000, "Tiền ăn trưa");
+        Assert.Equal(2, detail.Exclusions.Count);
+        Assert.Equal(350_000, detail.Exclusions.Single(item => item.UserId == _ctx.Treasurer.Id).RefundedAmount);
         _ctx.ActAs(_ctx.StudentA);
-        await Service.RespondAsync(_ctx.Fund.Id, picnic.Id, ParticipationResponse.Accepted, default);
-        Assert.Equal(2, _ctx.Db.Query<ChargeAssignment>().Count(item => item.UserId == _ctx.StudentA.Id));
+        Assert.Empty((await Service.GetAsync(_ctx.Fund.Id, picnic.Id, default)).Exclusions);
+    }
 
-        Pay(_ctx.Db.Query<ChargeAssignment>().Single(item => item.UserId == _ctx.StudentA.Id && item.ChargeId == fee.Id), PaymentStatus.Confirmed);
-        _ctx.ActAs(_ctx.Owner);
-        var result = await Service.CompleteAsync(_ctx.Fund.Id, picnic.Id, default);
+    [Fact]
+    public async Task The_preview_matches_what_closing_does_and_changes_nothing()
+    {
+        var (picnic, _, _) = await PicnicWithMixedPaymentsAsync();
+
+        var preview = await Service.PreviewCloseListAsync(_ctx.Fund.Id, picnic.Id, default);
+
+        Assert.Equal((2, 1, 2, 350_000L, true), (preview.Excluded.Count, preview.RemainingCount, preview.OpenChargeCount, preview.TotalRefund, preview.BeforeDeadline));
+        Assert.Equal(EventStatus.Open, _ctx.Db.Query<Event>().Single().Status);
+        Assert.Empty(_ctx.Db.Query<BalanceTransaction>());
+        Assert.All(_ctx.Db.Query<EventParticipant>(), item => Assert.Null(item.ExcludedAt));
+    }
+
+    [Fact]
+    public async Task Closing_before_the_deadline_needs_confirmation_but_not_from_the_deadline_on()
+    {
+        var (picnic, _, _) = await PicnicWithMixedPaymentsAsync();
+
+        var early = await Assert.ThrowsAsync<BusinessRuleException>(() => Service.CloseListAsync(_ctx.Fund.Id, picnic.Id, confirmEarly: false, default));
+        Assert.Equal(EventStatusRules.ListDeadlineNotReachedCode, early.Code);
+        Assert.Equal(EventStatus.Open, _ctx.Db.Query<Event>().Single().Status);
+
+        _ctx.Clock.Now = new DateTimeOffset(2026, 11, 25, 2, 0, 0, TimeSpan.Zero); // 25/11 giờ Việt Nam = hạn
+        var onTime = await Service.CloseListAsync(_ctx.Fund.Id, picnic.Id, confirmEarly: false, default);
+
+        Assert.False(onTime.BeforeDeadline);
+        Assert.Equal(EventStatus.Completed, _ctx.Db.Query<Event>().Single().Status);
+    }
+
+    [Fact]
+    public async Task An_event_without_open_charges_excludes_nobody_and_closed_charges_do_not_count()
+    {
+        var picnic = await CreatePicnic();
+        Accept(picnic.Id, _ctx.StudentA);
+
+        var none = await Service.PreviewCloseListAsync(_ctx.Fund.Id, picnic.Id, default);
+        Assert.Empty(none.Excluded);
+
+        var oldFee = SeedCharge(picnic.Id, 50_000, "Phí đã đóng sổ");
+        oldFee.Status = ChargeStatus.Closed;
+        Assign(oldFee, _ctx.StudentA); // chưa đóng nhưng khoản thu đã đóng nên không tính
+        var open = SeedCharge(picnic.Id, 100_000);
+        Pay(Assign(open, _ctx.StudentA), PaymentStatus.Confirmed);
+
+        var result = await Service.CloseListAsync(_ctx.Fund.Id, picnic.Id, confirmEarly: true, default);
+
         Assert.Empty(result.Excluded);
-        Assert.Equal(80_000, Assert.Single(result.Underpaid).Missing); // chưa đóng đủ vẫn ở lại
+        Assert.True(Participant(picnic.Id, _ctx.StudentA).IsFinal);
+    }
 
-        _ctx.ActAs(_ctx.StudentB);
-        var late = await Assert.ThrowsAsync<BusinessRuleException>(() =>
-            Service.RespondAsync(_ctx.Fund.Id, picnic.Id, ParticipationResponse.Accepted, default));
-        Assert.Equal(EventsErrors.NotOpen, late.Code);
+    [Fact]
+    public async Task Only_the_open_event_of_a_manager_can_be_closed()
+    {
+        var (picnic, _, _) = await PicnicWithMixedPaymentsAsync();
+
+        _ctx.ActAs(_ctx.StudentA);
+        await Assert.ThrowsAsync<ForbiddenAccessException>(() => Service.CloseListAsync(_ctx.Fund.Id, picnic.Id, true, default));
+
+        _ctx.ActAs(_ctx.Owner);
+        await Service.CloseListAsync(_ctx.Fund.Id, picnic.Id, true, default);
+        var again = await Assert.ThrowsAsync<BusinessRuleException>(() => Service.CloseListAsync(_ctx.Fund.Id, picnic.Id, true, default));
+        Assert.Equal(EventStatusRules.InvalidTransitionCode, again.Code);
+    }
+
+    [Fact]
+    public async Task The_list_deadline_cannot_be_in_the_past_when_creating_or_changing_it()
+    {
+        var past = new DateOnly(2026, 11, 10);
+
+        var create = await Assert.ThrowsAsync<BusinessRuleException>(() => Service.CreateAsync(_ctx.Fund.Id, new CreateEventInput("X", null, Day, past), default));
+        Assert.Equal(EventsErrors.ListDeadlineInPast, create.Code);
+
+        var picnic = await CreatePicnic();
+        var update = await Assert.ThrowsAsync<BusinessRuleException>(() => Service.UpdateAsync(_ctx.Fund.Id, picnic.Id, new UpdateEventInput("Dã ngoại", null, Day, past), default));
+        Assert.Equal(EventsErrors.ListDeadlineInPast, update.Code);
+
+        var later = await Service.UpdateAsync(_ctx.Fund.Id, picnic.Id, new UpdateEventInput("Dã ngoại", null, Day, Deadline.AddDays(3)), default);
+        Assert.Equal(Deadline.AddDays(3), later.ListDeadline);
     }
 
     [Fact]
     public async Task Cancel_only_without_money_BR16()
     {
-        var picnic = await CreatePicnic();
-        Accept(picnic.Id, _ctx.StudentA);
-        var fee = SeedCharge(picnic.Id, 350_000);
-        var assignment = Assign(fee, _ctx.StudentA);
-        Pay(assignment, PaymentStatus.Submitted);
-
-        var blocked = await Assert.ThrowsAsync<BusinessRuleException>(() => Service.CancelAsync(_ctx.Fund.Id, picnic.Id, "Mưa", default));
+        var withMoney = await CreatePicnic();
+        Accept(withMoney.Id, _ctx.StudentA);
+        Pay(Assign(SeedCharge(withMoney.Id, 350_000), _ctx.StudentA), PaymentStatus.Confirmed);
+        var blocked = await Assert.ThrowsAsync<BusinessRuleException>(() => Service.CancelAsync(_ctx.Fund.Id, withMoney.Id, "Mưa", default));
         Assert.Equal(EventsErrors.HasMoney, blocked.Code);
 
-        _ctx.Db.Query<Payment>().Single().Status = PaymentStatus.Rejected;
-        assignment.Status = AssignmentStatus.Unpaid;
+        var picnic = await Service.CreateAsync(_ctx.Fund.Id, new CreateEventInput("Cắm trại", null, Day, Deadline), default);
+        Accept(picnic.Id, _ctx.StudentA);
+        var fee = SeedCharge(picnic.Id, 350_000, "Phí cắm trại");
+        var assignment = Assign(fee, _ctx.StudentA);
         var cancelled = await Service.CancelAsync(_ctx.Fund.Id, picnic.Id, " Hủy do thời tiết ", default);
 
         Assert.Equal(EventStatus.Cancelled, cancelled.Status);
@@ -336,14 +396,14 @@ public class EventsServiceTests
     public async Task Update_records_before_and_after_and_is_blocked_after_settlement()
     {
         var picnic = await CreatePicnic();
-        var updated = await Service.UpdateAsync(_ctx.Fund.Id, picnic.Id, new UpdateEventInput("Dã ngoại Tam Đảo", null, Day.AddDays(1)), default);
+        var updated = await Service.UpdateAsync(_ctx.Fund.Id, picnic.Id, new UpdateEventInput("Dã ngoại Tam Đảo", null, Day.AddDays(1), Deadline), default);
         Assert.Equal(("Dã ngoại Tam Đảo", (string?)null, (DateOnly?)Day.AddDays(1)), (updated.Name, updated.Description, updated.EventDate));
         var log = Assert.Single(_ctx.AuditLogs, item => item.Action == EventsAuditActions.Update);
         Assert.Contains("Ba Vì", log.BeforeJson);
 
         _ctx.Db.Query<Event>().Single().Status = EventStatus.Settled;
         var error = await Assert.ThrowsAsync<BusinessRuleException>(() =>
-            Service.UpdateAsync(_ctx.Fund.Id, picnic.Id, new UpdateEventInput("X", null, Day), default));
+            Service.UpdateAsync(_ctx.Fund.Id, picnic.Id, new UpdateEventInput("X", null, Day, Deadline), default));
         Assert.Equal(EventsErrors.NotEditable, error.Code);
     }
 
@@ -355,7 +415,6 @@ public class EventsServiceTests
         var fee = SeedCharge(picnic.Id, 100_000);
         Pay(Assign(fee, _ctx.Owner), PaymentStatus.Confirmed);
         Assign(fee, _ctx.StudentA);
-        _ctx.Db.Seed(new LedgerEntry(_ctx.Fund.Id, picnic.Id, LedgerType.Income, LedgerSource.Payment, null, "Thu", null, 100_000, Day, _ctx.Owner.Id, ServiceTestContext.Start));
 
         var card = Assert.Single(await Service.ListAsync(_ctx.Fund.Id, default));
 
@@ -368,7 +427,7 @@ public class EventsServiceTests
     public async Task New_member_is_invited_to_open_events_only_TD10()
     {
         var open = await CreatePicnic();
-        var done = await Service.CreateAsync(_ctx.Fund.Id, new CreateEventInput("Liên hoan", null, Day), default);
+        var done = await Service.CreateAsync(_ctx.Fund.Id, new CreateEventInput("Liên hoan", null, Day, Deadline), default);
         _ctx.Db.Query<Event>().Single(item => item.Id == done.Id).Status = EventStatus.Completed;
         var late = new User("late@x.com", "late", "h", UserOrigin.Provisioned, false, ServiceTestContext.Start);
         _ctx.Db.Seed(late);

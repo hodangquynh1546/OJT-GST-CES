@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
+using ClassFund.Application.Features.Notifications;
 using Microsoft.Extensions.Options;
 using Serilog;
 using Serilog.Formatting.Compact;
@@ -134,6 +135,7 @@ public static class ServiceRegistration
         services.AddScoped<IRequestInfo, HttpRequestInfo>();
         services.AddScoped<AuditTrail>();
         services.AddScoped<Notifier>();
+        services.AddSingleton(builder.Configuration.GetSection(ReminderOptions.SectionName).Get<ReminderOptions>() ?? new ReminderOptions());
 
         // Service của các module (Application/Features/*) tự đăng ký theo quy ước tên – không thêm dòng ở đây.
         services.AddFeatureServices(typeof(AuditTrail).Assembly, FeatureRegistration.ApplicationFeaturesNamespace);

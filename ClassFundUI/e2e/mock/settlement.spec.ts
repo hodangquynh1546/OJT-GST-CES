@@ -5,7 +5,7 @@ import { FUND_ID } from '../support/fake-charges-api';
 
 /** M9-T3: E-04 Quyết toán sự kiện với API giả lập (xem trước, chọn cách trả, quyết toán, đánh dấu đã hoàn, học sinh). */
 
-const STUDENT_PERMISSIONS = ['Fund.View', 'Event.Participate', 'Payment.Submit', 'Balance.ViewOwn', 'Balance.Withdraw'];
+const STUDENT_PERMISSIONS = ['Fund.View', 'Event.Participate', 'Balance.ViewOwn', 'Balance.Withdraw'];
 const TREASURER_PERMISSIONS = [...STUDENT_PERMISSIONS, 'Event.Manage', 'Ledger.Manage', 'Payment.Confirm', 'Settlement.Execute', 'Report.View'];
 const EVENT_ID = 'e1';
 
@@ -26,7 +26,6 @@ const preview = (partial: Record<string, unknown> = {}) => ({
   totalSpent: 120000,
   surplus: 80000,
   outcome: 'Surplus',
-  pendingPaymentCount: 0,
   unpaidObligationCount: 1,
   canExecute: true,
   lines: [
@@ -98,15 +97,15 @@ async function open(page: Page, role: 'Treasurer' | 'Student', state: { result: 
 }
 
 test.describe('E-04 Quyết toán sự kiện', () => {
-  test('xem trước: tổng hợp, bảng chia theo tỷ lệ và cảnh báo khoản chưa đóng', async ({ page }) => {
+  test('xem trước: tổng hợp, bảng chia đều theo đầu người và cảnh báo khoản chưa nộp', async ({ page }) => {
     await open(page, 'Treasurer', { result: null, preview: preview() });
 
     await expect(page.getByRole('heading', { name: 'Quyết toán sự kiện' })).toBeVisible();
     await expect(page.getByText('200.000 đ').first()).toBeVisible();
     await expect(page.getByText('80.000 đ').first()).toBeVisible();
-    await expect(page.getByText('1 khoản chưa đóng sẽ được đóng lại', { exact: false })).toBeVisible();
+    await expect(page.getByText('1 khoản chưa nộp trong danh sách đã chốt', { exact: false })).toBeVisible();
     const table = page.getByRole('region', { name: 'Bảng chia tiền thừa' });
-    await expect(table.getByRole('row', { name: /Phạm Đức Long/ })).toContainText('50%');
+    await expect(table.getByRole('row', { name: /Phạm Đức Long/ })).not.toContainText('50%');
     await expect(table.getByRole('row', { name: /Phạm Đức Long/ })).toContainText('40.000 đ');
     await expect(page.getByRole('button', { name: 'Quyết toán sự kiện' })).toBeDisabled();
   });
@@ -123,10 +122,10 @@ test.describe('E-04 Quyết toán sự kiện', () => {
     expect(requests.find((item) => item.method === 'POST' && item.path === '/settlement')?.body).toEqual({ surplusMethod: 'PersonalBalance' });
   });
 
-  test('còn thanh toán chờ xác nhận: chặn nút quyết toán', async ({ page }) => {
-    await open(page, 'Treasurer', { result: null, preview: preview({ pendingPaymentCount: 2, canExecute: false }) });
+  test('còn khoản chưa nộp: chặn nút quyết toán', async ({ page }) => {
+    await open(page, 'Treasurer', { result: null, preview: preview({ unpaidObligationCount: 2, canExecute: false }) });
 
-    await expect(page.getByText('Còn 2 thanh toán chờ xác nhận')).toBeVisible();
+    await expect(page.getByText('Còn 2 khoản chưa nộp trong danh sách đã chốt')).toBeVisible();
     await page.getByRole('radio', { name: /Hoàn tiền trực tiếp/ }).check();
     await expect(page.getByRole('button', { name: 'Quyết toán sự kiện' })).toBeDisabled();
   });

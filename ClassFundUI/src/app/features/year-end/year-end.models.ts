@@ -12,7 +12,6 @@ export interface YearEndPreview {
   surplus: number;
   outcome: SettlementOutcome;
   unsettledEventCount: number;
-  pendingPaymentCount: number;
   openChargeCount: number;
   unpaidObligationCount: number;
   canExecute: boolean;

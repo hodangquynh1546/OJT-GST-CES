@@ -148,17 +148,31 @@ public class EventsAndLedgerApiTests(ApiTestHost host)
         Assert.Equal(1, await db.LedgerEntries.CountAsync(entry => entry.FundId == setup.Fund.Id && entry.Type == LedgerType.Expense));
     }
 
+    private static object NewEvent(string name, string? description = null, int deadlineInDays = 0) => new
+    {
+        name,
+        description,
+        eventDate = Today.AddDays(10).ToString("yyyy-MM-dd"),
+        listDeadline = Today.AddDays(deadlineInDays).ToString("yyyy-MM-dd"),
+    };
+
     [Fact]
-    public async Task Event_lifecycle_invite_respond_spend_complete_and_closed_scope_BR19_BR20()
+    public async Task Event_lifecycle_invite_respond_close_list_spend_and_closed_scope_BR19_BR20()
     {
         var setup = await CreateFundAsync();
         var owner = await host.LoginAsync(setup.Owner);
         var lazy = await host.CreateUserAsync(UserOrigin.Provisioned);
         await host.AddMemberAsync(setup.Fund, lazy);
 
-        var created = await owner.PostAsJsonAsync(Events(setup.Fund.Id), new { name = "Dã ngoại Ba Vì", description = "Xe 45 chỗ", eventDate = "2026-11-20" });
+        var created = await owner.PostAsJsonAsync(Events(setup.Fund.Id), NewEvent("Dã ngoại Ba Vì", "Xe 45 chỗ"));
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
-        var eventId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        var createdBody = await created.Content.ReadFromJsonAsync<JsonElement>();
+        var eventId = createdBody.GetProperty("id").GetGuid();
+        Assert.Equal(Today.ToString("yyyy-MM-dd"), createdBody.GetProperty("listDeadline").GetString());
+
+        // Hạn đóng danh sách bắt buộc, không được ở quá khứ.
+        Assert.Equal(HttpStatusCode.BadRequest, (await owner.PostAsJsonAsync(Events(setup.Fund.Id), new { name = "Thiếu hạn", eventDate = Today.AddDays(5).ToString("yyyy-MM-dd") })).StatusCode);
+        Assert.Equal("event.list_deadline_in_past", await CodeOf(await owner.PostAsJsonAsync(Events(setup.Fund.Id), NewEvent("Quá khứ", null, -1))));
 
         // Thành viên thêm sau qua API M3 được mời vào sự kiện đang mở (TD-10).
         var added = await owner.PostAsJsonAsync($"/api/v1/funds/{setup.Fund.Id}/members", new { email = $"late-{Guid.NewGuid():N}@it.local", fullName = "Vào Sau" });
@@ -169,7 +183,7 @@ public class EventsAndLedgerApiTests(ApiTestHost host)
         Assert.Equal(HttpStatusCode.OK, (await (await host.LoginAsync(lazy)).PutAsJsonAsync(Events(setup.Fund.Id, $"/{eventId}/me/response"), new { response = "Accepted" })).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await student.PutAsJsonAsync(Events(setup.Fund.Id, $"/{eventId}/me/response"), new { response = "Pending" })).StatusCode);
 
-        // M6 chưa có: ghi khoản thu sự kiện + thanh toán đã xác nhận của học sinh thẳng vào DB.
+        // Ghi khoản thu sự kiện (350.000đ) + thanh toán đã thu của học sinh thẳng vào DB.
         await using (var db = host.CreateDbContext())
         {
             Assert.True(await db.EventParticipants.AnyAsync(item => item.EventId == eventId && item.UserId == lateUserId));
@@ -191,42 +205,65 @@ public class EventsAndLedgerApiTests(ApiTestHost host)
         }
 
         Assert.Equal("event.has_money", await CodeOf(await owner.PostAsJsonAsync(Events(setup.Fund.Id, $"/{eventId}/cancel"), new { reason = "Mưa" })));
-        Assert.Equal("ledger.exceeds_balance", await CodeOf(await owner.PostAsJsonAsync(Ledger(setup.Fund.Id), Expense(setup, 350_001, eventId))));
-        Assert.Equal(HttpStatusCode.Created, (await owner.PostAsJsonAsync(Ledger(setup.Fund.Id), Expense(setup, 200_000, eventId))).StatusCode);
-
-        // Quỹ chung không gồm tiền sự kiện (BR-01): chi quỹ chung 1đ vẫn vượt số dư 0.
-        Assert.Equal("ledger.exceeds_balance", await CodeOf(await owner.PostAsJsonAsync(Ledger(setup.Fund.Id), Expense(setup, 1))));
+        // Chưa đóng danh sách thì chưa được ghi chi.
+        Assert.Equal("event.list_not_closed", await CodeOf(await owner.PostAsJsonAsync(Ledger(setup.Fund.Id), Expense(setup, 100_000, eventId))));
+        Assert.Equal(HttpStatusCode.Forbidden, (await student.PostAsJsonAsync(Events(setup.Fund.Id, $"/{eventId}/close-list"), new { })).StatusCode);
 
         var participants = await owner.GetFromJsonAsync<JsonElement>(Events(setup.Fund.Id, $"/{eventId}/participants?paymentStatus=Unpaid"));
         Assert.Equal(lazy.Id, Assert.Single(participants.GetProperty("items").EnumerateArray()).GetProperty("userId").GetGuid());
         Assert.Equal(2, participants.GetProperty("total").GetInt32());
 
-        var preview = await owner.GetFromJsonAsync<JsonElement>(Events(setup.Fund.Id, $"/{eventId}/completion-preview"));
+        var preview = await owner.GetFromJsonAsync<JsonElement>(Events(setup.Fund.Id, $"/{eventId}/close-list-preview"));
         Assert.Equal(lazy.Id, Assert.Single(preview.GetProperty("excluded").EnumerateArray()).GetProperty("userId").GetGuid());
+        Assert.False(preview.GetProperty("beforeDeadline").GetBoolean());
 
-        var completed = await owner.PostAsync(Events(setup.Fund.Id, $"/{eventId}/complete"), null);
-        Assert.Equal(HttpStatusCode.OK, completed.StatusCode);
-        Assert.Equal(1, (await completed.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("remainingCount").GetInt32());
+        var closed = await owner.PostAsJsonAsync(Events(setup.Fund.Id, $"/{eventId}/close-list"), new { });
+        Assert.Equal(HttpStatusCode.OK, closed.StatusCode);
+        Assert.Equal(1, (await closed.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("remainingCount").GetInt32());
 
-        Assert.Equal("ledger.event_closed", await CodeOf(await owner.PostAsJsonAsync(Ledger(setup.Fund.Id), Expense(setup, 1_000, eventId))));
-        Assert.Equal("event.invalid_transition", await CodeOf(await owner.PostAsync(Events(setup.Fund.Id, $"/{eventId}/complete"), null)));
+        // Sau khi đóng danh sách mới được chi, và không được chi vượt tiền đã thu.
+        Assert.Equal("ledger.exceeds_balance", await CodeOf(await owner.PostAsJsonAsync(Ledger(setup.Fund.Id), Expense(setup, 350_001, eventId))));
+        Assert.Equal(HttpStatusCode.Created, (await owner.PostAsJsonAsync(Ledger(setup.Fund.Id), Expense(setup, 200_000, eventId))).StatusCode);
+        // Quỹ chung không gồm tiền sự kiện (BR-01): chi quỹ chung 1đ vẫn vượt số dư 0.
+        Assert.Equal("ledger.exceeds_balance", await CodeOf(await owner.PostAsJsonAsync(Ledger(setup.Fund.Id), Expense(setup, 1))));
+
+        Assert.Equal("event.invalid_transition", await CodeOf(await owner.PostAsJsonAsync(Events(setup.Fund.Id, $"/{eventId}/close-list"), new { })));
         Assert.Equal("event.not_open", await CodeOf(await student.PutAsJsonAsync(Events(setup.Fund.Id, $"/{eventId}/me/response"), new { response = "Declined" })));
 
         var detail = await owner.GetFromJsonAsync<JsonElement>(Events(setup.Fund.Id, $"/{eventId}"));
         Assert.Equal("Completed", detail.GetProperty("status").GetString());
         Assert.Equal((1, 1), (detail.GetProperty("participantCount").GetInt32(), detail.GetProperty("excludedCount").GetInt32()));
         Assert.Equal((350_000L, 200_000L, 150_000L), (detail.GetProperty("totalIncome").GetInt64(), detail.GetProperty("totalExpense").GetInt64(), detail.GetProperty("balance").GetInt64()));
+        var exclusion = Assert.Single(detail.GetProperty("exclusions").EnumerateArray());
+        Assert.Equal((lazy.Id, 0L), (exclusion.GetProperty("userId").GetGuid(), exclusion.GetProperty("refundedAmount").GetInt64()));
 
         await using (var db = host.CreateDbContext())
         {
             Assert.Equal(AssignmentStatus.Excluded, await db.ChargeAssignments.Where(item => item.UserId == lazy.Id).Select(item => item.Status).SingleAsync());
             Assert.True(await db.Notifications.AnyAsync(item => item.UserId == lazy.Id && item.Type == NotificationType.EventParticipantExcluded));
+            Assert.True(await db.AuditLogs.AnyAsync(log => log.FundId == setup.Fund.Id && log.Action == "event.close_list" && log.EventId == eventId));
         }
 
-        // Học sinh không được mời (thêm sau khi sự kiện đã kết thúc) → 404.
+        // Học sinh không được mời (thêm sau khi sự kiện đã đóng danh sách) → 404.
         var stranger = await host.CreateUserAsync(UserOrigin.Provisioned);
         await host.AddMemberAsync(setup.Fund, stranger);
         Assert.Equal(HttpStatusCode.NotFound, (await (await host.LoginAsync(stranger)).GetAsync(Events(setup.Fund.Id, $"/{eventId}"))).StatusCode);
+    }
+
+    [Fact]
+    public async Task Closing_the_list_before_the_deadline_needs_confirm_early()
+    {
+        var setup = await CreateFundAsync();
+        var owner = await host.LoginAsync(setup.Owner);
+        var eventId = (await (await owner.PostAsJsonAsync(Events(setup.Fund.Id), NewEvent("Cắm trại", null, 5))).Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+
+        var preview = await owner.GetFromJsonAsync<JsonElement>(Events(setup.Fund.Id, $"/{eventId}/close-list-preview"));
+        Assert.True(preview.GetProperty("beforeDeadline").GetBoolean());
+        var refused = await owner.PostAsJsonAsync(Events(setup.Fund.Id, $"/{eventId}/close-list"), new { });
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
+        Assert.Equal("event.list_deadline_not_reached", await CodeOf(refused));
+
+        Assert.Equal(HttpStatusCode.OK, (await owner.PostAsJsonAsync(Events(setup.Fund.Id, $"/{eventId}/close-list"), new { confirmEarly = true })).StatusCode);
     }
 
     [Fact]
@@ -236,13 +273,13 @@ public class EventsAndLedgerApiTests(ApiTestHost host)
         var owner = await host.LoginAsync(setup.Owner);
         await SeedIncomeAsync(setup, 500_000);
 
-        var created = await owner.PostAsJsonAsync(Events(setup.Fund.Id), new { name = "Văn nghệ", eventDate = "2026-11-19" });
+        var created = await owner.PostAsJsonAsync(Events(setup.Fund.Id), NewEvent("Văn nghệ"));
         var eventId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
-        await owner.PutAsJsonAsync(Events(setup.Fund.Id, $"/{eventId}"), new { name = "Văn nghệ 20/11", eventDate = "2026-11-19" });
+        await owner.PutAsJsonAsync(Events(setup.Fund.Id, $"/{eventId}"), NewEvent("Văn nghệ 20/11"));
         await owner.PutAsJsonAsync(Events(setup.Fund.Id, $"/{eventId}/me/response"), new { response = "Accepted" });
-        await owner.PostAsync(Events(setup.Fund.Id, $"/{eventId}/complete"), null);
+        await owner.PostAsJsonAsync(Events(setup.Fund.Id, $"/{eventId}/close-list"), new { });
 
-        var other = await owner.PostAsJsonAsync(Events(setup.Fund.Id), new { name = "Cắm trại", eventDate = "2026-11-30" });
+        var other = await owner.PostAsJsonAsync(Events(setup.Fund.Id), NewEvent("Cắm trại", null, 5));
         var otherId = (await other.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
         await owner.PostAsJsonAsync(Events(setup.Fund.Id, $"/{otherId}/cancel"), new { reason = "Thời tiết" });
 
@@ -252,7 +289,7 @@ public class EventsAndLedgerApiTests(ApiTestHost host)
 
         await using var db = host.CreateDbContext();
         var logs = await db.AuditLogs.Where(log => log.FundId == setup.Fund.Id).ToListAsync();
-        string[] eventActions = ["event.create", "event.update", "event.respond", "event.complete", "event.cancel"];
+        string[] eventActions = ["event.create", "event.update", "event.respond", "event.close_list", "event.cancel"];
         Assert.All(eventActions, action => Assert.Contains(logs, log => log.Action == action && log.Scope == FinancialScope.Event && log.EventId != null));
         Assert.Contains(logs, log => log.Action == "ledger.create" && log.Scope == FinancialScope.General && log.EventId == null);
         Assert.Contains(logs, log => log.Action == "ledger.reverse" && log.Note == "Sai");

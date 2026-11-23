@@ -31,10 +31,9 @@ export interface OpenCharge {
   id: string;
   title: string;
   amountPerPerson: number;
-  dueDate: string;
+  dueDate: string | null;
   assignedCount: number;
   paidCount: number;
-  awaitingCount: number;
 }
 
 export interface OverviewEvent {
@@ -58,7 +57,7 @@ export interface FundOverview {
   recentEntries: OverviewEntry[];
   openCharges: OpenCharge[];
   events: OverviewEvent[];
-  todo: { pendingPayments: number; pendingWithdrawals: number; eventsAwaitingSettlement: { id: string; name: string }[] } | null;
+  todo: { unpaidGeneralCount: number; eventsToCloseList: { id: string; name: string }[]; eventsAwaitingSettlement: { id: string; name: string }[] } | null;
   me: {
     dueAmount: number;
     dueCount: number;
@@ -66,8 +65,6 @@ export interface FundOverview {
     nearestDueDate: string | null;
     nearestDueAmount: number;
     nearestDueEventName: string | null;
-    awaitingAmount: number;
-    awaitingTitle: string | null;
     balance: number;
   };
   notifications: { title: string; body: string; scope: FinancialScope; eventName: string | null; createdAt: string; isRead: boolean }[];

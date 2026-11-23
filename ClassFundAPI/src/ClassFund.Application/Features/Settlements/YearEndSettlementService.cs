@@ -15,7 +15,7 @@ namespace ClassFund.Application.Features.Settlements;
 
 /// <summary>
 /// M14 – Tổng kết cuối năm quỹ chung (FR-53, FR-54, BR-34 → BR-37, OQ-13, OQ-19). Làm MỘT lần; chia tiền thừa cho cả lớp
-/// theo tỷ lệ tổng đã đóng các khoản thu chung; xong quỹ chuyển <c>Archived</c> (vẫn xác nhận hoàn tiền và rút số dư cá nhân).
+/// ĐỀU theo đầu người (mọi người đã đóng đủ các khoản thu chung); xong quỹ chuyển <c>Archived</c> (vẫn xác nhận hoàn tiền và rút số dư cá nhân).
 /// </summary>
 public interface IYearEndSettlementService
 {
@@ -46,7 +46,7 @@ public sealed class YearEndSettlementService(
         await EnsureExecutorAsync(fundId, cancellationToken);
         var fund = await LoadFundAsync(fundId, cancellationToken);
         var calc = await CalculateAsync(fund, cancellationToken);
-        var canExecute = fund.Status == FundStatus.Active && calc.UnsettledEventCount == 0 && calc.PendingPaymentCount == 0;
+        var canExecute = fund.Status == FundStatus.Active && calc.UnsettledEventCount == 0 && calc.UnpaidObligationCount == 0;
         return new YearEndPreviewDto(
             fund.Name,
             fund.SchoolYear,
@@ -57,7 +57,6 @@ public sealed class YearEndSettlementService(
             calc.Totals.Balance,
             calc.Totals.Balance == 0 ? SettlementOutcome.Balanced : SettlementOutcome.Surplus,
             calc.UnsettledEventCount,
-            calc.PendingPaymentCount,
             calc.OpenChargeCount,
             calc.UnpaidObligationCount,
             canExecute,
@@ -78,11 +77,13 @@ public sealed class YearEndSettlementService(
                     var calc = await CalculateAsync(fund, token);
                     YearEndRule.EnsureCanClose(fund.Status, calc.UnsettledEventCount);
 
-                    if (calc.PendingPaymentCount > 0)
+                    // Thủ quỹ phải nhắc đóng cho tới khi mọi người đóng đủ khoản thu chung mới tổng kết (mentor, 2026-11):
+                    // nhờ vậy ai cũng đóng như nhau và tiền thừa chia đều theo đầu người.
+                    if (calc.UnpaidObligationCount > 0)
                     {
                         throw new BusinessRuleException(
-                            SettlementErrors.YearEndPendingPaymentsCode,
-                            $"Còn {calc.PendingPaymentCount} thanh toán chờ xác nhận. Hãy xác nhận hoặc từ chối hết trước khi tổng kết cuối năm.");
+                            SettlementErrors.YearEndUnpaidCode,
+                            $"Còn {calc.UnpaidObligationCount} khoản thu chung chưa đóng. Hãy nhắc đóng đủ rồi mới tổng kết cuối năm.");
                     }
 
                     var surplus = calc.Totals.Balance;
@@ -125,18 +126,9 @@ public sealed class YearEndSettlementService(
                         }
                     }
 
-                    // OQ-19: khoản thu chung còn mở đóng hẳn; nghĩa vụ chưa đóng bị đóng lại, không truy thu.
-                    var openCharges = await db.ToListAsync(
-                        db.Query<Charge>().Where(charge => charge.FundId == fundId && charge.EventId == null && charge.Status == ChargeStatus.Open),
-                        token);
-                    var openIds = openCharges.Select(charge => charge.Id).ToArray();
-                    foreach (var assignment in await db.ToListAsync(
-                                 db.Query<ChargeAssignment>().Where(item => openIds.Contains(item.ChargeId) && item.Status == AssignmentStatus.Unpaid), token))
-                    {
-                        assignment.Status = AssignmentStatus.Excluded;
-                    }
-
-                    foreach (var charge in openCharges)
+                    // Khoản thu chung còn mở đóng hẳn (mọi nghĩa vụ đã đóng đủ nên không còn gì để đóng lại).
+                    foreach (var charge in await db.ToListAsync(
+                                 db.Query<Charge>().Where(item => item.FundId == fundId && item.EventId == null && item.Status == ChargeStatus.Open), token))
                     {
                         charge.Status = ChargeStatus.Closed;
                     }
@@ -295,7 +287,6 @@ public sealed class YearEndSettlementService(
         IReadOnlyList<Share> Shares,
         IReadOnlyDictionary<Guid, string> Names,
         int UnsettledEventCount,
-        int PendingPaymentCount,
         int OpenChargeCount,
         int UnpaidObligationCount);
 
@@ -323,19 +314,10 @@ public sealed class YearEndSettlementService(
         var contributed = paid.GroupBy(item => item.PayerUserId).ToDictionary(group => group.Key, group => group.Sum(item => item.Amount));
 
         var contributions = members.Select(member => new Contribution(member.Id, contributed.GetValueOrDefault(member.Id))).ToArray();
-        var shares = SettlementCalculator.Allocate(totals.Balance < 0 ? 0 : totals.Balance, contributions);
+        var shares = SettlementCalculator.AllocateEqually(totals.Balance < 0 ? 0 : totals.Balance, contributions);
 
         var unsettledEvents = await db.CountAsync(
             db.Query<Event>().Where(item => item.FundId == fundId && (item.Status == EventStatus.Open || item.Status == EventStatus.Completed)),
-            cancellationToken);
-
-        var pending = await db.CountAsync(
-            from payment in db.Query<Payment>()
-            where payment.Status == PaymentStatus.Submitted
-            join assignment in db.Query<ChargeAssignment>() on payment.AssignmentId equals assignment.Id
-            join charge in db.Query<Charge>() on assignment.ChargeId equals charge.Id
-            where charge.FundId == fundId && charge.EventId == null
-            select payment.Id,
             cancellationToken);
 
         var openCharges = await db.CountAsync(
@@ -350,7 +332,7 @@ public sealed class YearEndSettlementService(
             select assignment.Id,
             cancellationToken);
 
-        return new Calculation(totals, shares, members.ToDictionary(member => member.Id, member => member.FullName), unsettledEvents, pending, openCharges, unpaid);
+        return new Calculation(totals, shares, members.ToDictionary(member => member.Id, member => member.FullName), unsettledEvents, openCharges, unpaid);
     }
 
     private async Task<Fund> LoadFundAsync(Guid fundId, CancellationToken cancellationToken) =>

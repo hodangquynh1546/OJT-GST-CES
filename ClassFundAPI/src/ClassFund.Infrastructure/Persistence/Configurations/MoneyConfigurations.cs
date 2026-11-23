@@ -150,6 +150,28 @@ public sealed class WithdrawalRequestConfiguration : IEntityTypeConfiguration<Wi
     }
 }
 
+public sealed class PaymentReminderConfiguration : IEntityTypeConfiguration<PaymentReminder>
+{
+    public void Configure(EntityTypeBuilder<PaymentReminder> builder)
+    {
+        builder.ToTable("PaymentReminder");
+        builder.HasKey(item => item.Id);
+        builder.Property(item => item.Id).ValueGeneratedNever();
+        builder.HasOne<Fund>().WithMany().HasForeignKey(item => item.FundId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Event>().WithMany().HasForeignKey(item => item.EventId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Charge>().WithMany().HasForeignKey(item => item.ChargeId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<User>().WithMany().HasForeignKey(item => item.UserId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<User>().WithMany().HasForeignKey(item => item.SentByUserId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(item => new { item.FundId, item.EventId, item.SentAt }).HasDatabaseName("IX_PaymentReminder_Fund_Event_SentAt");
+
+        // Nhắc tự động tối đa một lần mỗi (người, sự kiện, ngày) – chốt chặn cuối khi hai request đua nhau.
+        builder.HasIndex(item => new { item.UserId, item.EventId, item.ReminderDate })
+            .IsUnique()
+            .HasFilter("\"Kind\" = 'Auto' AND \"EventId\" IS NOT NULL")
+            .HasDatabaseName("UX_PaymentReminder_AutoPerDay");
+    }
+}
+
 public sealed class NotificationConfiguration : IEntityTypeConfiguration<Notification>
 {
     public void Configure(EntityTypeBuilder<Notification> builder)

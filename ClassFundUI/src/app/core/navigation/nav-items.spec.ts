@@ -4,9 +4,7 @@ import { buildNavItems } from './nav-items';
 const STUDENT: Permission[] = [
   Permissions.FundView,
   Permissions.EventParticipate,
-  Permissions.PaymentSubmit,
   Permissions.BalanceViewOwn,
-  Permissions.BalanceWithdraw,
 ];
 const TREASURER: Permission[] = [
   ...STUDENT,
@@ -55,8 +53,7 @@ describe('buildNavItems', () => {
       'Khoản cần đóng',
       'Số dư cá nhân',
       'Thông báo',
-      'Xác nhận thanh toán',
-      'Yêu cầu rút tiền',
+      'Rút số dư',
       'Báo cáo',
       'Học sinh',
       'Danh mục',
@@ -71,14 +68,15 @@ describe('buildNavItems', () => {
     expect(list).toContain('events');
     expect(list).toContain('my-payments');
     expect(list).toContain('balance');
-    expect(list).not.toContain('payments');
+    expect(list).not.toContain('withdrawals');
     expect(list).not.toContain('audit');
     expect(list).not.toContain('treasurers');
   });
 
   it('granted treasurer manages the fund but not other treasurers', () => {
     const list = ids(TREASURER);
-    expect(list).toContain('payments');
+    expect(list).toContain('withdrawals');
+    expect(list).not.toContain('payments');
     expect(list).toContain('audit');
     expect(list).toContain('my-payments');
     expect(list).not.toContain('treasurers');

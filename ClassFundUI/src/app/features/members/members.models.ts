@@ -46,7 +46,6 @@ export interface TemporaryPasswordResult {
 
 export interface RemovalPreview {
   unpaidCount: number;
-  pendingPaymentCount: number;
   balance: number;
   canRemove: boolean;
   blockedReason: string | null;

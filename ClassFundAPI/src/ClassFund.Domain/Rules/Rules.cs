@@ -114,33 +114,30 @@ public static class FileRule
 }
 
 /// <summary>
-/// Rút số dư cá nhân (OQ-11): rút một lần TOÀN BỘ số dư; mỗi người chỉ có một yêu cầu đang chờ;
-/// số dư đang chờ rút không được dùng để đóng khoản thu.
+/// Rút số dư cá nhân (mentor, 2026-11): thủ quỹ rút giúp học sinh theo số tiền nhập; số tiền ≥ 10.000đ, là bội của 1.000đ
+/// và không vượt số dư hiện có (kiểm tra lại khi đã khóa dòng số dư).
 /// </summary>
 public static class WithdrawalRule
 {
-    public const string NothingToWithdrawCode = "withdrawal.nothing_to_withdraw";
-    public const string PendingExistsCode = "withdrawal.pending_exists";
-    public const string BalanceLockedCode = "balance.locked_by_withdrawal";
+    public const long MinAmount = 10_000;
+    public const long Step = 1_000;
+    public const string InvalidAmountCode = "balance.withdraw_amount_invalid";
+    public const string InsufficientCode = "balance.insufficient";
 
-    /// <returns>Số tiền yêu cầu = toàn bộ số dư.</returns>
-    public static long AmountToRequest(long currentBalance, bool hasPendingRequest)
+    /// <summary>Kiểm tra định dạng số tiền (không cần số dư) – dùng ở validator và service.</summary>
+    public static void EnsureValidAmount(long amount)
     {
-        if (hasPendingRequest)
+        if (amount < MinAmount || amount % Step != 0)
         {
-            throw new BusinessRuleException(PendingExistsCode, "Bạn đã có yêu cầu rút tiền đang chờ thủ quỹ xử lý.");
+            throw new BusinessRuleException(InvalidAmountCode, "Số tiền rút tối thiểu 10.000đ và phải là bội của 1.000đ (dạng xx.000).");
         }
-
-        return currentBalance > 0
-            ? currentBalance
-            : throw new BusinessRuleException(NothingToWithdrawCode, "Số dư bằng 0, không có tiền để rút.");
     }
 
-    public static void EnsureCanSpend(bool hasPendingRequest)
+    public static void EnsureWithinBalance(long amount, long balance)
     {
-        if (hasPendingRequest)
+        if (amount > balance)
         {
-            throw new BusinessRuleException(BalanceLockedCode, "Số dư đang chờ rút, không thể dùng để đóng khoản thu.");
+            throw new BusinessRuleException(InsufficientCode, "Số dư không đủ để rút số tiền này.");
         }
     }
 }
@@ -201,14 +198,22 @@ public static class EventStatusRules
         }
     }
 
-    /// <summary>Được tạo khoản thu / ghi chi mới cho sự kiện? Chỉ khi đang mở (BR-20).</summary>
-    public static bool AcceptsNewChargesAndExpenses(EventStatus status) => status is EventStatus.Open;
+    public const string ListNotClosedCode = "event.list_not_closed";
+    public const string ListNotClosedMessage = "Chỉ ghi chi cho sự kiện sau khi đóng danh sách.";
+    public const string ListDeadlineNotReachedCode = "event.list_deadline_not_reached";
+    public const string ListDeadlineNotReachedMessage = "Chưa tới hạn đóng danh sách. Hãy xác nhận đóng sớm nếu bạn muốn đóng ngay.";
+
+    /// <summary>Được tạo khoản thu mới cho sự kiện? Chỉ khi đang mở, trước khi đóng danh sách (BR-18, BR-20).</summary>
+    public static bool AcceptsNewCharges(EventStatus status) => status is EventStatus.Open;
+
+    /// <summary>Được ghi chi cho sự kiện? Chỉ SAU khi đóng danh sách và trước khi quyết toán (BR-20).</summary>
+    public static bool AcceptsExpenses(EventStatus status) => status is EventStatus.Completed;
 
     /// <summary>
-    /// Được nộp / xác nhận thanh toán cho nghĩa vụ đã có? Khi đang mở và sau khi kết thúc
-    /// (người chưa đóng đủ vẫn nộp được, BR-19); sau quyết toán hoặc hủy thì không.
+    /// Được thu tiền (thủ quỹ xác nhận đã thu) cho nghĩa vụ của sự kiện? Chỉ khi đang mở: sau khi đóng danh sách,
+    /// người còn lại đã đóng đủ (BR-19).
     /// </summary>
-    public static bool AcceptsPayments(EventStatus status) => status is EventStatus.Open or EventStatus.Completed;
+    public static bool AcceptsPayments(EventStatus status) => status is EventStatus.Open;
 }
 
 /// <summary>Chi không vượt thu (BR-38): số tiền chi không lớn hơn số dư hiện có của phạm vi (quỹ chung hoặc sự kiện).</summary>

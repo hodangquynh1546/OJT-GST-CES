@@ -52,6 +52,6 @@ public sealed record BulkAddMembersResult(IReadOnlyList<AddMemberResult> Results
 public sealed record TemporaryPasswordResult(string TemporaryPassword);
 
 /// <summary>Những gì bị ảnh hưởng nếu ngừng thành viên (hiện trong hộp thoại xác nhận, OQ-15).</summary>
-public sealed record RemovalPreviewDto(int UnpaidCount, int PendingPaymentCount, long Balance, bool CanRemove, string? BlockedReason);
+public sealed record RemovalPreviewDto(int UnpaidCount, long Balance, bool CanRemove, string? BlockedReason);
 
 public sealed record RemoveMemberResult(int CancelledAssignments);

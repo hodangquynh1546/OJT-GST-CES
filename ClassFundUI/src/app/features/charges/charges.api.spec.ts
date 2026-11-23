@@ -25,27 +25,36 @@ describe('ChargesApi', () => {
     request.flush({ items: [], total: 0, page: 1, pageSize: 100 });
   });
 
-  it('tạo khoản thu và nộp tiền đúng đường dẫn', () => {
-    api.create('f1', { title: 'A', purpose: null, amountPerPerson: 1000, dueDate: '2026-12-01', categoryId: 'cat1' }).subscribe();
+  it('tạo khoản thu chung không hạn và gọi xem khoản của tôi', () => {
+    api.create('f1', { title: 'A', purpose: null, amountPerPerson: 1000, dueDate: null, categoryId: 'cat1' }).subscribe();
     const create = http.expectOne((r) => r.url.endsWith('/funds/f1/charges'));
     expect(create.request.method).toBe('POST');
     expect(create.request.body.amountPerPerson).toBe(1000);
+    expect(create.request.body.dueDate).toBeNull();
     create.flush({});
 
-    api.submit('f1', 'a1', { method: 'BankTransfer', transferCode: 'FT1', attachmentId: 'p1' }).subscribe();
-    const submit = http.expectOne((r) => r.url.endsWith('/funds/f1/me/assignments/a1/payments'));
-    expect(submit.request.body).toEqual({ method: 'BankTransfer', transferCode: 'FT1', attachmentId: 'p1' });
-    submit.flush({});
+    api.mine('f1').subscribe();
+    const mine = http.expectOne((r) => r.url.endsWith('/funds/f1/me/assignments'));
+    expect(mine.request.method).toBe('GET');
+    mine.flush([]);
   });
 
-  it('xác nhận và từ chối thanh toán', () => {
-    api.confirm('f1', 'p1').subscribe();
-    http.expectOne((r) => r.url.endsWith('/funds/f1/payments/p1/confirm')).flush({});
+  it('thủ quỹ tích đã thu (Tiền mặt / Chuyển khoản), bỏ tích và nhắc từng người', () => {
+    api.collect('f1', 'a1', { method: 'BankTransfer', transferCode: 'FT1' }).subscribe();
+    const collect = http.expectOne((r) => r.url.endsWith('/funds/f1/assignments/a1/collect'));
+    expect(collect.request.method).toBe('POST');
+    expect(collect.request.body).toEqual({ method: 'BankTransfer', transferCode: 'FT1' });
+    collect.flush({});
 
-    api.reject('f1', 'p1', 'Sai số tiền').subscribe();
-    const reject = http.expectOne((r) => r.url.endsWith('/funds/f1/payments/p1/reject'));
-    expect(reject.request.body).toEqual({ reason: 'Sai số tiền' });
-    reject.flush({});
+    api.uncollect('f1', 'a1', 'Tích nhầm').subscribe();
+    const uncollect = http.expectOne((r) => r.url.endsWith('/funds/f1/assignments/a1/uncollect'));
+    expect(uncollect.request.body).toEqual({ reason: 'Tích nhầm' });
+    uncollect.flush({});
+
+    api.remindOne('f1', 'a1').subscribe();
+    const remind = http.expectOne((r) => r.url.endsWith('/funds/f1/assignments/a1/remind'));
+    expect(remind.request.method).toBe('POST');
+    remind.flush({ reminded: 1 });
   });
 
   it('theo dõi danh sách đã/chưa đóng kèm bộ lọc', () => {

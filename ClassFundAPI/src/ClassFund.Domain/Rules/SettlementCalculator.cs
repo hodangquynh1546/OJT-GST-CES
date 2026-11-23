@@ -2,52 +2,42 @@ using ClassFund.Domain.Exceptions;
 
 namespace ClassFund.Domain.Rules;
 
-/// <summary>Số tiền một người đã đóng (đầu vào chia tiền thừa).</summary>
+/// <summary>Số tiền một người đã đóng (chỉ để hiển thị; không ảnh hưởng cách chia).</summary>
 public readonly record struct Contribution(Guid UserId, long Amount);
 
 /// <summary>Phần tiền thừa của một người.</summary>
 public readonly record struct Share(Guid UserId, long Contributed, long Amount);
 
 /// <summary>
-/// Chia tiền thừa theo TỶ LỆ số tiền mỗi người đã đóng (OQ-18, BR-22). Thuần, không phụ thuộc hạ tầng; dùng chung với tổng kết cuối năm.
-/// Phương pháp phần dư lớn nhất: mỗi người nhận phần nguyên, số đồng còn lại phát lần lượt cho phần dư lớn nhất → tổng chia đúng bằng số thừa.
+/// Chia tiền thừa ĐỀU theo đầu người (mentor, 2026-11): mọi người còn lại đều đã đóng đủ nên chia đều, không chia theo tỷ lệ.
+/// Mỗi phần là bội của 1.000đ để số dư rút được (rút theo bội 1.000); số lẻ dưới 1.000đ không chia được ở lại sự kiện / quỹ.
+/// Dùng chung cho quyết toán sự kiện và tổng kết cuối năm; thuần, không phụ thuộc hạ tầng.
 /// </summary>
 public static class SettlementCalculator
 {
-    public const string NoContributorsCode = "settlement.no_contributors";
+    public const long Unit = WithdrawalRule.Step;
+    public const string NoRecipientsCode = "settlement.no_recipients";
 
-    public static IReadOnlyList<Share> Allocate(long surplus, IReadOnlyCollection<Contribution> contributions)
+    public static IReadOnlyList<Share> AllocateEqually(long surplus, IReadOnlyCollection<Contribution> people)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(surplus);
 
-        var total = contributions.Sum(item => item.Amount);
-        if (surplus == 0)
+        if (surplus == 0 || people.Count == 0)
         {
-            return [.. contributions.Select(item => new Share(item.UserId, item.Amount, 0))];
-        }
-
-        if (total <= 0)
-        {
-            throw new BusinessRuleException(NoContributorsCode, "Không có ai đã đóng tiền nên không chia được tiền thừa.");
-        }
-
-        var rows = contributions
-            .Select(item =>
+            if (surplus > 0)
             {
-                var numerator = (Int128)surplus * item.Amount;
-                return (item.UserId, item.Amount, Floor: (long)(numerator / total), Remainder: (long)(numerator % total));
-            })
-            .ToArray();
+                throw new BusinessRuleException(NoRecipientsCode, "Không có người nhận nên không chia được tiền thừa.");
+            }
 
-        var leftover = surplus - rows.Sum(row => row.Floor);
-        var winners = rows
-            .OrderByDescending(row => row.Remainder)
-            .ThenByDescending(row => row.Amount)
-            .ThenBy(row => row.UserId)
-            .Take((int)leftover)
-            .Select(row => row.UserId)
-            .ToHashSet();
+            return [.. people.Select(item => new Share(item.UserId, item.Amount, 0))];
+        }
 
-        return [.. rows.Select(row => new Share(row.UserId, row.Amount, row.Floor + (winners.Contains(row.UserId) ? 1 : 0)))];
+        var units = surplus / Unit;
+        var each = units / people.Count;
+        var extra = (int)(units % people.Count);
+
+        // Phần lẻ (đơn vị 1.000đ) phát lần lượt theo mã người dùng để kết quả luôn giống nhau.
+        var lucky = people.OrderBy(item => item.UserId).Take(extra).Select(item => item.UserId).ToHashSet();
+        return [.. people.Select(item => new Share(item.UserId, item.Amount, (each + (lucky.Contains(item.UserId) ? 1 : 0)) * Unit))];
     }
 }

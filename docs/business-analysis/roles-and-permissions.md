@@ -11,7 +11,7 @@ Vai trò gắn với **từng quỹ** (bảng `FundMember.Role`); một người
 |---|---|---|---|
 | Thủ quỹ chính | `Owner` | Tạo quỹ (tài khoản tự đăng ký) | Đúng 1 Owner / quỹ (unique index). Toàn quyền. |
 | Thủ quỹ | `Treasurer` | Owner phân quyền một học sinh của quỹ | Mọi nghiệp vụ quản lý quỹ, **trừ** quản lý thủ quỹ khác. |
-| Học sinh | `Student` | Thủ quỹ thêm bằng email | Xem công khai + dữ liệu của mình, tham gia sự kiện, nộp tiền. |
+| Học sinh | `Student` | Thủ quỹ thêm bằng email | Xem công khai + dữ liệu của mình (Đã nộp / Chưa nộp, số dư), tham gia sự kiện. **Không** tự nộp/xác nhận/rút tiền – việc đó do thủ quỹ ghi nhận. |
 
 Thủ quỹ (Owner/Treasurer) **có đủ quyền học sinh**: được mời vào sự kiện, có nghĩa vụ đóng tiền, có số dư cá nhân.
 
@@ -26,16 +26,16 @@ Quyền cấp tài khoản (không gắn quỹ): `Fund.Create` – chỉ tài kh
 | `Member.Manage` | Thêm học sinh bằng email, cấp mật khẩu tạm, sửa, ngừng | ✔ | ✔ | |
 | `Treasurer.Manage` | Phân quyền / thu hồi thủ quỹ | ✔ | | |
 | `Category.Manage` | Quản lý danh mục | ✔ | ✔ | |
-| `Event.Manage` | Tạo/sửa/hủy, kết thúc sự kiện | ✔ | ✔ | |
+| `Event.Manage` | Tạo/sửa/hủy, đóng danh sách sự kiện | ✔ | ✔ | |
 | `Event.Participate` | Xem sự kiện được mời, xác nhận tham gia | ✔ | ✔ | ✔ |
-| `Charge.Manage` | Tạo/đóng/hủy khoản thu (chung, sự kiện) | ✔ | ✔ | |
+| `Charge.Manage` | Tạo/đóng/hủy khoản thu (chung, sự kiện), nhắc đóng | ✔ | ✔ | |
 | `Ledger.Manage` | Ghi thu/chi, bút toán đảo, đính chứng từ | ✔ | ✔ | |
-| `Payment.Submit` | Xác nhận đã nộp, gửi minh chứng | ✔ | ✔ | ✔ |
-| `Payment.Confirm` | Xác nhận / từ chối thanh toán; tự ghi nhận cho bản thân | ✔ | ✔ | |
+| ~~`Payment.Submit`~~ | **Bỏ** (2026-11-23) – học sinh không còn tự nộp | | | |
+| `Payment.Confirm` | Tích "đã thu" (Tiền mặt / Chuyển khoản) / bỏ xác nhận thu; tự ghi nhận cho bản thân; tải minh chứng chuyển khoản | ✔ | ✔ | |
 | `Settlement.Execute` | Quyết toán sự kiện, xác nhận hoàn tiền | ✔ | ✔ | |
 | `Balance.ViewOwn` | Xem số dư & lịch sử của mình | ✔ | ✔ | ✔ |
-| `Balance.Withdraw` | Gửi yêu cầu rút tiền | ✔ | ✔ | ✔ |
-| `Balance.Handle` | Xử lý yêu cầu rút tiền | ✔ | ✔ | |
+| ~~`Balance.Withdraw`~~ | **Bỏ** (2026-11-23) – học sinh chỉ xem số dư | | | |
+| `Balance.Handle` | "Rút số dư" cho học sinh (nhập số tiền), xem lịch sử rút | ✔ | ✔ | |
 | `Report.View` | Báo cáo đầy đủ (học sinh, sự kiện, cuối năm) | ✔ | ✔ | |
 | `Audit.View` | Xem nhật ký hoạt động | ✔ | ✔ | |
 
@@ -52,10 +52,10 @@ Quyền phụ thuộc **dữ liệu** (không thể diễn đạt bằng permiss
 
 | Mã | Quy tắc | Module |
 |---|---|---|
-| AZ-01 | Học sinh chỉ xem/sửa nghĩa vụ, thanh toán, số dư, yêu cầu rút **của chính mình**. Truy cập của người khác → 404. | M6, M10 |
+| AZ-01 | Học sinh chỉ xem nghĩa vụ, thanh toán, số dư **của chính mình**. Truy cập của người khác → 404. | M6, M10 |
 | AZ-02 | Treasurer không được tác động lên FundMember có role `Owner`/`Treasurer` (sửa, ngừng, cấp mật khẩu). Chỉ Owner. | M3, M4 |
 | AZ-03 | Owner không thể tự thu hồi / tự ngừng chính mình. | M4 |
-| AZ-04 | Xác nhận thanh toán: người xác nhận == người nộp ⇒ `SelfDeclared` (chỉ khi có `Payment.Confirm`); khác ⇒ `Verified`. Dùng `PaymentConfirmationPolicy`. | M6 |
+| AZ-04 | Tích "đã thu": người tích == người nộp ⇒ `SelfDeclared` (chỉ khi có `Payment.Confirm`); khác ⇒ `Verified`. Dùng `PaymentConfirmationPolicy`. | M6 |
 | AZ-05 | Học sinh không xem minh chứng thanh toán của học sinh khác (FR-17). | M5 |
 | AZ-06 | Học sinh chỉ thấy sự kiện mình được mời và khoản thu sự kiện mình tham gia. | M6, M8 |
 | AZ-07 | Chỉ sửa họ tên / cấp lại mật khẩu tạm cho tài khoản **do thủ quỹ cấp (`Provisioned`) và không còn là thành viên hoạt động của quỹ nào khác**; tài khoản tự đăng ký hoặc đang ở quỹ khác thì từ chối 422 `member.account_not_managed` (họ tự đổi ở trang Tài khoản). Ngăn thủ quỹ một quỹ chiếm tài khoản của người ở quỹ khác. Không tự thao tác trên chính mình: 422 `member.cannot_act_on_self`. *(đề xuất của M3, chờ nhóm xác nhận)* | M3 |

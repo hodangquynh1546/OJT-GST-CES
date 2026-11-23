@@ -24,7 +24,7 @@ public sealed record OverviewEntryDto(
     bool IsReversed);
 
 /// <summary>Khoản thu chung đang mở và tiến độ (S-01 "Khoản thu chưa hoàn thành").</summary>
-public sealed record OpenChargeDto(Guid Id, string Title, long AmountPerPerson, DateOnly DueDate, int AssignedCount, int PaidCount, int AwaitingCount);
+public sealed record OpenChargeDto(Guid Id, string Title, long AmountPerPerson, DateOnly? DueDate, int AssignedCount, int PaidCount);
 
 public sealed record OverviewEventDto(
     Guid Id,
@@ -37,10 +37,10 @@ public sealed record OverviewEventDto(
 
 public sealed record NamedItemDto(Guid Id, string Name);
 
-/// <summary>"Việc cần làm" của thủ quỹ.</summary>
-public sealed record ManagerTodoDto(int PendingPayments, int PendingWithdrawals, IReadOnlyList<NamedItemDto> EventsAwaitingSettlement);
+/// <summary>"Việc cần làm" của thủ quỹ: khoản thu chung còn người chưa đóng, sự kiện tới hạn cần đóng danh sách, sự kiện chờ quyết toán.</summary>
+public sealed record ManagerTodoDto(int UnpaidGeneralCount, IReadOnlyList<NamedItemDto> EventsToCloseList, IReadOnlyList<NamedItemDto> EventsAwaitingSettlement);
 
-/// <summary>Phần của tôi (S-01 học sinh): cần đóng, chờ xác nhận, số dư, khoản gần hạn nhất.</summary>
+/// <summary>Phần của tôi (S-01 học sinh): cần đóng, số dư, khoản gần hạn nhất.</summary>
 public sealed record MyOverviewDto(
     long DueAmount,
     int DueCount,
@@ -48,8 +48,6 @@ public sealed record MyOverviewDto(
     DateOnly? NearestDueDate,
     long NearestDueAmount,
     string? NearestDueEventName,
-    long AwaitingAmount,
-    string? AwaitingTitle,
     long Balance);
 
 public sealed record OverviewNotificationDto(string Title, string Body, FinancialScope Scope, string? EventName, DateTimeOffset CreatedAt, bool IsRead);

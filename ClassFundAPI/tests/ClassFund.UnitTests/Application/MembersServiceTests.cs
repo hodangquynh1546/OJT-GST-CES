@@ -599,18 +599,6 @@ public class MembersServiceTests
     }
 
     [Fact]
-    public async Task Remove_is_refused_while_a_payment_awaits_confirmation()
-    {
-        var (user, member) = SeedStudent();
-        SeedAssignment(user, _fund, ChargeStatus.Open, AssignmentStatus.AwaitingConfirmation);
-
-        var error = await Assert.ThrowsAsync<BusinessRuleException>(() => CreateService().RemoveAsync(_fund.Id, member.Id, default));
-
-        Assert.Equal(MembersErrors.PendingPaymentsCode, error.Code);
-        Assert.Equal(MemberStatus.Active, member.Status);
-    }
-
-    [Fact]
     public async Task Owner_cannot_be_removed()
     {
         var error = await Assert.ThrowsAsync<BusinessRuleException>(() => CreateService().RemoveAsync(_fund.Id, _ownerMember.Id, default));
@@ -653,7 +641,6 @@ public class MembersServiceTests
         var preview = await CreateService().GetRemovalPreviewAsync(_fund.Id, member.Id, default);
 
         Assert.Equal(2, preview.UnpaidCount);
-        Assert.Equal(0, preview.PendingPaymentCount);
         Assert.Equal(0, preview.Balance);
         Assert.True(preview.CanRemove);
         Assert.Null(preview.BlockedReason);

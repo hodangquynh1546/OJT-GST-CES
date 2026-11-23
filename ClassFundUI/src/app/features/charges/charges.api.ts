@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import { fundApiUrl } from '../../core/config/api.config';
-import { AssignmentStatus, PaymentStatus } from '../../shared/models/labels';
+import { AssignmentStatus } from '../../shared/models/labels';
 import { PagedResult } from '../../shared/models/paged-result';
 import { toHttpParams } from '../../shared/utils/http-params';
 import {
@@ -11,10 +11,9 @@ import {
   Charge,
   ChargeStatus,
   CreateChargeRequest,
+  CollectedPayment,
+  CollectPaymentRequest,
   MyAssignmentItem,
-  PaymentQueueItem,
-  SubmitPaymentRequest,
-  SubmittedPayment,
 } from './charges.models';
 
 
@@ -58,33 +57,24 @@ export class ChargesApi {
     return this.http.post<{ reminded: number }>(fundApiUrl(fundId, `/charges/${chargeId}/remind`), {});
   }
 
-  // ---------- Thanh toán ----------
-
-  /** Thủ quỹ ghi nhận học sinh đã đưa tiền mặt (gửi + xác nhận một bước). */
-  recordCash(fundId: string, assignmentId: string): Observable<SubmittedPayment> {
-    return this.http.post<SubmittedPayment>(fundApiUrl(fundId, `/assignments/${assignmentId}/record-cash`), {});
-  }
+  // ---------- Thu tiền (thủ quỹ tích "đã thu") ----------
 
   mine(fundId: string): Observable<MyAssignmentItem[]> {
     return this.http.get<MyAssignmentItem[]>(fundApiUrl(fundId, '/me/assignments'));
   }
 
-  submit(fundId: string, assignmentId: string, request: SubmitPaymentRequest): Observable<SubmittedPayment> {
-    return this.http.post<SubmittedPayment>(fundApiUrl(fundId, `/me/assignments/${assignmentId}/payments`), request);
+  /** Thủ quỹ tích đã thu (Tiền mặt / Chuyển khoản). */
+  collect(fundId: string, assignmentId: string, request: CollectPaymentRequest): Observable<CollectedPayment> {
+    return this.http.post<CollectedPayment>(fundApiUrl(fundId, `/assignments/${assignmentId}/collect`), request);
   }
 
-  payments(
-    fundId: string,
-    query: { status?: PaymentStatus; page?: number; pageSize?: number } = {},
-  ): Observable<PagedResult<PaymentQueueItem>> {
-    return this.http.get<PagedResult<PaymentQueueItem>>(fundApiUrl(fundId, '/payments'), { params: toHttpParams({ ...query }) });
+  /** Bỏ tích nhầm: bút toán đảo, nghĩa vụ về Chưa nộp. */
+  uncollect(fundId: string, assignmentId: string, reason: string): Observable<CollectedPayment> {
+    return this.http.post<CollectedPayment>(fundApiUrl(fundId, `/assignments/${assignmentId}/uncollect`), { reason });
   }
 
-  confirm(fundId: string, paymentId: string): Observable<PaymentQueueItem> {
-    return this.http.post<PaymentQueueItem>(fundApiUrl(fundId, `/payments/${paymentId}/confirm`), {});
-  }
-
-  reject(fundId: string, paymentId: string, reason: string): Observable<PaymentQueueItem> {
-    return this.http.post<PaymentQueueItem>(fundApiUrl(fundId, `/payments/${paymentId}/reject`), { reason });
+  /** "Nhắc đóng" một người còn khoản chưa nộp (thông báo riêng, có ghi nhật ký). */
+  remindOne(fundId: string, assignmentId: string): Observable<{ reminded: number }> {
+    return this.http.post<{ reminded: number }>(fundApiUrl(fundId, `/assignments/${assignmentId}/remind`), {});
   }
 }

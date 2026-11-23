@@ -43,6 +43,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<Notification> Notifications => Set<Notification>();
 
+    public DbSet<PaymentReminder> PaymentReminders => Set<PaymentReminder>();
+
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)

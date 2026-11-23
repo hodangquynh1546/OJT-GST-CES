@@ -1,7 +1,6 @@
 using ClassFund.Application.Common.Exceptions;
 using ClassFund.Application.Common.Notifications;
-using ClassFund.Application.Features.Attachments;
-using ClassFund.Application.Features.Balance;
+using ClassFund.Application.Features.Charges;
 using ClassFund.Application.Features.Payments;
 using ClassFund.Domain.Entities;
 using ClassFund.Domain.Enums;
@@ -10,7 +9,7 @@ using ClassFund.Domain.Rules;
 
 namespace ClassFund.UnitTests.Application;
 
-/// <summary>M6a-T2/T4: PaymentsService (FR-20 → FR-23; BR-10 → BR-12, BR-14).</summary>
+/// <summary>Thu tiền (mentor, 2026-11): học sinh chỉ xem; thủ quỹ tích "đã thu" Tiền mặt / Chuyển khoản, hủy khi tích nhầm, nhắc đóng (BR-11, BR-12).</summary>
 public class PaymentsServiceTests
 {
     private readonly ServiceTestContext _ctx = new();
@@ -19,414 +18,226 @@ public class PaymentsServiceTests
 
     public PaymentsServiceTests()
     {
-        _charge = new Charge(_ctx.Fund.Id, null, "Quỹ lớp tháng 12", "Đóng quỹ", 50_000, new DateOnly(2026, 12, 31), ChargeKind.Regular, _ctx.Owner.Id, ServiceTestContext.Start);
+        _charge = new Charge(_ctx.Fund.Id, null, "Quỹ lớp tháng 12", "Đóng quỹ", 50_000, null, ChargeKind.Regular, _ctx.Owner.Id, ServiceTestContext.Start);
         _ctx.Db.Seed(_charge);
         foreach (var user in new[] { _ctx.Owner, _ctx.Treasurer, _ctx.StudentA, _ctx.StudentB })
         {
             _ctx.Db.Seed(new ChargeAssignment(_charge.Id, user.Id, 50_000));
         }
 
-        _ctx.Db.Seed(new Category(_ctx.Fund.Id, "Đóng góp quỹ lớp", LedgerType.Income, true));
         _custom = new Category(_ctx.Fund.Id, "Quỹ vệ sinh", LedgerType.Income, false);
         _ctx.Db.Seed(_custom);
         _charge.CategoryId = _custom.Id;
-        _ctx.ActAs(_ctx.StudentA);
+        _ctx.ActAs(_ctx.Treasurer);
     }
 
     private PaymentsService CreateService() =>
-        new(
-            _ctx.Db,
-            _ctx.CurrentUser,
-            _ctx.Access,
-            new AttachmentsService(_ctx.Db, _ctx.CurrentUser, _ctx.Access, _ctx.Storage, _ctx.Audit, _ctx.Clock),
-            Balances,
-            _ctx.Audit,
-            new Notifier(_ctx.Db, _ctx.Clock),
-            _ctx.Clock);
+        new(_ctx.Db, _ctx.CurrentUser, _ctx.Access, _ctx.Audit, new Notifier(_ctx.Db, _ctx.Clock), _ctx.Clock);
 
-    private BalanceService Balances => new(_ctx.Db, _ctx.CurrentUser, _ctx.Access, _ctx.Audit, _ctx.Clock);
+    private ChargeAssignment AssignmentOf(User user, Charge? charge = null) =>
+        _ctx.Db.Query<ChargeAssignment>().Single(item => item.ChargeId == (charge ?? _charge).Id && item.UserId == user.Id);
 
-    private long BalanceOf(User user) => _ctx.Db.Query<PersonalBalance>().SingleOrDefault(item => item.UserId == user.Id)?.Balance ?? 0;
+    private static CollectPaymentInput Cash => new(PaymentMethod.Cash, null);
 
-    private Task Credit(User user, long amount) =>
-        Balances.CreditAsync(_ctx.Fund.Id, user.Id, amount, BalanceTransactionType.SettlementCredit, null, _ctx.Owner.Id, default);
-
-    private ChargeAssignment AssignmentOf(User user) =>
-        _ctx.Db.Query<ChargeAssignment>().Single(item => item.ChargeId == _charge.Id && item.UserId == user.Id);
-
-    private Attachment SeedProof(User uploader)
+    private (Event Event, Charge Charge) SeedEventCharge(EventStatus status = EventStatus.Open)
     {
-        var proof = new Attachment(_ctx.Fund.Id, AttachmentKind.PaymentProof, "bill.jpg", "image/jpeg", 1000, "k/bill.jpg", uploader.Id, ServiceTestContext.Start);
-        _ctx.Db.Seed(proof);
-        return proof;
+        var fundEvent = new Event(_ctx.Fund.Id, "Dã ngoại Ba Vì", null, new DateOnly(2026, 12, 20), _ctx.Owner.Id, ServiceTestContext.Start) { Status = status };
+        var charge = new Charge(_ctx.Fund.Id, fundEvent.Id, "Tiền xe", null, 70_000, null, ChargeKind.Regular, _ctx.Owner.Id, ServiceTestContext.Start) { CategoryId = _custom.Id };
+        _ctx.Db.Seed(fundEvent);
+        _ctx.Db.Seed(charge);
+        _ctx.Db.Seed(new ChargeAssignment(charge.Id, _ctx.StudentA.Id, 70_000));
+        return (fundEvent, charge);
     }
 
-    private static SubmitPaymentInput Cash => new(PaymentMethod.Cash, null, null);
-
-    // ---------- Nộp tiền ----------
+    // ---------- Học sinh chỉ xem ----------
 
     [Fact]
-    public async Task Student_cash_payment_waits_for_confirmation_and_writes_no_ledger_entry()
+    public async Task A_student_sees_only_their_own_obligations_as_paid_or_unpaid_with_unpaid_first()
     {
-        var payment = await CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, Cash, default);
+        var (_, eventCharge) = SeedEventCharge();
+        await CreateService().CollectAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, new(PaymentMethod.BankTransfer, "FT123"), default);
+        var cancelled = new Charge(_ctx.Fund.Id, null, "Đã hủy", null, 1_000, null, ChargeKind.Regular, _ctx.Owner.Id, ServiceTestContext.Start);
+        _ctx.Db.Seed(cancelled);
+        _ctx.Db.Seed(new ChargeAssignment(cancelled.Id, _ctx.StudentA.Id, 1_000) { Status = AssignmentStatus.Cancelled });
 
-        Assert.Equal(PaymentStatus.Submitted, payment.Status);
-        Assert.False(payment.IsSelfDeclared);
-        Assert.Equal(AssignmentStatus.AwaitingConfirmation, AssignmentOf(_ctx.StudentA).Status);
-        Assert.Empty(_ctx.Db.Query<LedgerEntry>());
-        Assert.Contains(_ctx.AuditLogs, log => log.Action == PaymentsAuditActions.Submit && log.ActorUserId == _ctx.StudentA.Id);
+        _ctx.ActAs(_ctx.StudentA);
+        var mine = await CreateService().ListMineAsync(_ctx.Fund.Id, default);
+
+        Assert.Equal(["Tiền xe", "Quỹ lớp tháng 12"], mine.Select(item => item.Title));
+        Assert.Equal((AssignmentStatus.Unpaid, "Dã ngoại Ba Vì"), (mine[0].Status, mine[0].EventName));
+        Assert.Equal((AssignmentStatus.Paid, PaymentMethod.BankTransfer), (mine[1].Status, mine[1].Method));
+        Assert.Null(mine[1].EventName);
+        Assert.DoesNotContain(mine, item => item.Title == "Đã hủy");
+        Assert.NotNull(eventCharge);
     }
 
     [Fact]
-    public async Task Bank_transfer_needs_proof_and_attaches_it_to_the_payment()
+    public async Task A_student_cannot_collect_remind_or_uncollect()
     {
-        var withoutProof = await Assert.ThrowsAsync<BusinessRuleException>(() =>
-            CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, new(PaymentMethod.BankTransfer, "FT123", null), default));
-        var proof = SeedProof(_ctx.StudentA);
+        _ctx.ActAs(_ctx.StudentA);
 
-        var payment = await CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, new(PaymentMethod.BankTransfer, " FT123 ", proof.Id), default);
-
-        Assert.Equal(PaymentsErrors.ProofRequiredCode, withoutProof.Code);
-        Assert.Equal(payment.Id, proof.OwnerId);
-        Assert.Equal("FT123", payment.TransferCode);
+        await Assert.ThrowsAsync<ForbiddenAccessException>(() => CreateService().CollectAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, Cash, default));
+        await Assert.ThrowsAsync<ForbiddenAccessException>(() => CreateService().UncollectAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, "x", default));
+        await Assert.ThrowsAsync<ForbiddenAccessException>(() => CreateService().RemindAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentB).Id, default));
     }
 
-    [Fact]
-    public async Task Someone_elses_proof_cannot_be_used()
-    {
-        var proof = SeedProof(_ctx.StudentB);
-
-        var error = await Assert.ThrowsAsync<BusinessRuleException>(() =>
-            CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, new(PaymentMethod.BankTransfer, null, proof.Id), default));
-
-        Assert.Equal("attachment.unusable", error.Code);
-    }
-
-    private static SubmitPaymentInput FromBalance => new(PaymentMethod.PersonalBalance, null, null);
+    // ---------- Thủ quỹ tích đã thu ----------
 
     [Fact]
-    public async Task Paying_from_balance_debits_confirms_at_once_and_writes_a_general_ledger_entry_TD20()
+    public async Task Collecting_cash_confirms_at_once_writes_the_income_in_the_charge_scope_and_tells_the_student()
     {
-        await Credit(_ctx.StudentA, 80_000);
+        var payment = await CreateService().CollectAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, Cash, default);
 
-        var payment = await CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, FromBalance, default);
-
-        Assert.Equal(PaymentStatus.Confirmed, payment.Status);
-        Assert.Equal(PaymentMethod.PersonalBalance, payment.Method);
-        Assert.False(payment.IsSelfDeclared);
+        Assert.Equal((PaymentStatus.Confirmed, PaymentMethod.Cash, 50_000L, false), (payment.Status, payment.Method, payment.Amount, payment.IsSelfDeclared));
         Assert.Equal(AssignmentStatus.Paid, AssignmentOf(_ctx.StudentA).Status);
-        Assert.Equal(30_000, BalanceOf(_ctx.StudentA));
-        var debit = _ctx.Db.Query<BalanceTransaction>().Single(item => item.Type == BalanceTransactionType.ChargePayment);
-        Assert.Equal(-50_000, debit.Amount);
-        Assert.Equal(payment.Id, debit.ReferenceId);
         var entry = _ctx.Db.Query<LedgerEntry>().Single();
+        Assert.Equal((LedgerType.Income, LedgerSource.Payment, 50_000L, _custom.Id, payment.Id), (entry.Type, entry.Source, entry.Amount, entry.CategoryId, entry.PaymentId));
         Assert.Null(entry.EventId);
-        Assert.Equal(50_000, entry.Amount);
-        Assert.Contains(_ctx.AuditLogs, log => log.Action == PaymentsAuditActions.PayWithBalance && log.ActorUserId == _ctx.StudentA.Id);
+        Assert.False(entry.IsSelfDeclared);
+        Assert.Contains(_ctx.AuditLogs, log => log.Action == PaymentsAuditActions.Collect && log.ActorUserId == _ctx.Treasurer.Id && !log.IsSelfAction);
+        var note = Assert.Single(_ctx.Db.Query<Notification>());
+        Assert.Equal((_ctx.StudentA.Id, NotificationType.PaymentConfirmed), (note.UserId, note.Type));
     }
 
     [Fact]
-    public async Task Paying_from_balance_needs_enough_balance_and_changes_nothing_otherwise()
+    public async Task Bank_transfer_keeps_the_transfer_code_and_needs_no_proof()
     {
-        await Credit(_ctx.StudentA, 49_999);
+        var payment = await CreateService().CollectAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, new(PaymentMethod.BankTransfer, " FT123 "), default);
 
+        Assert.Equal((PaymentMethod.BankTransfer, "FT123"), (payment.Method, payment.TransferCode));
+        Assert.Equal("FT123", _ctx.Db.Query<LedgerEntry>().Single().TransferCode);
+    }
+
+    [Fact]
+    public async Task The_balance_is_not_a_way_to_pay_a_charge()
+    {
         var error = await Assert.ThrowsAsync<BusinessRuleException>(() =>
-            CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, FromBalance, default));
+            CreateService().CollectAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, new(PaymentMethod.PersonalBalance, null), default));
 
-        Assert.Equal(BalanceErrors.Insufficient, error.Code);
-        Assert.Equal(49_999, BalanceOf(_ctx.StudentA));
+        Assert.Equal(PaymentsErrors.MethodInvalidCode, error.Code);
         Assert.Equal(AssignmentStatus.Unpaid, AssignmentOf(_ctx.StudentA).Status);
     }
 
     [Fact]
-    public async Task Paying_from_balance_is_blocked_while_a_withdrawal_is_pending_BR26()
+    public async Task A_treasurer_collecting_for_themselves_is_self_declared_BR12()
     {
-        await Credit(_ctx.StudentA, 80_000);
-        await Balances.RequestWithdrawalAsync(_ctx.Fund.Id, default);
+        var payment = await CreateService().CollectAsync(_ctx.Fund.Id, AssignmentOf(_ctx.Treasurer).Id, Cash, default);
 
-        var error = await Assert.ThrowsAsync<BusinessRuleException>(() =>
-            CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, FromBalance, default));
-
-        Assert.Equal(WithdrawalRule.BalanceLockedCode, error.Code);
-        Assert.Equal(80_000, BalanceOf(_ctx.StudentA));
-    }
-
-    [Fact]
-    public async Task Paying_an_event_charge_from_balance_writes_an_event_ledger_entry()
-    {
-        var picnic = new Event(_ctx.Fund.Id, "Dã ngoại", null, new DateOnly(2026, 12, 20), _ctx.Owner.Id, ServiceTestContext.Start);
-        _ctx.Db.Seed(picnic);
-        var eventCharge = new Charge(_ctx.Fund.Id, picnic.Id, "Tiền xe", null, 70_000, new DateOnly(2026, 12, 31), ChargeKind.Regular, _ctx.Owner.Id, ServiceTestContext.Start)
-        {
-            CategoryId = _custom.Id,
-        };
-        _ctx.Db.Seed(eventCharge);
-        var assignment = new ChargeAssignment(eventCharge.Id, _ctx.StudentA.Id, 70_000);
-        _ctx.Db.Seed(assignment);
-        await Credit(_ctx.StudentA, 100_000);
-
-        await CreateService().SubmitAsync(_ctx.Fund.Id, assignment.Id, FromBalance, default);
-
-        Assert.Equal(30_000, BalanceOf(_ctx.StudentA));
-        Assert.Equal(picnic.Id, _ctx.Db.Query<LedgerEntry>().Single().EventId);
-        Assert.Contains(_ctx.AuditLogs, log => log.Action == PaymentsAuditActions.PayWithBalance && log.Scope == FinancialScope.Event);
-    }
-
-    [Fact]
-    public async Task Short_balance_plus_cash_deducts_balance_now_and_waits_for_the_rest()
-    {
-        await Credit(_ctx.StudentA, 20_000);
-
-        var payment = await CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, new(PaymentMethod.Cash, null, null, UseBalance: true), default);
-
-        Assert.Equal((PaymentStatus.Submitted, PaymentMethod.Cash, 50_000L, 20_000L), (payment.Status, payment.Method, payment.Amount, payment.BalanceApplied));
-        Assert.Equal(0, BalanceOf(_ctx.StudentA));
-        Assert.Equal(AssignmentStatus.AwaitingConfirmation, AssignmentOf(_ctx.StudentA).Status);
-        Assert.Empty(_ctx.Db.Query<LedgerEntry>());
-
-        _ctx.ActAs(_ctx.Treasurer);
-        var queue = await CreateService().ListAsync(_ctx.Fund.Id, new PaymentFilter(null, 1, 20), default);
-        Assert.Equal(20_000, Assert.Single(queue.Items).BalanceApplied);
-
-        await CreateService().ConfirmAsync(_ctx.Fund.Id, payment.Id, default);
-        Assert.Equal(50_000, _ctx.Db.Query<LedgerEntry>().Single().Amount);
-        Assert.Equal(0, BalanceOf(_ctx.StudentA));
-    }
-
-    [Fact]
-    public async Task Rejecting_a_mixed_payment_gives_the_balance_back()
-    {
-        await Credit(_ctx.StudentA, 20_000);
-        var payment = await CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, new(PaymentMethod.Cash, null, null, UseBalance: true), default);
-
-        _ctx.ActAs(_ctx.Treasurer);
-        await CreateService().RejectAsync(_ctx.Fund.Id, payment.Id, "Chưa nhận được tiền", default);
-
-        Assert.Equal(20_000, BalanceOf(_ctx.StudentA));
-        Assert.Contains(_ctx.Db.Query<BalanceTransaction>(), item => item.Type == BalanceTransactionType.ChargeRefund && item.Amount == 20_000 && item.ReferenceId == payment.Id);
-        Assert.Equal(AssignmentStatus.Unpaid, AssignmentOf(_ctx.StudentA).Status);
-    }
-
-    [Fact]
-    public async Task Use_balance_covering_everything_becomes_a_full_balance_payment()
-    {
-        await Credit(_ctx.StudentA, 80_000);
-
-        var payment = await CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, new(PaymentMethod.Cash, null, null, UseBalance: true), default);
-
-        Assert.Equal((PaymentStatus.Confirmed, PaymentMethod.PersonalBalance, 50_000L), (payment.Status, payment.Method, payment.BalanceApplied));
-        Assert.Equal(30_000, BalanceOf(_ctx.StudentA));
-    }
-
-    [Fact]
-    public async Task Use_balance_without_any_balance_is_refused_and_bank_transfer_part_needs_proof()
-    {
-        var none = await Assert.ThrowsAsync<BusinessRuleException>(() =>
-            CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, new(PaymentMethod.Cash, null, null, UseBalance: true), default));
-        Assert.Equal(BalanceErrors.Insufficient, none.Code);
-
-        await Credit(_ctx.StudentA, 20_000);
-        var noProof = await Assert.ThrowsAsync<BusinessRuleException>(() =>
-            CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, new(PaymentMethod.BankTransfer, null, null, UseBalance: true), default));
-        Assert.Equal(PaymentsErrors.ProofRequiredCode, noProof.Code);
-        Assert.Equal(20_000, BalanceOf(_ctx.StudentA));
-    }
-
-    [Fact]
-    public async Task A_student_cannot_pay_someone_elses_obligation()
-    {
-        await Assert.ThrowsAsync<NotFoundException>(() =>
-            CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentB).Id, Cash, default));
-    }
-
-    [Fact]
-    public async Task A_second_submission_for_the_same_obligation_conflicts()
-    {
-        await CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, Cash, default);
-
-        var error = await Assert.ThrowsAsync<ConflictException>(() =>
-            CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, Cash, default));
-
-        Assert.Equal(PaymentsErrors.NotPayableCode, error.Code);
-    }
-
-    [Fact]
-    public async Task A_closed_charge_no_longer_takes_payments()
-    {
-        _charge.Status = ChargeStatus.Closed;
-
-        var error = await Assert.ThrowsAsync<ConflictException>(() =>
-            CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, Cash, default));
-
-        Assert.Equal(PaymentsErrors.ChargeNotOpenCode, error.Code);
-    }
-
-    [Fact]
-    public async Task An_archived_fund_takes_no_payments()
-    {
-        _ctx.Fund.Status = FundStatus.Archived;
-
-        var error = await Assert.ThrowsAsync<BusinessRuleException>(() =>
-            CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, Cash, default));
-
-        Assert.Equal("fund.archived", error.Code);
-    }
-
-    [Fact]
-    public async Task A_treasurer_paying_for_themselves_is_confirmed_at_once_and_marked_self_declared()
-    {
-        _ctx.ActAs(_ctx.Treasurer);
-
-        var payment = await CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.Treasurer).Id, Cash, default);
-
-        Assert.Equal(PaymentStatus.Confirmed, payment.Status);
         Assert.True(payment.IsSelfDeclared);
-        Assert.Equal(AssignmentStatus.Paid, AssignmentOf(_ctx.Treasurer).Status);
-        var entry = Assert.Single(_ctx.Db.Query<LedgerEntry>());
-        Assert.Equal((LedgerType.Income, LedgerSource.Payment, true, 50_000L), (entry.Type, entry.Source, entry.IsSelfDeclared, entry.Amount));
-        Assert.Equal(payment.Id, entry.PaymentId);
-        Assert.Contains(_ctx.AuditLogs, log => log.Action == PaymentsAuditActions.Confirm && log.IsSelfAction);
+        Assert.True(_ctx.Db.Query<LedgerEntry>().Single().IsSelfDeclared);
+        Assert.Contains(_ctx.AuditLogs, log => log.Action == PaymentsAuditActions.Collect && log.IsSelfAction);
         Assert.Empty(_ctx.Db.Query<Notification>());
     }
 
     [Fact]
-    public async Task My_assignments_lists_only_my_own_with_the_latest_payment_state()
+    public async Task Collecting_the_same_obligation_twice_conflicts()
     {
-        var assignment = AssignmentOf(_ctx.StudentA);
-        await CreateService().SubmitAsync(_ctx.Fund.Id, assignment.Id, Cash, default);
+        await CreateService().CollectAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, Cash, default);
 
-        var mine = await CreateService().ListMineAsync(_ctx.Fund.Id, default);
+        var error = await Assert.ThrowsAsync<ConflictException>(() => CreateService().CollectAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, Cash, default));
 
-        var item = Assert.Single(mine);
-        Assert.Equal((assignment.Id, AssignmentStatus.AwaitingConfirmation, PaymentStatus.Submitted), (item.AssignmentId, item.Status, item.PaymentStatus));
-    }
-
-    // ---------- Xác nhận / từ chối ----------
-
-    [Fact]
-    public async Task Confirm_writes_one_income_entry_marks_paid_and_notifies_the_payer()
-    {
-        var submitted = await CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, Cash, default);
-        _ctx.ActAs(_ctx.Treasurer);
-
-        var confirmed = await CreateService().ConfirmAsync(_ctx.Fund.Id, submitted.Id, default);
-
-        Assert.Equal(PaymentStatus.Confirmed, confirmed.Status);
-        Assert.False(confirmed.IsSelfDeclared);
-        Assert.Equal(AssignmentStatus.Paid, AssignmentOf(_ctx.StudentA).Status);
-        var entry = Assert.Single(_ctx.Db.Query<LedgerEntry>());
-        Assert.Equal((LedgerSource.Payment, false, _ctx.Treasurer.Id), (entry.Source, entry.IsSelfDeclared, entry.PerformedByUserId));
-        Assert.Equal(_custom.Id, entry.CategoryId); // danh mục do thủ quỹ chọn khi tạo khoản thu, không phải danh mục mặc định
-        var note = Assert.Single(_ctx.Db.Query<Notification>(), item => item.Type == NotificationType.PaymentConfirmed);
-        Assert.Equal(_ctx.StudentA.Id, note.UserId);
-        Assert.Contains(_ctx.AuditLogs, log => log.Action == PaymentsAuditActions.Confirm && !log.IsSelfAction);
-    }
-
-    [Fact]
-    public async Task Confirming_twice_conflicts_and_writes_only_one_entry()
-    {
-        var submitted = await CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, Cash, default);
-        _ctx.ActAs(_ctx.Treasurer);
-        await CreateService().ConfirmAsync(_ctx.Fund.Id, submitted.Id, default);
-
-        var error = await Assert.ThrowsAsync<ConflictException>(() => CreateService().ConfirmAsync(_ctx.Fund.Id, submitted.Id, default));
-
-        Assert.Equal(PaymentsErrors.AlreadyProcessedCode, error.Code);
+        Assert.Equal(PaymentsErrors.NotPayableCode, error.Code);
         Assert.Single(_ctx.Db.Query<LedgerEntry>());
     }
 
     [Fact]
-    public async Task Students_can_neither_confirm_reject_nor_see_the_queue()
+    public async Task A_closed_charge_or_an_archived_fund_takes_no_collection()
     {
-        var submitted = await CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, Cash, default);
-        _ctx.ActAs(_ctx.StudentB);
-
-        await Assert.ThrowsAsync<ForbiddenAccessException>(() => CreateService().ConfirmAsync(_ctx.Fund.Id, submitted.Id, default));
-        await Assert.ThrowsAsync<ForbiddenAccessException>(() => CreateService().RejectAsync(_ctx.Fund.Id, submitted.Id, "x", default));
-        await Assert.ThrowsAsync<ForbiddenAccessException>(() => CreateService().ListAsync(_ctx.Fund.Id, new PaymentFilter(null, 1, 20), default));
-    }
-
-    [Fact]
-    public async Task Reject_needs_a_reason_returns_the_obligation_and_allows_paying_again()
-    {
-        var submitted = await CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, Cash, default);
-        _ctx.ActAs(_ctx.Treasurer);
-
-        var blank = await Assert.ThrowsAsync<BusinessRuleException>(() => CreateService().RejectAsync(_ctx.Fund.Id, submitted.Id, "  ", default));
-        var rejected = await CreateService().RejectAsync(_ctx.Fund.Id, submitted.Id, " Chưa nhận được tiền ", default);
-
-        Assert.Equal(PaymentsErrors.ReasonRequiredCode, blank.Code);
-        Assert.Equal((PaymentStatus.Rejected, "Chưa nhận được tiền"), (rejected.Status, rejected.RejectionReason));
-        Assert.Equal(AssignmentStatus.Unpaid, AssignmentOf(_ctx.StudentA).Status);
-        Assert.Empty(_ctx.Db.Query<LedgerEntry>());
-        Assert.Contains(_ctx.Db.Query<Notification>(), item => item.Type == NotificationType.PaymentRejected && item.UserId == _ctx.StudentA.Id);
-
-        _ctx.ActAs(_ctx.StudentA);
-        var again = await CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, Cash, default);
-        Assert.Equal(PaymentStatus.Submitted, again.Status);
-        var mine = Assert.Single(await CreateService().ListMineAsync(_ctx.Fund.Id, default));
-        Assert.Equal(again.Id, mine.PaymentId);
-    }
-
-    [Fact]
-    public async Task The_queue_defaults_to_submitted_and_carries_the_proof()
-    {
-        var proof = SeedProof(_ctx.StudentA);
-        var submitted = await CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, new(PaymentMethod.BankTransfer, "FT1", proof.Id), default);
-        _ctx.ActAs(_ctx.Treasurer);
-
-        var queue = await CreateService().ListAsync(_ctx.Fund.Id, new PaymentFilter(null, 1, 20), default);
-        await CreateService().ConfirmAsync(_ctx.Fund.Id, submitted.Id, default);
-        var after = await CreateService().ListAsync(_ctx.Fund.Id, new PaymentFilter(null, 1, 20), default);
-        var history = await CreateService().ListAsync(_ctx.Fund.Id, new PaymentFilter(PaymentStatus.Confirmed, 1, 20), default);
-
-        var item = Assert.Single(queue.Items);
-        Assert.Equal((_ctx.StudentA.Id, "Quỹ lớp tháng 12"), (item.PayerUserId, item.ChargeTitle));
-        Assert.Equal(proof.Id, Assert.Single(item.Attachments).Id);
-        Assert.Empty(after.Items);
-        Assert.Single(history.Items);
-    }
-
-    // ---------- Thủ quỹ ghi nhận tiền mặt thay học sinh ----------
-
-    [Fact]
-    public async Task A_treasurer_records_cash_for_a_student_which_is_verified_not_self_declared()
-    {
-        _ctx.ActAs(_ctx.Treasurer);
-
-        var payment = await CreateService().RecordCashAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, default);
-
-        Assert.Equal((PaymentStatus.Confirmed, PaymentMethod.Cash, false), (payment.Status, payment.Method, payment.IsSelfDeclared));
-        Assert.Equal(AssignmentStatus.Paid, AssignmentOf(_ctx.StudentA).Status);
-        var entry = Assert.Single(_ctx.Db.Query<LedgerEntry>());
-        Assert.Equal((LedgerSource.Payment, false, _ctx.Treasurer.Id), (entry.Source, entry.IsSelfDeclared, entry.PerformedByUserId));
-        Assert.Contains(_ctx.Db.Query<Notification>(), item => item.Type == NotificationType.PaymentConfirmed && item.UserId == _ctx.StudentA.Id);
-        Assert.Contains(_ctx.AuditLogs, log => log.Action == PaymentsAuditActions.Confirm && !log.IsSelfAction && log.ActorUserId == _ctx.Treasurer.Id);
-    }
-
-    [Fact]
-    public async Task Recording_cash_for_yourself_is_self_declared_and_students_cannot_record()
-    {
-        _ctx.ActAs(_ctx.Treasurer);
-        var self = await CreateService().RecordCashAsync(_ctx.Fund.Id, AssignmentOf(_ctx.Treasurer).Id, default);
-        Assert.True(self.IsSelfDeclared);
-
-        _ctx.ActAs(_ctx.StudentA);
-        await Assert.ThrowsAsync<ForbiddenAccessException>(() => CreateService().RecordCashAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentB).Id, default));
-    }
-
-    [Fact]
-    public async Task Recording_cash_conflicts_when_already_paid_or_waiting_or_charge_closed()
-    {
-        await CreateService().SubmitAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, Cash, default);
-        _ctx.ActAs(_ctx.Treasurer);
-
-        var waiting = await Assert.ThrowsAsync<ConflictException>(() => CreateService().RecordCashAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, default));
-        Assert.Equal(PaymentsErrors.NotPayableCode, waiting.Code);
-
         _charge.Status = ChargeStatus.Closed;
-        var closed = await Assert.ThrowsAsync<ConflictException>(() => CreateService().RecordCashAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentB).Id, default));
+        var closed = await Assert.ThrowsAsync<ConflictException>(() => CreateService().CollectAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, Cash, default));
         Assert.Equal(PaymentsErrors.ChargeNotOpenCode, closed.Code);
-        Assert.Empty(_ctx.Db.Query<LedgerEntry>());
+
+        _charge.Status = ChargeStatus.Open;
+        _ctx.Fund.Status = FundStatus.Archived;
+        var archived = await Assert.ThrowsAsync<BusinessRuleException>(() => CreateService().CollectAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, Cash, default));
+        Assert.Equal(YearEndRule.FundArchivedCode, archived.Code);
+    }
+
+    [Fact]
+    public async Task An_event_charge_is_collected_in_the_event_scope_only_while_the_list_is_open()
+    {
+        var (fundEvent, eventCharge) = SeedEventCharge();
+        var assignment = AssignmentOf(_ctx.StudentA, eventCharge);
+
+        await CreateService().CollectAsync(_ctx.Fund.Id, assignment.Id, Cash, default);
+
+        var entry = _ctx.Db.Query<LedgerEntry>().Single();
+        Assert.Equal(fundEvent.Id, entry.EventId);
+        Assert.Contains(_ctx.AuditLogs, log => log.Action == PaymentsAuditActions.Collect && log.Scope == FinancialScope.Event && log.EventId == fundEvent.Id);
+
+        var (closedEvent, closedCharge) = SeedEventCharge(EventStatus.Completed);
+        var error = await Assert.ThrowsAsync<ConflictException>(() =>
+            CreateService().CollectAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA, closedCharge).Id, Cash, default));
+        Assert.Equal(PaymentsErrors.ChargeNotOpenCode, error.Code);
+        Assert.NotNull(closedEvent);
+    }
+
+    // ---------- Hủy ghi nhận thu (tích nhầm) ----------
+
+    [Fact]
+    public async Task Uncollecting_reverses_the_income_and_lets_the_obligation_be_collected_again()
+    {
+        var first = await CreateService().CollectAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, Cash, default);
+
+        var undone = await CreateService().UncollectAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, "Tích nhầm người", default);
+
+        Assert.Equal(PaymentStatus.Rejected, undone.Status);
+        Assert.Equal(AssignmentStatus.Unpaid, AssignmentOf(_ctx.StudentA).Status);
+        var reversal = _ctx.Db.Query<LedgerEntry>().Single(item => item.ReversesEntryId != null);
+        Assert.Equal((LedgerType.Expense, 50_000L, "Tích nhầm người"), (reversal.Type, reversal.Amount, reversal.Note));
+        Assert.Contains(_ctx.AuditLogs, log => log.Action == PaymentsAuditActions.Uncollect);
+
+        var second = await CreateService().CollectAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, new(PaymentMethod.BankTransfer, null), default);
+        Assert.NotEqual(first.Id, second.Id);
+        Assert.Equal(AssignmentStatus.Paid, AssignmentOf(_ctx.StudentA).Status);
+    }
+
+    [Fact]
+    public async Task Uncollecting_needs_a_reason_and_something_collected()
+    {
+        var noReason = await Assert.ThrowsAsync<BusinessRuleException>(() => CreateService().UncollectAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, " ", default));
+        Assert.Equal(PaymentsErrors.ReasonRequiredCode, noReason.Code);
+
+        var notCollected = await Assert.ThrowsAsync<ConflictException>(() => CreateService().UncollectAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, "lý do", default));
+        Assert.Equal(PaymentsErrors.NotCollectedCode, notCollected.Code);
+    }
+
+    // ---------- Nhắc đóng ----------
+
+    [Fact]
+    public async Task Reminding_a_student_notifies_only_them_logs_the_reminder_and_is_throttled()
+    {
+        var result = await CreateService().RemindAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentB).Id, default);
+
+        Assert.Equal(1, result.Reminded);
+        var note = Assert.Single(_ctx.Db.Query<Notification>());
+        Assert.Equal((_ctx.StudentB.Id, NotificationType.ChargeDueSoon), (note.UserId, note.Type));
+        Assert.StartsWith("[Quỹ chung] Nhắc đóng: Quỹ lớp tháng 12", note.Title);
+        var log = Assert.Single(_ctx.Db.Query<PaymentReminder>());
+        Assert.Equal((_ctx.StudentB.Id, ReminderKind.Manual, _ctx.Treasurer.Id, _charge.Id), (log.UserId, log.Kind, log.SentByUserId, log.ChargeId));
+        Assert.Contains(_ctx.AuditLogs, entry => entry.Action == PaymentsAuditActions.Remind);
+
+        var tooSoon = await Assert.ThrowsAsync<ConflictException>(() => CreateService().RemindAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentB).Id, default));
+        Assert.Equal(ChargesErrors.RemindTooSoonCode, tooSoon.Code);
+
+        _ctx.Clock.Now = ServiceTestContext.Start.AddHours(2);
+        await CreateService().RemindAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentB).Id, default);
+        Assert.Equal(2, _ctx.Db.Query<PaymentReminder>().Count());
+    }
+
+    [Fact]
+    public async Task Reminding_an_event_participant_uses_the_event_scope_and_a_paid_person_needs_no_reminder()
+    {
+        var (fundEvent, eventCharge) = SeedEventCharge();
+
+        await CreateService().RemindAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA, eventCharge).Id, default);
+
+        var note = Assert.Single(_ctx.Db.Query<Notification>());
+        Assert.Equal((NotificationType.EventUnpaidReminder, FinancialScope.Event, fundEvent.Id), (note.Type, note.Scope, note.EventId!.Value));
+        Assert.StartsWith("[Sự kiện: Dã ngoại Ba Vì]", note.Title);
+
+        await CreateService().CollectAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, Cash, default);
+        var paid = await Assert.ThrowsAsync<BusinessRuleException>(() => CreateService().RemindAsync(_ctx.Fund.Id, AssignmentOf(_ctx.StudentA).Id, default));
+        Assert.Equal(ChargesErrors.NothingToRemindCode, paid.Code);
     }
 }

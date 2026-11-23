@@ -8,12 +8,14 @@ using ClassFund.Domain.Enums;
 namespace ClassFund.IntegrationTests.Modules;
 
 /// <summary>
-/// M9-T4 trên PostgreSQL thật: quyết toán sự kiện chia tiền thừa theo tỷ lệ đã đóng, cộng số dư / hoàn trực tiếp,
-/// chặn khi còn thanh toán chờ, chỉ quyết toán một lần kể cả khi hai thủ quỹ bấm cùng lúc, không chạm quỹ chung.
+/// M9-T4 trên PostgreSQL thật: quyết toán sự kiện chia đều tiền thừa theo đầu người trong danh sách chốt (làm tròn xuống bội 1.000đ),
+/// cộng số dư / hoàn trực tiếp, chỉ quyết toán một lần kể cả khi hai thủ quỹ bấm cùng lúc, không chạm quỹ chung.
 /// </summary>
 [Collection(ApiCollection.Name)]
 public class SettlementApiTests(ApiTestHost host)
 {
+    private static readonly DateOnly Today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(7));
+
     private static string Base(Guid fundId) => $"/api/v1/funds/{fundId}";
 
     private static async Task<JsonElement> ReadAsync(HttpResponseMessage response) =>
@@ -38,7 +40,7 @@ public class SettlementApiTests(ApiTestHost host)
         var bClient = await host.LoginAsync(b);
 
         var category = await ReadAsync(await ownerClient.PostAsJsonAsync($"{Base(fund.Id)}/categories", new { name = "Quỹ lớp", type = "Income" }));
-        var created = await ReadAsync(await ownerClient.PostAsJsonAsync($"{Base(fund.Id)}/events", new { name = "Dã ngoại Ba Vì", eventDate = "2026-12-20" }));
+        var created = await ReadAsync(await ownerClient.PostAsJsonAsync($"{Base(fund.Id)}/events", new { name = "Dã ngoại Ba Vì", eventDate = Today.AddDays(20).ToString("yyyy-MM-dd"), listDeadline = Today.ToString("yyyy-MM-dd") }));
         var eventId = created.GetProperty("id").GetGuid();
         foreach (var client in new[] { aClient, bClient })
         {
@@ -57,10 +59,11 @@ public class SettlementApiTests(ApiTestHost host)
         return new World(fund, owner, a, b, ownerClient, aClient, bClient, eventId, (await ReadAsync(charge)).GetProperty("id").GetGuid());
     }
 
-    private static async Task<Guid> PayCashAsync(HttpClient client, Guid fundId)
+    /// <summary>Thủ quỹ tích "đã thu" tiền mặt cho người dùng của <paramref name="client"/>.</summary>
+    private static async Task<Guid> CollectCashAsync(HttpClient manager, HttpClient client, Guid fundId)
     {
         var mine = (await ReadAsync(await client.GetAsync($"{Base(fundId)}/me/assignments"))).EnumerateArray().Single();
-        var paid = await client.PostAsJsonAsync($"{Base(fundId)}/me/assignments/{mine.GetProperty("assignmentId").GetGuid()}/payments", new { method = "Cash" });
+        var paid = await manager.PostAsJsonAsync($"{Base(fundId)}/assignments/{mine.GetProperty("assignmentId").GetGuid()}/collect", new { method = "Cash" });
         Assert.Equal(HttpStatusCode.Created, paid.StatusCode);
         return (await ReadAsync(paid)).GetProperty("id").GetGuid();
     }
@@ -73,18 +76,17 @@ public class SettlementApiTests(ApiTestHost host)
         await db.SaveChangesAsync();
     }
 
-    /// <summary>A đóng 100.000, B đóng 100.000 (đã xác nhận), chi <paramref name="spent"/>, rồi kết thúc sự kiện.</summary>
+    /// <summary>A đóng 100.000, B đóng 100.000 (đã xác nhận), chi <paramref name="spent"/>, rồi đóng danh sách.</summary>
     private async Task<World> CompletedEventAsync(long spent)
     {
         var w = await OpenEventAsync();
         foreach (var client in new[] { w.AClient, w.BClient })
         {
-            var paymentId = await PayCashAsync(client, w.Fund.Id);
-            Assert.Equal(HttpStatusCode.OK, (await w.OwnerClient.PostAsync($"{Base(w.Fund.Id)}/payments/{paymentId}/confirm", null)).StatusCode);
+            await CollectCashAsync(w.OwnerClient, client, w.Fund.Id);
         }
 
+        Assert.Equal(HttpStatusCode.OK, (await w.OwnerClient.PostAsJsonAsync($"{Base(w.Fund.Id)}/events/{w.EventId}/close-list", new { })).StatusCode);
         await SeedExpenseAsync(w, spent);
-        Assert.Equal(HttpStatusCode.OK, (await w.OwnerClient.PostAsync($"{Base(w.Fund.Id)}/events/{w.EventId}/complete", null)).StatusCode);
         return w;
     }
 
@@ -105,7 +107,7 @@ public class SettlementApiTests(ApiTestHost host)
     }
 
     [Fact]
-    public async Task Surplus_credited_to_balance_in_proportion_and_the_event_is_settled()
+    public async Task Surplus_is_split_equally_credited_to_balance_and_the_event_is_settled()
     {
         var w = await CompletedEventAsync(spent: 120_000); // thu 200.000, thừa 80.000, mỗi người 40.000
 
@@ -156,18 +158,16 @@ public class SettlementApiTests(ApiTestHost host)
     }
 
     [Fact]
-    public async Task A_payment_waiting_for_confirmation_blocks_the_settlement()
+    public async Task Equal_split_rounds_down_to_thousands_and_leaves_the_remainder_unallocated()
     {
-        var w = await OpenEventAsync();
-        var paymentId = await PayCashAsync(w.AClient, w.Fund.Id);
-        Assert.Equal(HttpStatusCode.OK, (await w.OwnerClient.PostAsync($"{Base(w.Fund.Id)}/events/{w.EventId}/complete", null)).StatusCode);
+        var w = await CompletedEventAsync(spent: 99_500); // thu 200.000, thừa 100.500, mỗi người 50.250 → 50.000, dư 500đ không chia
 
-        var blocked = await w.OwnerClient.PostAsJsonAsync(Url(w), new { surplusMethod = "PersonalBalance" });
-        Assert.Equal(HttpStatusCode.UnprocessableEntity, blocked.StatusCode);
-        Assert.Equal("settlement.pending_payments", await CodeOfAsync(blocked));
+        var done = await w.OwnerClient.PostAsJsonAsync(Url(w), new { surplusMethod = "PersonalBalance" });
 
-        Assert.Equal(HttpStatusCode.OK, (await w.OwnerClient.PostAsync($"{Base(w.Fund.Id)}/payments/{paymentId}/confirm", null)).StatusCode);
-        Assert.Equal(HttpStatusCode.Created, (await w.OwnerClient.PostAsJsonAsync(Url(w), new { surplusMethod = "PersonalBalance" })).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, done.StatusCode);
+        var lines = (await ReadAsync(done)).GetProperty("lines").EnumerateArray().ToArray();
+        Assert.Equal(2, lines.Length);
+        Assert.All(lines, line => Assert.Equal(50_000, line.GetProperty("amount").GetInt64()));
     }
 
     [Fact]

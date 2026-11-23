@@ -31,7 +31,7 @@ public class SettlementServiceTests
             _ctx.Db,
             _ctx.CurrentUser,
             _ctx.Access,
-            new BalanceService(_ctx.Db, _ctx.CurrentUser, _ctx.Access, _ctx.Audit, _ctx.Clock),
+            new BalanceService(_ctx.Db, _ctx.CurrentUser, _ctx.Access, _ctx.Clock),
             _ctx.Audit,
             new Notifier(_ctx.Db, _ctx.Clock),
             _ctx.Clock);
@@ -61,40 +61,53 @@ public class SettlementServiceTests
     private long BalanceOf(User user) => _ctx.Db.Query<PersonalBalance>().SingleOrDefault(item => item.UserId == user.Id)?.Balance ?? 0;
 
     [Fact]
-    public async Task Preview_splits_the_surplus_in_proportion_to_what_was_paid()
+    public async Task Preview_splits_the_surplus_equally_per_head()
     {
         Join(_ctx.StudentA, 100_000);
-        Join(_ctx.StudentB, 50_000);
-        Spend(90_000); // thu 150.000, chi 90.000, thừa 60.000
+        Join(_ctx.StudentB, 100_000);
+        Spend(140_000); // thu 200.000, chi 140.000, thừa 60.000
 
         var preview = await CreateService().PreviewAsync(_ctx.Fund.Id, _event.Id, default);
 
-        Assert.Equal((150_000L, 90_000L, 60_000L, SettlementOutcome.Surplus, true), (preview.TotalCollected, preview.TotalSpent, preview.Surplus, preview.Outcome, preview.CanExecute));
-        Assert.Equal(40_000, preview.Lines.Single(line => line.UserId == _ctx.StudentA.Id).Amount);
-        Assert.Equal(20_000, preview.Lines.Single(line => line.UserId == _ctx.StudentB.Id).Amount);
+        Assert.Equal((200_000L, 140_000L, 60_000L, SettlementOutcome.Surplus, true), (preview.TotalCollected, preview.TotalSpent, preview.Surplus, preview.Outcome, preview.CanExecute));
+        Assert.All(preview.Lines, line => Assert.Equal(30_000, line.Amount));
+    }
+
+    [Fact]
+    public async Task The_share_does_not_depend_on_how_much_each_person_paid_and_leftover_below_1000_is_not_split()
+    {
+        Join(_ctx.StudentA, 100_000);
+        Join(_ctx.StudentB, 100_000);
+        Join(_ctx.Treasurer, 100_000);
+        Spend(199_500); // thừa 100.500 → 100 đơn vị 1.000đ chia 3: 33.000 / 33.000 / 34.000
+
+        var preview = await CreateService().PreviewAsync(_ctx.Fund.Id, _event.Id, default);
+
+        Assert.Equal(100_000, preview.Lines.Sum(line => line.Amount));
+        Assert.All(preview.Lines, line => Assert.Equal(0, line.Amount % 1_000));
     }
 
     [Fact]
     public async Task Crediting_to_balance_adds_each_share_settles_the_event_and_excludes_unpaid()
     {
         Join(_ctx.StudentA, 100_000);
-        Join(_ctx.StudentB, 50_000);
-        Join(_ctx.Treasurer, 0);
-        Spend(90_000);
+        Join(_ctx.StudentB, 100_000);
+        Join(_ctx.Treasurer, 0, isFinal: false); // đã bị loại khi đóng danh sách
+        Spend(110_000);
 
         var result = await CreateService().ExecuteAsync(_ctx.Fund.Id, _event.Id, SurplusMethod.PersonalBalance, default);
 
-        Assert.Equal((SettlementOutcome.Surplus, 60_000L), (result.Outcome, result.Surplus));
+        Assert.Equal((SettlementOutcome.Surplus, 90_000L), (result.Outcome, result.Surplus));
         Assert.Equal(EventStatus.Settled, _event.Status);
-        Assert.Equal(40_000, BalanceOf(_ctx.StudentA));
-        Assert.Equal(20_000, BalanceOf(_ctx.StudentB));
+        Assert.Equal(45_000, BalanceOf(_ctx.StudentA));
+        Assert.Equal(45_000, BalanceOf(_ctx.StudentB));
         Assert.Equal(0, BalanceOf(_ctx.Treasurer));
         Assert.All(result.Lines, line => Assert.Equal(SettlementLineStatus.CreditedToBalance, line.Status));
         Assert.Equal(AssignmentStatus.Excluded, _ctx.Db.Query<ChargeAssignment>().Single(item => item.UserId == _ctx.Treasurer.Id).Status);
         Assert.Equal(ChargeStatus.Closed, _charge.Status);
         Assert.Equal(2, _ctx.Db.Query<BalanceTransaction>().Count(item => item.Type == BalanceTransactionType.SettlementCredit));
         Assert.Equal(2, _ctx.Db.Query<Notification>().Count(item => item.Type == NotificationType.BalanceCredited));
-        Assert.Equal(3, _ctx.Db.Query<Notification>().Count(item => item.Type == NotificationType.SettlementResult));
+        Assert.Equal(2, _ctx.Db.Query<Notification>().Count(item => item.Type == NotificationType.SettlementResult));
         Assert.Contains(_ctx.AuditLogs, log => log.Action == SettlementAuditActions.Execute && log.Scope == FinancialScope.Event && log.EventId == _event.Id);
         Assert.DoesNotContain(_ctx.Db.Query<LedgerEntry>(), entry => entry.Source == LedgerSource.Refund);
     }
@@ -181,20 +194,6 @@ public class SettlementServiceTests
         var error = await Assert.ThrowsAsync<ConflictException>(() => CreateService().ExecuteAsync(_ctx.Fund.Id, _event.Id, null, default));
 
         Assert.Equal(SettlementErrors.AlreadySettledCode, error.Code);
-    }
-
-    [Fact]
-    public async Task A_payment_still_waiting_blocks_the_settlement_OQ19()
-    {
-        Join(_ctx.StudentA, 100_000);
-        Join(_ctx.StudentB, 0, status: PaymentStatus.Submitted);
-
-        var preview = await CreateService().PreviewAsync(_ctx.Fund.Id, _event.Id, default);
-        var error = await Assert.ThrowsAsync<BusinessRuleException>(() => CreateService().ExecuteAsync(_ctx.Fund.Id, _event.Id, SurplusMethod.PersonalBalance, default));
-
-        Assert.Equal((1, false), (preview.PendingPaymentCount, preview.CanExecute));
-        Assert.Equal(SettlementErrors.PendingPaymentsCode, error.Code);
-        Assert.Equal(EventStatus.Completed, _event.Status);
     }
 
     [Fact]

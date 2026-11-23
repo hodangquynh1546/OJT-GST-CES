@@ -12,7 +12,7 @@
           <span class="cf-tag" [class]="'cf-tag--' + badge.tone">{{ badge.text }}</span>
         </div>
         <p class="cf-muted">
-          {{ longDate(event.eventDate) }}@if (canManage()) {
+          {{ longDate(event.eventDate) }}@if (event.listDeadline) { · Hạn đóng danh sách {{ event.listDeadline | vnDate }} }@if (canManage()) {
             · Quỹ riêng của sự kiện, quyết toán độc lập với quỹ chung
           } @else if (event.description) {
             · {{ event.description }}
@@ -26,7 +26,7 @@
           }
           @if (isOpen()) {
             <button kendoButton type="button" [disabled]="busy()" (click)="askCancel()">Hủy sự kiện</button>
-            <button kendoButton themeColor="primary" type="button" [disabled]="busy()" (click)="askEnd(event)">Kết thúc sự kiện</button>
+            <button kendoButton themeColor="primary" type="button" [disabled]="busy()" (click)="askCloseList(event)">Đóng danh sách</button>
           }
           @if (isCompleted()) {
             <a class="cf-primary-link" [routerLink]="['/funds', fundId(), 'events', event.id, 'settlement']">Quyết toán</a>
@@ -41,16 +41,16 @@
         <div class="cf-alert">Sự kiện đã hủy: không thu, không chi, không đổi câu trả lời. Lý do hủy xem trong Nhật ký hoạt động.</div>
       } @else {
         <ol class="steps" aria-label="Tiến trình sự kiện">
-          <li class="step"><span [class]="dotClass(0)" aria-hidden="true">1</span>Đang mở – đăng ký &amp; thu chi</li>
+          <li class="step"><span [class]="dotClass(0)" aria-hidden="true">1</span>Đang mở – đăng ký &amp; thu tiền</li>
           <li class="line" [class.done]="step() >= 1" aria-hidden="true"></li>
-          <li class="step"><span [class]="dotClass(1)" aria-hidden="true">2</span>Đã kết thúc</li>
+          <li class="step"><span [class]="dotClass(1)" aria-hidden="true">2</span>Đã đóng danh sách – chi tiêu</li>
           <li class="line" [class.done]="step() >= 2" aria-hidden="true"></li>
           <li class="step" [class.cf-muted]="step() < 2"><span [class]="dotClass(2)" aria-hidden="true">3</span>Đã quyết toán</li>
         </ol>
       }
       @if (isCompleted()) {
         <div class="cf-alert cf-alert--info">
-          Sự kiện đã kết thúc: không tạo khoản thu và không ghi chi mới. Người chưa đóng đủ vẫn nộp được phần còn lại; thanh toán đang chờ vẫn xác nhận được.
+          Đã đóng danh sách: danh sách người tham gia đã chốt, không tạo khoản thu mới. Giờ có thể ghi chi sự kiện; sau đó quyết toán để chia đều tiền thừa theo đầu người.
         </div>
       }
 
@@ -60,7 +60,7 @@
           <span class="kpi-v">{{ event.participantCount }}</span>
           <span class="cf-muted xs">
             @if (event.excludedCount > 0) {
-              {{ event.excludedCount }} người bị loại vì chưa đóng khoản nào
+              {{ event.excludedCount }} người bị loại vì chưa đóng đủ (đã hoàn tiền vào số dư cá nhân)
             } @else {
               đã xác nhận tham gia ({{ event.invitedCount }} được mời)
             }
@@ -124,15 +124,12 @@
               <div class="cf-card mine">
                 <div class="row-main">
                   <span class="strong-600">{{ charge.title }} · {{ charge.amountDue | vndMoney }}</span>
-                  <span class="cf-muted small">Hạn {{ charge.dueDate | vnDate }}</span>
+                  @if (event.listDeadline) { <span class="cf-muted small">Nộp trước {{ event.listDeadline | vnDate }}</span> }
                 </div>
                 <span class="cf-tag" [class]="'cf-tag--' + assignmentTone[charge.status]">{{ assignmentLabel[charge.status] }}</span>
-                @if (charge.status === 'Unpaid') {
-                  <a class="cf-primary-link small-btn" [routerLink]="['/funds', fundId(), 'my-payments']">Nộp tiền</a>
-                }
               </div>
             } @empty {
-              <p class="cf-muted small">Bạn tham gia sự kiện này: khi có khoản thu sự kiện, bạn cũng phải đóng như mọi người tham gia (tự ghi nhận được ghi rõ trong nhật ký).</p>
+              <p class="cf-muted small">Bạn tham gia sự kiện này: khi có khoản thu sự kiện, bạn cũng phải nộp đủ như mọi người tham gia (thủ quỹ tự ghi nhận cho mình, có ghi nhật ký).</p>
             }
           } @else if (me.response === 'Declined') {
             <p class="cf-muted small">Bạn không tham gia – không phải đóng khoản thu của sự kiện, chỉ quản lý và ghi thu chi.</p>
@@ -157,7 +154,7 @@
         @switch (tab()) {
           @case ('people') {
             <div class="card-h">
-              <div class="tabs" role="tablist" aria-label="Lọc theo tình trạng đóng tiền">
+              <div class="tabs" role="tablist" aria-label="Lọc theo tình trạng nộp tiền">
                 @for (option of peopleFilters; track option.value) {
                   <button
                     type="button"
@@ -184,7 +181,7 @@
                   </div>
                 </ng-template>
               </kendo-grid-column>
-              <kendo-grid-column title="Đã đóng / phải đóng" [width]="200" headerClass="num-head">
+              <kendo-grid-column title="Đã nộp / phải nộp" [width]="200" headerClass="num-head">
                 <ng-template kendoGridCellTemplate let-row>
                   <span class="cf-money block">{{ row.paid | vndMoney }} / {{ row.due | vndMoney }}</span>
                 </ng-template>
@@ -207,10 +204,7 @@
               <kendo-grid-column title="Thao tác" [width]="120" headerClass="right-head">
                 <ng-template kendoGridCellTemplate let-row>
                   <div class="right">
-                    @if (row.paymentStatus === 'Pending' && canConfirm()) {
-                      <a class="cf-link-button small-btn" [routerLink]="['/funds', fundId(), 'payments']">Xác nhận</a>
-                    }
-                    @if (row.paymentStatus === 'Unpaid' && canRemind() && (isOpen() || isCompleted())) {
+                    @if (row.paymentStatus === 'Unpaid' && canRemind() && isOpen()) {
                       <button kendoButton fillMode="outline" size="small" type="button" [disabled]="busy()" (click)="remind(row)">Nhắc đóng</button>
                     }
                   </div>
@@ -227,7 +221,7 @@
             <div class="card-f">
               <span class="cf-muted small">
                 Hiển thị {{ visiblePeople().length }} / {{ participants()?.total ?? 0 }} người tham gia@if (event.excludedCount > 0) {
-                  · {{ event.excludedCount }} người bị loại xem trong Nhật ký hoạt động
+                  · {{ event.excludedCount }} người bị loại xem ở “Lịch sử đóng danh sách” bên dưới
                 }
               </span>
             </div>
@@ -240,30 +234,45 @@
                   <div class="charge-ev-info">
                     <span class="strong-600">{{ charge.title }}</span>
                     <span class="cf-muted small">
-                      {{ charge.amountPerPerson | vndMoney }}/người · hạn {{ charge.dueDate | vnDate }}@if (charge.purpose) { · {{ charge.purpose }}}
+                      {{ charge.amountPerPerson | vndMoney }}/người · cùng một mức cho mọi người@if (charge.purpose) { · {{ charge.purpose }}}
                     </span>
                   </div>
                   <div class="charge-ev-stats">
-                    <span class="cf-tag cf-tag--success">{{ charge.paidCount }} đã đóng</span>
-                    <span class="cf-tag cf-tag--warning">{{ charge.pendingCount }} chờ</span>
-                    <span class="cf-tag cf-tag--danger">{{ charge.unpaidCount }} chưa đóng</span>
+                    <span class="cf-tag cf-tag--success">{{ charge.paidCount }} đã nộp</span>
+                    <span class="cf-tag cf-tag--danger">{{ charge.unpaidCount }} chưa nộp</span>
                   </div>
                   <div class="charge-ev-actions">
                     <span class="cf-tag" [class.cf-tag--success]="charge.status === 'Open'">{{ chargeStatusLabel(charge.status) }}</span>
+                    @if (canRemind() && charge.status !== 'Cancelled') {
+                      <button kendoButton size="small" fillMode="outline" type="button" [attr.aria-expanded]="tracked() === charge.id" (click)="toggleTracked(charge.id)">
+                        {{ tracked() === charge.id ? 'Ẩn danh sách' : 'Theo dõi / thu tiền' }}
+                      </button>
+                    }
                     @if (charge.status === 'Open') {
-                      <button kendoButton size="small" fillMode="outline" type="button" [disabled]="busy()" (click)="doCloseCharge(event, charge.id)">Đóng</button>
+                      <button kendoButton size="small" fillMode="outline" type="button" [disabled]="busy()" (click)="askCloseCharge(event, charge)">Đóng</button>
                       <button kendoButton size="small" fillMode="outline" themeColor="error" type="button" [disabled]="busy()" (click)="doCancelCharge(event, charge.id)">Hủy</button>
                     }
                   </div>
                 </div>
+                @if (tracked() === charge.id) {
+                  <app-charge-collect-list
+                    [fundId]="fundId()"
+                    [chargeId]="charge.id"
+                    [eventId]="event.id"
+                    [chargeOpen]="charge.status === 'Open'"
+                    (changed)="reload$.next()"
+                  />
+                }
               } @empty {
                 <p class="cf-muted">Sự kiện chưa có khoản thu nào.</p>
               }
-              <p class="cf-muted small">Khoản thu sự kiện chỉ gán cho người đã xác nhận tham gia ({{ event.acceptedCount }} người) và chỉ họ nhận thông báo.</p>
+              <p class="cf-muted small">
+                Khoản thu sự kiện chỉ gán cho người đã xác nhận tham gia ({{ event.acceptedCount }} người), cùng một mức cho mọi người. Ai chưa nộp đủ TẤT CẢ khoản thu khi đóng danh sách sẽ bị loại và được hoàn tiền đã nộp vào số dư.
+              </p>
               @if (isOpen()) {
                 <button kendoButton themeColor="primary" type="button" [disabled]="busy()" (click)="openCreateCharge()">+ Tạo khoản thu sự kiện</button>
               } @else {
-                <p class="cf-muted small">Đã kết thúc – không tạo khoản thu mới.</p>
+                <p class="cf-muted small">Đã đóng danh sách – không tạo khoản thu mới.</p>
               }
             </div>
           }
@@ -271,10 +280,12 @@
           @case ('ledger') {
             <div class="card-h">
               <app-scope-badge scope="Event" [eventName]="event.name" />
-              @if (isOpen()) {
+              @if (isCompleted()) {
                 <button kendoButton fillMode="outline" size="small" type="button" (click)="dialog.set('expense')">Ghi chi sự kiện</button>
+              } @else if (isOpen()) {
+                <span class="cf-muted small">Chỉ ghi chi sau khi đóng danh sách</span>
               } @else {
-                <span class="cf-muted small">Đã kết thúc – không ghi chi mới</span>
+                <span class="cf-muted small">Đã quyết toán / hủy – không ghi chi mới</span>
               }
             </div>
             <kendo-grid [data]="ledger()?.items ?? []" [loading]="!ledger()">
@@ -305,15 +316,38 @@
                 </ng-template>
               </kendo-grid-column>
               <ng-template kendoGridNoRecordsTemplate>
-                <app-state kind="empty" title="Chưa có giao dịch" message="Thu vào sổ khi thanh toán được xác nhận; chi ghi bằng nút “Ghi chi sự kiện”." />
+                <app-state kind="empty" title="Chưa có giao dịch" message="Thu vào sổ khi thủ quỹ tích “đã thu”; chi ghi bằng nút “Ghi chi sự kiện” sau khi đóng danh sách." />
               </ng-template>
             </kendo-grid>
             <div class="card-f">
-              <span class="cf-muted small">Tiền thu vào sổ khi thanh toán của từng người được xác nhận. Tổng chi không được vượt tổng đã thu.</span>
+              <span class="cf-muted small">Tiền thu vào sổ khi thủ quỹ tích “đã thu” cho từng người. Tổng chi không được vượt tổng đã thu.</span>
             </div>
           }
         }
       </section>
+
+      @if (event.exclusions.length > 0) {
+        <section class="cf-card tabs-card" aria-label="Lịch sử đóng danh sách">
+          <div class="card-h">
+            <h2>Lịch sử đóng danh sách</h2>
+            <span class="cf-muted small">Người bị loại vì chưa đóng đủ tất cả khoản thu, tiền đã nộp được hoàn vào số dư cá nhân</span>
+          </div>
+          <kendo-grid [data]="event.exclusions">
+            <kendo-grid-column title="Người bị loại">
+              <ng-template kendoGridCellTemplate let-row><span class="strong">{{ row.fullName }}</span></ng-template>
+            </kendo-grid-column>
+            <kendo-grid-column title="Lý do">
+              <ng-template kendoGridCellTemplate let-row><span class="cf-muted small">{{ row.reason }}</span></ng-template>
+            </kendo-grid-column>
+            <kendo-grid-column title="Hoàn vào số dư" [width]="170" headerClass="num-head">
+              <ng-template kendoGridCellTemplate let-row><span class="cf-money block">{{ row.refundedAmount | vndMoney }}</span></ng-template>
+            </kendo-grid-column>
+            <kendo-grid-column title="Thời điểm" [width]="130">
+              <ng-template kendoGridCellTemplate let-row><span class="cf-muted">{{ row.excludedAt ? (row.excludedAt | vnDate) : '' }}</span></ng-template>
+            </kendo-grid-column>
+          </kendo-grid>
+        </section>
+      }
     } @else {
       <!-- ===== Học sinh (canvas StuEventDetail.dc.html) ===== -->
       <div class="split">
@@ -356,19 +390,16 @@
                   <div class="cf-card mine">
                     <div class="row-main">
                       <span class="strong-600">{{ charge.title }} · {{ charge.amountDue | vndMoney }}</span>
-                      <span class="cf-muted small">Hạn {{ charge.dueDate | vnDate }}</span>
+                      @if (event.listDeadline) { <span class="cf-muted small">Nộp trước {{ event.listDeadline | vnDate }}</span> }
                     </div>
                     <span class="cf-tag" [class]="'cf-tag--' + assignmentTone[charge.status]">{{ assignmentLabel[charge.status] }}</span>
-                    @if (charge.status === 'Unpaid') {
-                      <a class="cf-primary-link small-btn" [routerLink]="['/funds', fundId(), 'my-payments']">Nộp tiền</a>
-                    }
                   </div>
                 } @empty {
                   <p class="cf-muted small">Chưa có khoản thu nào – thủ quỹ sẽ tạo và bạn sẽ nhận thông báo.</p>
                 }
                 @if (isOpen()) {
                   <div class="cf-alert cf-alert--warning">
-                    Nếu chưa đóng khoản nào khi sự kiện kết thúc, bạn bị loại khỏi sự kiện. Đã đóng một phần thì vẫn tham gia và nộp tiếp được.
+                    Cần nộp đủ TẤT CẢ các khoản thu trước khi đóng danh sách{{ event.listDeadline ? ' (' + (event.listDeadline | vnDate) + ')' : '' }}. Ai chưa nộp đủ sẽ bị loại khỏi sự kiện và tiền đã nộp được hoàn vào số dư cá nhân. Hãy đưa tiền cho thủ quỹ.
                   </div>
                 }
               </div>
@@ -377,7 +408,7 @@
             } @else {
               <div class="cf-alert cf-alert--warning">Bạn chưa trả lời. Chọn “Tham gia” hoặc “Không tham gia”.</div>
             }
-            <p class="cf-muted xs">Đổi được trả lời khi sự kiện còn mở.</p>
+            <p class="cf-muted xs">Đổi được trả lời khi sự kiện còn mở (chưa đóng danh sách).</p>
           }
         </section>
 
@@ -387,7 +418,7 @@
           <div class="between"><span class="cf-muted">Đã thu</span><span class="cf-money cf-income">{{ event.totalIncome | vndMoney }}</span></div>
           <div class="between"><span class="cf-muted">Đã chi</span><span class="cf-money cf-expense">{{ event.totalExpense | vndMoney }}</span></div>
           <div class="between"><span class="cf-muted">Số dư sự kiện</span><span class="cf-money strong-600">{{ event.balance | vndMoney }}</span></div>
-          <p class="cf-muted xs">Sau khi quyết toán, tiền thừa được chia lại cho người tham gia theo tỷ lệ số tiền mỗi người đã đóng.</p>
+          <p class="cf-muted xs">Sau khi quyết toán, tiền thừa được chia đều theo đầu người cho những ai còn trong danh sách.</p>
         </section>
       </div>
 
@@ -434,33 +465,34 @@
   <!-- ===== Hộp thoại ===== -->
   @switch (dialog()) {
     @case ('end') {
-      <kendo-dialog title="Kết thúc sự kiện?" [width]="520" [maxWidth]="'calc(100vw - 32px)'" (close)="dialog.set(null)">
+      <kendo-dialog title="Đóng danh sách?" [width]="540" [maxWidth]="'calc(100vw - 32px)'" (close)="dialog.set(null)">
         <div class="stack">
-          <p class="cf-muted">Sau khi kết thúc, sự kiện không tạo khoản thu và không ghi chi mới. Không quay lại trạng thái đang mở.</p>
+          <p class="cf-muted">
+            Danh sách người tham gia được chốt. Ai chưa nộp đủ TẤT CẢ khoản thu đang mở bị loại khỏi sự kiện và tiền đã nộp được hoàn vào số dư cá nhân. Không quay lại trạng thái đang mở.
+          </p>
           @if (preview(); as plan) {
+            @if (plan.beforeDeadline) {
+              <div class="cf-alert cf-alert--warning">
+                <label class="check">
+                  <input type="checkbox" [checked]="confirmEarly()" (change)="confirmEarly.set(!confirmEarly())" />
+                  <span>Chưa tới hạn đóng danh sách ({{ plan.listDeadline | vnDate }}). Tôi xác nhận đóng sớm.</span>
+                </label>
+              </div>
+            }
             @if (plan.excluded.length) {
               <div class="cf-alert cf-alert--danger">
                 <div class="stack-xs">
-                  <strong>Bị loại – chưa đóng khoản nào ({{ plan.excluded.length }})</strong>
-                  <span>{{ names(plan.excluded) }}</span>
-                  <span class="xs">Khoản phải đóng của họ bị hủy; họ nhận thông báo.</span>
+                  <strong>Bị loại – chưa nộp đủ ({{ plan.excluded.length }} người, hoàn {{ plan.totalRefund | vndMoney }})</strong>
+                  <ul class="plain">
+                    @for (person of plan.excluded; track person.userId) {
+                      <li>{{ person.fullName }} – {{ person.paid > 0 ? 'hoàn ' + (person.refund | vndMoney) + ' vào số dư' : 'chưa nộp khoản nào' }}</li>
+                    }
+                  </ul>
+                  <span class="xs">Họ nhận thông báo. Lịch sử này lưu ở nhật ký hoạt động và trang sự kiện.</span>
                 </div>
               </div>
-            }
-            @if (plan.underpaid.length) {
-              <div class="cf-alert cf-alert--warning">
-                <div class="stack-xs">
-                  <strong>Chưa đóng đủ – vẫn tham gia ({{ plan.underpaid.length }})</strong>
-                  <span>{{ underpaidText(plan) }}</span>
-                  <span class="xs">Nhận thông báo nhắc đóng phần còn lại và vẫn nộp được sau khi kết thúc.</span>
-                </div>
-              </div>
-            }
-            @if (!plan.excluded.length && !plan.underpaid.length) {
-              <div class="cf-alert">Không ai bị loại – mọi người tham gia đã đóng ít nhất một khoản.</div>
-            }
-            @if (plan.pendingPaymentCount) {
-              <p class="cf-muted small">{{ plan.pendingPaymentCount }} thanh toán đang chờ xác nhận vẫn được xác nhận sau khi kết thúc.</p>
+            } @else {
+              <div class="cf-alert">Không ai bị loại – mọi người tham gia đã nộp đủ các khoản thu đang mở.</div>
             }
           } @else {
             <app-state kind="loading" />
@@ -468,8 +500,8 @@
         </div>
         <kendo-dialog-actions layout="end">
           <button kendoButton type="button" (click)="dialog.set(null)">Để sau</button>
-          <button kendoButton themeColor="primary" type="button" [disabled]="busy() || !preview()" (click)="end(event)">
-            Kết thúc (còn {{ preview()?.remainingCount ?? '…' }} người)
+          <button kendoButton themeColor="primary" type="button" [disabled]="busy() || !preview() || (!!preview()?.beforeDeadline && !confirmEarly())" (click)="closeList(event)">
+            Đóng danh sách (còn {{ preview()?.remainingCount ?? '…' }} người)
           </button>
         </kendo-dialog-actions>
       </kendo-dialog>
@@ -507,7 +539,7 @@
     }
     @case ('charge') {
       <kendo-dialog title="Tạo khoản thu sự kiện" [width]="520" [maxWidth]="'calc(100vw - 32px)'" (close)="dialog.set(null)">
-        <p class="cf-muted small" style="margin:0 0 12px">Chỉ gán cho người đã xác nhận tham gia ({{ event.acceptedCount }} người).</p>
+        <p class="cf-muted small" style="margin:0 0 12px">Chỉ gán cho người đã xác nhận tham gia ({{ event.acceptedCount }} người), cùng một mức cho mọi người.</p>
         <form class="stack-s" novalidate (submit)="$event.preventDefault()">
           <div class="field">
             <label for="ev-charge-title">Tên khoản thu <span class="req" aria-hidden="true">*</span></label>
@@ -536,11 +568,6 @@
               <label for="ev-charge-amount">Số tiền mỗi người (đ) <span class="req" aria-hidden="true">*</span></label>
               <input id="ev-charge-amount" class="ev-text ev-money" inputmode="numeric" autocomplete="off" [class.invalid]="chargeErrors().amount" [ngModel]="chargeAmountText()" (ngModelChange)="setChargeAmount($event)" name="ev-charge-amount" />
               @if (chargeErrors().amount; as message) { <span class="k-form-error" role="alert">{{ message }}</span> }
-            </div>
-            <div class="field">
-              <label for="ev-charge-due">Hạn đóng <span class="req" aria-hidden="true">*</span></label>
-              <input id="ev-charge-due" type="date" class="ev-text" [min]="today" [class.invalid]="chargeErrors().dueDate" [ngModel]="chargeDueDate()" (ngModelChange)="chargeDueDate.set($event)" name="ev-charge-due" />
-              @if (chargeErrors().dueDate; as message) { <span class="k-form-error" role="alert">{{ message }}</span> }
             </div>
           </div>
           @if (chargeCreateError(); as message) {

@@ -4,14 +4,16 @@ using ClassFund.Application.Common.Persistence;
 using ClassFund.Application.Common.Security;
 using ClassFund.Domain.Entities;
 using ClassFund.Domain.Enums;
+using ClassFund.Domain.Exceptions;
 using ClassFund.Domain.Rules;
 
 namespace ClassFund.Application.Features.Notifications;
 
 /// <summary>
 /// M11 – Thông báo của tôi (FR-43, FR-44). Chỉ thấy thông báo của chính mình trong quỹ đang mở.
-/// Nhắc hạn (OQ-12): khoản còn <c>Unpaid</c> có hạn trong 2 ngày tới được nhắc một lần mỗi ngày, tạo khi mở danh sách / đếm chưa đọc
-/// (chưa cần job nền).
+/// Nhắc tự động tạo khi mở danh sách / đếm chưa đọc (chưa cần job nền; thông báo trong ứng dụng chỉ có nghĩa khi người đó mở ứng dụng):
+/// khoản thu chung còn hạn (dữ liệu cũ) trong 2 ngày tới, và người tham gia sự kiện chưa đóng đủ trong N ngày trước hạn đóng
+/// danh sách (<see cref="ReminderOptions.ListDeadlineDays"/>, mặc định 3) – một lần mỗi ngày, mỗi lần ghi vào lịch sử nhắc.
 /// </summary>
 public interface INotificationsService
 {
@@ -32,6 +34,7 @@ public sealed class NotificationsService(
     ICurrentUser currentUser,
     IAccessService accessService,
     Notifier notifier,
+    ReminderOptions reminders,
     TimeProvider clock) : INotificationsService
 {
     /// <summary>Số ngày trước hạn bắt đầu nhắc (OQ-12).</summary>
@@ -44,7 +47,7 @@ public sealed class NotificationsService(
     public async Task<NotificationListResult> ListAsync(Guid fundId, bool unreadOnly, int page, int pageSize, CancellationToken cancellationToken)
     {
         var userId = await RequireMemberAsync(fundId, cancellationToken);
-        await GenerateDueSoonAsync(fundId, userId, cancellationToken);
+        await GenerateRemindersAsync(fundId, userId, cancellationToken);
 
         var mine = db.Query<Notification>().Where(item => item.FundId == fundId && item.UserId == userId);
         var query = unreadOnly ? mine.Where(item => !item.IsRead) : mine;
@@ -65,7 +68,7 @@ public sealed class NotificationsService(
     public async Task<int> UnreadCountAsync(Guid fundId, CancellationToken cancellationToken)
     {
         var userId = await RequireMemberAsync(fundId, cancellationToken);
-        await GenerateDueSoonAsync(fundId, userId, cancellationToken);
+        await GenerateRemindersAsync(fundId, userId, cancellationToken);
         return await db.CountAsync(
             db.Query<Notification>().Where(item => item.FundId == fundId && item.UserId == userId && !item.IsRead),
             cancellationToken);
@@ -104,7 +107,86 @@ public sealed class NotificationsService(
         return unread.Count;
     }
 
-    /// <summary>Tạo nhắc hạn cho khoản thu của CHÍNH người dùng, tối đa một lần mỗi (nghĩa vụ, ngày Việt Nam).</summary>
+    private async Task GenerateRemindersAsync(Guid fundId, Guid userId, CancellationToken cancellationToken)
+    {
+        await GenerateDueSoonAsync(fundId, userId, cancellationToken);
+        await GenerateListDeadlineRemindersAsync(fundId, userId, cancellationToken);
+    }
+
+    /// <summary>
+    /// Nhắc tự động trước hạn đóng danh sách: người tham gia còn khoản chưa đóng nhận nhắc mỗi ngày một lần trong N ngày cuối
+    /// (D-N … D-1). Lịch sử nhắc ghi ở <see cref="PaymentReminder"/>; unique (người, sự kiện, ngày) chống trùng khi hai request đua nhau.
+    /// </summary>
+    private async Task GenerateListDeadlineRemindersAsync(Guid fundId, Guid userId, CancellationToken cancellationToken)
+    {
+        var now = clock.GetUtcNow();
+        var today = VietnamTime.DateOf(now);
+        var last = today.AddDays(reminders.EffectiveListDeadlineDays);
+
+        var owed = await db.ToListAsync(
+            from assignment in db.Query<ChargeAssignment>()
+            where assignment.UserId == userId && assignment.Status == AssignmentStatus.Unpaid
+            join charge in db.Query<Charge>() on assignment.ChargeId equals charge.Id
+            where charge.FundId == fundId && charge.Status == ChargeStatus.Open && charge.EventId != null
+            join fundEvent in db.Query<Event>() on charge.EventId equals (Guid?)fundEvent.Id
+            where fundEvent.Status == EventStatus.Open && fundEvent.ListDeadline != null
+                && fundEvent.ListDeadline > today && fundEvent.ListDeadline <= last
+            select new { fundEvent.Id, fundEvent.Name, Deadline = fundEvent.ListDeadline!.Value, assignment.AmountDue },
+            cancellationToken);
+        if (owed.Count == 0)
+        {
+            return;
+        }
+
+        var eventIds = owed.Select(item => item.Id).Distinct().ToArray();
+        var already = (await db.ToListAsync(
+                db.Query<PaymentReminder>()
+                    .Where(item => item.UserId == userId && item.Kind == ReminderKind.Auto && item.ReminderDate == today && item.EventId != null && eventIds.Contains(item.EventId.Value))
+                    .Select(item => item.EventId!.Value),
+                cancellationToken))
+            .ToHashSet();
+
+        var created = false;
+        foreach (var group in owed.GroupBy(item => item.Id).Where(group => !already.Contains(group.Key)))
+        {
+            var first = group.First();
+            var days = first.Deadline.DayNumber - today.DayNumber;
+            db.Add(new PaymentReminder(fundId, group.Key, null, userId, ReminderKind.Auto, null, now, today));
+            notifier.Send(
+                [userId],
+                new NotificationMessage(
+                    fundId,
+                    FinancialScope.Event,
+                    group.Key,
+                    NotificationType.EventUnpaidReminder,
+                    $"{Notifier.ScopePrefix(FinancialScope.Event, first.Name)} Sắp hết hạn đóng danh sách",
+                    $"Còn {days} ngày đến hạn đóng danh sách ({first.Deadline:dd/MM/yyyy}). Bạn còn thiếu {group.Sum(item => item.AmountDue):N0}đ; "
+                    + "chưa đóng đủ khi đóng danh sách thì bị loại khỏi sự kiện và số tiền đã đóng được hoàn vào số dư cá nhân.",
+                    nameof(Event),
+                    group.Key));
+            created = true;
+        }
+
+        if (created)
+        {
+            await SaveIgnoringDuplicatesAsync(cancellationToken);
+        }
+    }
+
+    /// <summary>Hai request cùng tạo nhắc một ngày: bản ghi trùng bị unique chặn, bỏ qua (người kia đã tạo).</summary>
+    private async Task SaveIgnoringDuplicatesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (UniqueConstraintException)
+        {
+            // Đã có nhắc của ngày hôm nay.
+        }
+    }
+
+    /// <summary>Tạo nhắc hạn cho khoản thu chung (dữ liệu cũ còn hạn) của CHÍNH người dùng, tối đa một lần mỗi (nghĩa vụ, ngày Việt Nam).</summary>
     private async Task GenerateDueSoonAsync(Guid fundId, Guid userId, CancellationToken cancellationToken)
     {
         var now = clock.GetUtcNow();
@@ -115,7 +197,7 @@ public sealed class NotificationsService(
             from assignment in db.Query<ChargeAssignment>()
             where assignment.UserId == userId && assignment.Status == AssignmentStatus.Unpaid
             join charge in db.Query<Charge>() on assignment.ChargeId equals charge.Id
-            where charge.FundId == fundId && charge.Status == ChargeStatus.Open && charge.DueDate >= today && charge.DueDate <= horizon
+            where charge.FundId == fundId && charge.EventId == null && charge.Status == ChargeStatus.Open && charge.DueDate >= today && charge.DueDate <= horizon
             select new { AssignmentId = assignment.Id, charge.Title, charge.DueDate, charge.EventId },
             cancellationToken);
         if (due.Count == 0)
@@ -155,7 +237,8 @@ public sealed class NotificationsService(
                 eventName = fundEvent.Name;
             }
 
-            var days = item.DueDate.DayNumber - today.DayNumber;
+            var dueDate = item.DueDate!.Value; // truy vấn đã lọc khoản có hạn
+            var days = dueDate.DayNumber - today.DayNumber;
             notifier.Send(
                 [userId],
                 new NotificationMessage(
