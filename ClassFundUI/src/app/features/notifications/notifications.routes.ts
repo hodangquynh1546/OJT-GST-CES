@@ -1,8 +1,10 @@
 import { Routes } from '@angular/router';
 
-import { comingSoon } from '../../shared/components/coming-soon/coming-soon';
-
-/** Màn hình giữ chỗ – module thay bằng màn hình thật (docs/ui-design/screen-specifications.md). */
+/** M11 – Thông báo (guard Fund.View ở app.routes.ts). */
 export const NOTIFICATION_ROUTES: Routes = [
-  { path: '', ...comingSoon('N-01', 'Thông báo') },
+  {
+    path: '',
+    title: 'Thông báo · ClassFund',
+    loadComponent: () => import('./notifications-page/notifications-page').then((m) => m.NotificationsPage),
+  },
 ];
