@@ -14,6 +14,7 @@ import { LOADING, LoadState, stateKind, toLoadState } from '../../../shared/stat
 import { toApiDate } from '../../audit/audit-format';
 import { EVENT_STATUS_BADGE } from '../../events/events.models';
 import { ReportsApi } from '../reports.api';
+import { downloadFile } from '../../../shared/utils/download';
 import { EventReportRow, GeneralReport, StudentReportRow, percent, plain, surplusHandling, toCsv } from '../reports.models';
 
 type ReportTab = 'general' | 'events' | 'students';
@@ -163,16 +164,4 @@ export class ReportsPage {
 
 function ready<T>(state: LoadState<T>): T | null {
   return state.status === 'ready' ? state.data : null;
-}
-
-/** Tải file: gắn link vào trang rồi mới bấm, thu hồi URL sau khi trình duyệt đã bắt đầu tải. */
-function downloadFile(blob: Blob, fileName: string): void {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

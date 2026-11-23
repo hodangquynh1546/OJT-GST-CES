@@ -71,6 +71,18 @@ import { FundSummary, displaySchoolYear } from './funds.models';
                           <span class="meta">Chờ xác nhận</span>
                           <b>{{ summary.pendingPaymentCount }} thanh toán</b>
                         </span>
+                      } @else {
+                        <span class="kpi">
+                          <span class="meta">Bạn cần đóng</span>
+                          <b class="money" [class.owed]="summary.myDueAmount > 0">{{ summary.myDueAmount | vndMoney }}</b>
+                          @if (summary.myDueCount > 0) {
+                            <span class="meta">{{ summary.myDueCount }} khoản</span>
+                          }
+                        </span>
+                        <span class="kpi">
+                          <span class="meta">Số dư cá nhân</span>
+                          <b class="money">{{ summary.myBalance | vndMoney }}</b>
+                        </span>
                       }
                     </span>
                   }
@@ -189,6 +201,9 @@ import { FundSummary, displaySchoolYear } from './funds.models';
     }
     .money {
       font-variant-numeric: tabular-nums;
+    }
+    .owed {
+      color: var(--cf-warning-fg);
     }
     .tag {
       padding: 0 8px;

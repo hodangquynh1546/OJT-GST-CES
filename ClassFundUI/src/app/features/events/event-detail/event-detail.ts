@@ -29,6 +29,7 @@ import { CHARGE_STATUS_LABEL, ChargeStatus } from '../../charges/charges.models'
 import { EventFormDialog } from '../event-form-dialog/event-form-dialog';
 import { EventsApi } from '../events.api';
 import '../events.errors';
+import '../../charges/charges.errors';
 import {
   CANCEL_REASON_MAX,
   CompletionPreview,
@@ -115,6 +116,7 @@ export class EventDetail {
 
   protected readonly canManage = computed(() => this.currentFund.can(Permissions.EventManage));
   protected readonly canConfirm = computed(() => this.currentFund.can(Permissions.PaymentConfirm));
+  protected readonly canRemind = computed(() => this.currentFund.can(Permissions.ChargeManage));
   protected readonly tab = signal<DetailTab>('people');
   protected readonly peopleFilter = signal<PeopleFilter>('all');
   protected readonly busy = signal(false);
@@ -289,6 +291,22 @@ export class EventDetail {
       this.dialog.set(null);
       this.notifications.success('Đã hủy sự kiện. Thao tác đã ghi vào nhật ký hoạt động.');
     });
+  }
+
+  /** "Nhắc đóng" từng người (TD-18): thông báo riêng cho người còn thiếu; không tải lại trang. */
+  protected async remind(person: EventParticipant): Promise<void> {
+    if (this.busy()) {
+      return;
+    }
+    this.busy.set(true);
+    try {
+      await firstValueFrom(this.api.remindParticipant(this.fundId(), this.eventId(), person.userId));
+      this.notifications.success(`Đã nhắc ${person.fullName} đóng tiền.`);
+    } catch (error) {
+      this.notifications.error(error instanceof ApiError ? error.message : 'Đã có lỗi xảy ra. Vui lòng thử lại.');
+    } finally {
+      this.busy.set(false);
+    }
   }
 
   protected onChanged(): void {

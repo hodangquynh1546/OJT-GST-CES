@@ -252,4 +252,24 @@ public class EventChargesAndBalancePaymentsApiTests(ApiTestHost host)
         Assert.Equal(eventId, item.GetProperty("eventId").GetGuid());
         Assert.Equal("Dã ngoại Ba Vì", item.GetProperty("eventName").GetString());
     }
+
+    [Fact]
+    public async Task Owner_can_remind_an_unpaid_participant_once_per_hour_and_students_cannot()
+    {
+        var s = await SetupAsync();
+        var eventId = await CreateEventWithAnswersAsync(s);
+        Assert.Equal(HttpStatusCode.Created, (await s.OwnerClient.PostAsJsonAsync($"{Base(s.Fund.Id)}/events/{eventId}/charges", NewCharge(s.CategoryId, "Tiền xe", 70_000))).StatusCode);
+        var url = $"{Base(s.Fund.Id)}/events/{eventId}/participants/{s.Going.Id}/remind";
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await s.GoingClient.PostAsync(url, null)).StatusCode);
+        var reminded = await s.OwnerClient.PostAsync(url, null);
+        Assert.Equal(HttpStatusCode.OK, reminded.StatusCode);
+        Assert.Equal(1, (await ReadAsync(reminded)).GetProperty("reminded").GetInt32());
+        Assert.Equal(HttpStatusCode.Conflict, (await s.OwnerClient.PostAsync(url, null)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await s.OwnerClient.PostAsync($"{Base(s.Fund.Id)}/events/{eventId}/participants/{s.Staying.Id}/remind", null)).StatusCode);
+
+        await using var db = host.CreateDbContext();
+        Assert.True(await db.Notifications.AnyAsync(item => item.UserId == s.Going.Id && item.Type == NotificationType.EventUnpaidReminder && item.EventId == eventId));
+        Assert.True(await db.AuditLogs.AnyAsync(log => log.FundId == s.Fund.Id && log.Action == "charge.event_remind" && log.Scope == FinancialScope.Event));
+    }
 }

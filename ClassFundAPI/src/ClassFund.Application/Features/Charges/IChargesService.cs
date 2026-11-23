@@ -41,6 +41,12 @@ public interface IChargesService
     /// <exception cref="BusinessRuleException">Không còn ai chưa đóng (<c>charge.nothing_to_remind</c>).</exception>
     Task<RemindResult> RemindAsync(Guid fundId, Guid chargeId, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// "Nhắc đóng" một người tham gia sự kiện còn khoản chưa đóng (E-03): thông báo <c>EventUnpaidReminder</c> chỉ cho người đó;
+    /// 409 <c>charge.remind_too_soon</c> (1 giờ / người / sự kiện), 422 <c>charge.nothing_to_remind</c>.
+    /// </summary>
+    Task<RemindResult> RemindEventParticipantAsync(Guid fundId, Guid eventId, Guid userId, CancellationToken cancellationToken);
+
     // ---- Khoản thu sự kiện (M6b) ----
 
     /// <summary>

@@ -112,6 +112,7 @@ interface Participant {
 
 export class FakeMoneyApi {
   readonly requests: Recorded[] = [];
+  private readonly reminded = new Set<string>();
   readonly entries: Entry[];
   readonly events: FakeEvent[];
   readonly people: Participant[];
@@ -400,6 +401,18 @@ export class FakeMoneyApi {
         const items = status ? visible.filter((item) => item.paymentStatus === status) : visible;
         const count = (value: string) => visible.filter((item) => item.paymentStatus === value).length;
         return route.fulfill({ json: { items, total: visible.length, paidCount: count('Paid'), pendingCount: count('Pending'), unpaidCount: count('Unpaid') } });
+      }
+      const remind = /^\/participants\/([^/]+)\/remind$/.exec(rest);
+      if (method === 'POST' && remind) {
+        const person = this.people.find((item) => item.userId === remind[1]);
+        if (!person || person.paymentStatus !== 'Unpaid') {
+          return this.problem(route, 422, 'charge.nothing_to_remind', 'Người này không còn khoản nào chưa đóng.');
+        }
+        if (this.reminded.has(person.userId)) {
+          return this.problem(route, 409, 'charge.remind_too_soon', 'Vừa nhắc xong. Vui lòng chờ ít nhất 1 giờ rồi nhắc lại.');
+        }
+        this.reminded.add(person.userId);
+        return route.fulfill({ json: { reminded: 1 } });
       }
       if (method === 'GET' && rest === '/completion-preview') {
         return route.fulfill({ json: this.preview() });

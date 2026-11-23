@@ -15,11 +15,20 @@ import { AppState } from '../../../shared/components/app-state/app-state';
 import { ScopeBadge } from '../../../shared/components/scope-badge/scope-badge';
 import { PagedResult } from '../../../shared/models/paged-result';
 import { LOADING, LoadState, stateKind, toLoadState } from '../../../shared/state/load-state';
+import { EventsApi } from '../../events/events.api';
+import { EventSummary } from '../../events/events.models';
 import { AuditApi } from '../audit.api';
-import { actionLabel, auditChanges, defaultRange, formatAuditTime, toApiDate } from '../audit-format';
+import { AUDIT_ACTION_LABEL, actionLabel, auditChanges, defaultRange, formatAuditTime, toApiDate } from '../audit-format';
 import { AUDIT_PAGE_SIZE, AuditActor, AuditLog, AuditScopeFilter } from '../audit.models';
 
 const ALL_ACTORS: AuditActor = { userId: '', fullName: 'Tất cả' };
+const ALL_EVENTS = { id: '', name: 'Mọi sự kiện' };
+const ALL_ACTIONS = { code: '', label: 'Mọi hành động' };
+
+/** Mã hành động có nhãn tiếng Việt, xếp theo nhãn (bộ lọc "Hành động", FR-47). */
+const ACTION_OPTIONS = Object.entries(AUDIT_ACTION_LABEL)
+  .map(([code, label]) => ({ code, label }))
+  .sort((a, b) => a.label.localeCompare(b.label, 'vi'));
 
 /** U-01 · Nhật ký hoạt động (FR-45 → FR-47): xem, lọc, trước–sau. Chỉ đọc. Theo canvas Audit.dc.html. */
 @Component({
@@ -80,6 +89,32 @@ const ALL_ACTORS: AuditActor = { userId: '', fullName: 'Tất cả' };
             [defaultItem]="allActors"
             [ngModel]="actorId()"
             (ngModelChange)="setActor($event)"
+          />
+        </div>
+        <div class="field actor">
+          <kendo-label [for]="eventInput" text="Sự kiện" />
+          <kendo-dropdownlist
+            #eventInput
+            [data]="events()"
+            textField="name"
+            valueField="id"
+            [valuePrimitive]="true"
+            [defaultItem]="allEvents"
+            [ngModel]="eventId()"
+            (ngModelChange)="setEvent($event)"
+          />
+        </div>
+        <div class="field actor">
+          <kendo-label [for]="actionInput" text="Hành động" />
+          <kendo-dropdownlist
+            #actionInput
+            [data]="actionOptions"
+            textField="label"
+            valueField="code"
+            [valuePrimitive]="true"
+            [defaultItem]="allActions"
+            [ngModel]="action()"
+            (ngModelChange)="setAction($event)"
           />
         </div>
         <div class="field scope">
@@ -393,8 +428,12 @@ const ALL_ACTORS: AuditActor = { userId: '', fullName: 'Tất cả' };
 export class AuditLogPage {
   private readonly api = inject(AuditApi);
   private readonly route = inject(ActivatedRoute);
+  private readonly eventsApi = inject(EventsApi);
 
   protected readonly allActors = ALL_ACTORS;
+  protected readonly allEvents = ALL_EVENTS;
+  protected readonly allActions = ALL_ACTIONS;
+  protected readonly actionOptions = ACTION_OPTIONS;
   protected readonly scopeOptions: readonly { value: AuditScopeFilter; label: string }[] = [
     { value: 'all', label: 'Tất cả' },
     { value: 'General', label: 'Chung' },
@@ -409,6 +448,8 @@ export class AuditLogPage {
   protected readonly to = signal<Date | null>(this.range.to);
   protected readonly actorId = signal<string>('');
   protected readonly scope = signal<AuditScopeFilter>('all');
+  protected readonly eventId = signal<string>('');
+  protected readonly action = signal<string>('');
   protected readonly selfOnly = signal(false);
   protected readonly page = signal(1);
   protected readonly selected = signal<AuditLog | null>(null);
@@ -425,12 +466,21 @@ export class AuditLogPage {
     { initialValue: [] as AuditActor[] },
   );
 
+  protected readonly events = toSignal(
+    toObservable(this.fundId).pipe(
+      switchMap((fundId) => (fundId ? this.eventsApi.list(fundId).pipe(catchError(() => of<EventSummary[]>([]))) : of<EventSummary[]>([]))),
+    ),
+    { initialValue: [] as EventSummary[] },
+  );
+
   private readonly query = computed(() => ({
     fundId: this.fundId(),
     from: toApiDate(this.from()),
     to: toApiDate(this.to()),
     actorId: this.actorId() || null,
     scope: this.scope(),
+    eventId: this.eventId() || null,
+    action: this.action() || null,
     selfOnly: this.selfOnly(),
     page: this.page(),
     pageSize: AUDIT_PAGE_SIZE,
@@ -471,6 +521,16 @@ export class AuditLogPage {
 
   protected setActor(value: string | null): void {
     this.actorId.set(value ?? '');
+    this.page.set(1);
+  }
+
+  protected setEvent(value: string | null): void {
+    this.eventId.set(value ?? '');
+    this.page.set(1);
+  }
+
+  protected setAction(value: string | null): void {
+    this.action.set(value ?? '');
     this.page.set(1);
   }
 

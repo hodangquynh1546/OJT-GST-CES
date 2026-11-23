@@ -104,6 +104,13 @@ public sealed class EventsController(IEventsService service, IChargesService cha
     public Task<EventChargeDto> CancelEventCharge(Guid fundId, Guid eventId, Guid chargeId, CancellationToken ct) =>
         charges.CancelEventChargeAsync(fundId, eventId, chargeId, ct);
 
+    /// <summary>"Nhắc đóng" một người tham gia còn khoản chưa đóng; 409 nhắc quá sớm, 422 không còn gì để nhắc.</summary>
+    [HttpPost("{eventId:guid}/participants/{userId:guid}/remind")]
+    [RequirePermission(Permissions.ChargeManage)]
+    [ProducesResponseType<RemindResult>(StatusCodes.Status200OK)]
+    public Task<RemindResult> RemindParticipant(Guid fundId, Guid eventId, Guid userId, CancellationToken ct) =>
+        charges.RemindEventParticipantAsync(fundId, eventId, userId, ct);
+
     /// <summary>Danh sách đã đóng / chưa đóng của một khoản thu sự kiện.</summary>
     [HttpGet("{eventId:guid}/charges/{chargeId:guid}/assignments")]
     [RequirePermission(Permissions.ChargeManage)]

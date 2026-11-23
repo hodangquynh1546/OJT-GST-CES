@@ -37,7 +37,7 @@ test('F-01 shows fund cards with role and treasurer KPIs', async ({ page }) => {
     route.fulfill({
       json: [
         { id: 'f1', name: 'Lớp 10A1', schoolYear: '2026-2027', status: 'Active', myRole: 'Owner', memberCount: 32, generalBalance: 4820000, pendingPaymentCount: 4 },
-        { id: 'f2', name: 'CLB Tiếng Anh', schoolYear: '2026-2027', status: 'Active', myRole: 'Student', memberCount: 18, generalBalance: 1200000, pendingPaymentCount: null },
+        { id: 'f2', name: 'CLB Tiếng Anh', schoolYear: '2026-2027', status: 'Active', myRole: 'Student', memberCount: 18, generalBalance: 1200000, pendingPaymentCount: null, myDueAmount: 250000, myDueCount: 2, myBalance: 38000 },
         { id: 'f3', name: 'Lớp 9A1', schoolYear: '2025-2026', status: 'Archived', myRole: 'Treasurer', memberCount: 30, generalBalance: 0, pendingPaymentCount: 0 },
       ],
     }),
@@ -51,7 +51,14 @@ test('F-01 shows fund cards with role and treasurer KPIs', async ({ page }) => {
   await expect(owner).toContainText('Thủ quỹ chính');
   await expect(owner).toContainText('4.820.000 đ');
   await expect(owner).toContainText('4 thanh toán');
-  await expect(page.getByRole('link', { name: /CLB Tiếng Anh/ })).not.toContainText('Chờ xác nhận');
+  const student = page.getByRole('link', { name: /CLB Tiếng Anh/ });
+  await expect(student).not.toContainText('Chờ xác nhận');
+  await expect(student).toContainText('Bạn cần đóng');
+  await expect(student).toContainText('250.000 đ');
+  await expect(student).toContainText('2 khoản');
+  await expect(student).toContainText('Số dư cá nhân');
+  await expect(student).toContainText('38.000 đ');
+  await expect(owner).not.toContainText('Bạn cần đóng');
   await expect(page.getByRole('link', { name: /Lớp 9A1/ })).toContainText('Đã tổng kết');
   await page.screenshot({ path: 'test-results/F-01.png', fullPage: true });
 

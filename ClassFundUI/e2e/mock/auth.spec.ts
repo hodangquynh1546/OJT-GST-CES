@@ -312,7 +312,7 @@ test.describe('A-04 Tài khoản của tôi', () => {
     await expect(bar.getByRole('button', { name: 'Đăng xuất' })).toBeVisible();
   });
 
-  test('hiện chữ viết tắt, họ tên, email chỉ đọc và ảnh đại diện chưa hỗ trợ', async ({ page }) => {
+  test('hiện chữ viết tắt, họ tên, email chỉ đọc và nút đổi ảnh đại diện', async ({ page }) => {
     await setup(page, { ...AN, fullName: 'Nguyễn Minh Anh' });
     await page.goto('/account');
 
@@ -321,7 +321,29 @@ test.describe('A-04 Tài khoản của tôi', () => {
     await expect(page.getByLabel('Email')).toHaveValue('an@example.com');
     await expect(page.getByLabel('Email')).toHaveAttribute('readonly', '');
     await expect(page.getByText('Email dùng để đăng nhập, không đổi được.')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Đổi ảnh đại diện' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Đổi ảnh đại diện' })).toBeEnabled();
+  });
+
+  test('đổi ảnh đại diện: gửi file lên API và tải lại ảnh (TD-11)', async ({ page }) => {
+    await setup(page, { ...AN, fullName: 'Nguyễn Minh Anh' });
+    let uploaded = false;
+    let hasImage = false;
+    await page.route('**/api/v1/auth/me/avatar', (route) => {
+      uploaded = true;
+      hasImage = true;
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ attachmentId: 'a1' }) });
+    });
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+    await page.route('**/api/v1/users/*/avatar', (route) =>
+      hasImage ? route.fulfill({ status: 200, contentType: 'image/png', body: png }) : route.fulfill({ status: 404, contentType: 'application/problem+json', body: '{"code":"not_found"}' }),
+    );
+    await page.goto('/account');
+
+    await expect(page.getByText('MA', { exact: true })).toBeVisible();
+    await page.locator('input[type=file]').setInputFiles({ name: 'avatar.png', mimeType: 'image/png', buffer: png });
+
+    await expect(page.getByRole('img', { name: 'Ảnh đại diện của Nguyễn Minh Anh' })).toBeVisible();
+    expect(uploaded).toBe(true);
   });
 
   test('Quỹ của tôi đưa về trang chính theo phiên', async ({ page }) => {

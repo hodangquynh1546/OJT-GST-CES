@@ -59,6 +59,32 @@ public class FundsServiceTests
     }
 
     [Fact]
+    public async Task List_mine_shows_what_I_still_owe_on_open_charges_and_my_personal_balance_TD13()
+    {
+        var due = new DateOnly(2026, 12, 31);
+        var open = new Charge(_ctx.Fund.Id, null, "Quỹ HK1", null, 50_000, due, ChargeKind.Regular, _ctx.Owner.Id, ServiceTestContext.Start);
+        var openEvent = new Charge(_ctx.Fund.Id, Guid.NewGuid(), "Tiền xe", null, 70_000, due, ChargeKind.Regular, _ctx.Owner.Id, ServiceTestContext.Start);
+        var closed = new Charge(_ctx.Fund.Id, null, "Quỹ cũ", null, 99_000, due, ChargeKind.Regular, _ctx.Owner.Id, ServiceTestContext.Start) { Status = ChargeStatus.Closed };
+        var paid = new Charge(_ctx.Fund.Id, null, "Đã đóng", null, 11_000, due, ChargeKind.Regular, _ctx.Owner.Id, ServiceTestContext.Start);
+        _ctx.Db.Seed(open, openEvent, closed, paid);
+        _ctx.Db.Seed(
+            new ChargeAssignment(open.Id, _ctx.StudentA.Id, 50_000),
+            new ChargeAssignment(openEvent.Id, _ctx.StudentA.Id, 70_000),
+            new ChargeAssignment(closed.Id, _ctx.StudentA.Id, 99_000),
+            new ChargeAssignment(paid.Id, _ctx.StudentA.Id, 11_000) { Status = AssignmentStatus.Paid },
+            new ChargeAssignment(open.Id, _ctx.StudentB.Id, 50_000));
+        _ctx.Db.Seed(new PersonalBalance(_ctx.Fund.Id, _ctx.StudentA.Id) { Balance = 38_000 });
+
+        _ctx.ActAs(_ctx.StudentA);
+        var mine = Assert.Single(await Service.ListMineAsync(default));
+        _ctx.ActAs(_ctx.StudentB);
+        var other = Assert.Single(await Service.ListMineAsync(default));
+
+        Assert.Equal((120_000L, 2, 38_000L), (mine.MyDueAmount, mine.MyDueCount, mine.MyBalance));
+        Assert.Equal((50_000L, 1, 0L), (other.MyDueAmount, other.MyDueCount, other.MyBalance));
+    }
+
+    [Fact]
     public async Task List_mine_is_empty_for_non_member()
     {
         _ctx.ActAs(_ctx.Outsider);

@@ -210,6 +210,9 @@
                     @if (row.paymentStatus === 'Pending' && canConfirm()) {
                       <a class="cf-link-button small-btn" [routerLink]="['/funds', fundId(), 'payments']">Xác nhận</a>
                     }
+                    @if (row.paymentStatus === 'Unpaid' && canRemind() && (isOpen() || isCompleted())) {
+                      <button kendoButton fillMode="outline" size="small" type="button" [disabled]="busy()" (click)="remind(row)">Nhắc đóng</button>
+                    }
                   </div>
                 </ng-template>
               </kendo-grid-column>

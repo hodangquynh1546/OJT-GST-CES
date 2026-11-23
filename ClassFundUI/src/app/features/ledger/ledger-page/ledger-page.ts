@@ -9,12 +9,14 @@ import { DropDownListComponent } from '@progress/kendo-angular-dropdowns';
 import { CellTemplateDirective, ColumnComponent, GridComponent, NoRecordsTemplateDirective } from '@progress/kendo-angular-grid';
 import { SVGIconComponent } from '@progress/kendo-angular-icons';
 import { plusIcon } from '@progress/kendo-svg-icons';
-import { BehaviorSubject, catchError, combineLatest, map, of, switchMap } from 'rxjs';
+import { BehaviorSubject, catchError, combineLatest, firstValueFrom, map, of, switchMap } from 'rxjs';
 
 import { Permissions } from '../../../core/auth/permissions';
 import { CurrentFund } from '../../../core/services/current-fund.service';
+import { AppNotifications } from '../../../core/services/notification.service';
 import { AppState } from '../../../shared/components/app-state/app-state';
 import { ScopeBadge } from '../../../shared/components/scope-badge/scope-badge';
+import { ApiError } from '../../../shared/models/api-error';
 import { VnDatePipe } from '../../../shared/pipes/vn-date.pipe';
 import { VndMoneyPipe } from '../../../shared/pipes/vnd-money.pipe';
 import { LOADING, LoadState, stateKind, toLoadState } from '../../../shared/state/load-state';
@@ -23,11 +25,17 @@ import { CategoriesApi } from '../../categories/categories.api';
 import { Category } from '../../categories/categories.models';
 import { AttachmentGallery } from '../attachment-gallery/attachment-gallery';
 import { ExpenseDialog } from '../expense-dialog/expense-dialog';
+import { downloadFile } from '../../../shared/utils/download';
+import { toCsv } from '../../reports/reports.models';
 import { LedgerApi } from '../ledger.api';
 import '../ledger.errors';
 import { LEDGER_PAGE_SIZE, LedgerEntry, LedgerEntryDetail, LedgerList, LedgerTypeFilter, entryTags, signedAmount } from '../ledger.models';
 
 const ALL_CATEGORIES: Partial<Category> = { id: undefined, name: 'Mọi danh mục' };
+
+/** Xuất CSV lấy từng trang 100 dòng, tối đa 50 trang (5.000 giao dịch). */
+const EXPORT_PAGE_SIZE = 100;
+const EXPORT_MAX_PAGES = 50;
 
 /**
  * L-01 · Thu chi chung (FR-26 → FR-29) theo canvas LedgerBody: KPI, lọc loại / danh mục / ngày, bảng giao dịch.
@@ -64,13 +72,16 @@ const ALL_CATEGORIES: Partial<Category> = { id: undefined, name: 'Mọi danh m�
           <div class="title-row"><h1>{{ canManage() ? 'Thu chi chung' : 'Chi tiêu' }}</h1><app-scope-badge scope="General" /></div>
           <p class="cf-muted">Sổ chỉ ghi thêm; ghi sai thì tạo bút toán đảo. Thu chi của sự kiện xem trong từng sự kiện.</p>
         </div>
-        @if (canManage()) {
-          <div class="actions">
+        <div class="actions">
+          <button kendoButton fillMode="outline" type="button" [disabled]="exporting() || !data()" (click)="exportCsv()">
+            {{ exporting() ? 'Đang xuất…' : 'Xuất Excel' }}
+          </button>
+          @if (canManage()) {
             <button kendoButton themeColor="primary" type="button" (click)="openNew()">
               <kendo-svgicon [icon]="plus" />Ghi giao dịch
             </button>
-          </div>
-        }
+          }
+        </div>
       </div>
 
       @if (data(); as result) {
@@ -410,6 +421,7 @@ const ALL_CATEGORIES: Partial<Category> = { id: undefined, name: 'Mọi danh m�
 })
 export class LedgerPage {
   private readonly api = inject(LedgerApi);
+  private readonly notifications = inject(AppNotifications);
   private readonly categoriesApi = inject(CategoriesApi);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -437,6 +449,7 @@ export class LedgerPage {
   protected readonly maxFrom = computed(() => this.to() ?? new Date(2100, 0, 1));
   protected readonly minTo = computed(() => this.from() ?? new Date(2000, 0, 1));
   protected readonly canManage = computed(() => this.currentFund.can(Permissions.LedgerManage));
+  protected readonly exporting = signal(false);
 
   protected readonly fundId = toSignal(this.route.paramMap.pipe(map((params) => params.get('fundId') ?? '')), { initialValue: '' });
 
@@ -533,6 +546,41 @@ export class LedgerPage {
 
   protected view(row: LedgerEntry): void {
     this.api.get(this.fundId(), row.id).subscribe({ next: (detail) => this.viewing.set(detail) });
+  }
+  /** Xuất toàn bộ giao dịch đang lọc (không chỉ trang hiện tại) ra CSV mở được bằng Excel (UTF-8 BOM). */
+  protected async exportCsv(): Promise<void> {
+    if (this.exporting()) {
+      return;
+    }
+    this.exporting.set(true);
+    try {
+      const query = this.query();
+      const rows: LedgerEntry[] = [];
+      for (let page = 1; page <= EXPORT_MAX_PAGES; page++) {
+        const result = await firstValueFrom(this.api.list(query.fundId, { ...query, page, pageSize: EXPORT_PAGE_SIZE }));
+        rows.push(...result.items);
+        if (rows.length >= result.total || result.items.length === 0) {
+          break;
+        }
+      }
+
+      const csv = toCsv(
+        ['Ngày', 'Nội dung', 'Loại', 'Danh mục', 'Người ghi', 'Số tiền'],
+        rows.map((row) => [
+          row.transactionDate,
+          row.title,
+          row.type === 'Income' ? 'Thu' : 'Chi',
+          row.categoryName ?? '',
+          row.source === 'Payment' ? 'Tự động' : row.performedByName,
+          signedAmount(row),
+        ]),
+      );
+      downloadFile(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `thu-chi-chung-${toApiDate(new Date())}.csv`);
+    } catch (error) {
+      this.notifications.error(error instanceof ApiError ? error.message : 'Không xuất được dữ liệu. Vui lòng thử lại.');
+    } finally {
+      this.exporting.set(false);
+    }
   }
 }
 

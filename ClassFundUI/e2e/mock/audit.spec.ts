@@ -62,6 +62,9 @@ async function open(page: Page, user: FakeUser = owner, logs = LOGS) {
   auth.signIn(user);
   await auth.install();
   const requests: URL[] = [];
+  await page.route(`**/api/v1/funds/${FUND_ID}/events`, (route) =>
+    route.fulfill({ json: [{ id: 'e1', name: 'Dã ngoại Ba Vì', status: 'Open' }, { id: 'e2', name: 'Liên hoan giữa kỳ', status: 'Completed' }] }),
+  );
   await page.route(`**/api/v1/funds/${FUND_ID}/audit-logs/actors`, (route) =>
     route.fulfill({ json: [{ userId: ANH, fullName: 'Nguyễn Minh Anh' }, { userId: HUY, fullName: 'Trần Quang Huy' }] }),
   );
@@ -73,7 +76,8 @@ async function open(page: Page, user: FakeUser = owner, logs = LOGS) {
       (item) =>
         (!query.get('scope') || item.scope === query.get('scope')) &&
         (!query.get('actorId') || item.actorUserId === query.get('actorId')) &&
-        (query.get('selfOnly') !== 'true' || item.isSelfAction),
+        (query.get('selfOnly') !== 'true' || item.isSelfAction) &&
+        (!query.get('action') || item.action === query.get('action')),
     );
     const total = items.length;
     const pageNumber = Number(query.get('page') ?? '1');
@@ -121,6 +125,22 @@ test('U-01 lists audit entries like the canvas and filters by scope, actor, self
   await page.getByRole('option', { name: 'Trần Quang Huy' }).click();
   await expect(page.getByText('2 bản ghi')).toBeVisible();
   expect(lastQuery(requests).get('actorId')).toBe(HUY);
+});
+
+test('U-01 filters by event and by action (TD-15)', async ({ page }) => {
+  const requests = await open(page);
+  await expect(page.getByText('7 bản ghi')).toBeVisible();
+
+  await page.getByRole('combobox', { name: 'Hành động' }).click();
+  await page.getByRole('option', { name: 'Xác nhận thanh toán' }).click();
+  await expect(page.getByText('1 bản ghi')).toBeVisible();
+  expect(lastQuery(requests).get('action')).toBe('payment.confirm');
+
+  await page.getByRole('combobox', { name: 'Sự kiện' }).click();
+  await page.getByRole('option', { name: 'Dã ngoại Ba Vì' }).click();
+  await expect.poll(() => lastQuery(requests).get('eventId')).toBe('e1');
+
+  expect(lastQuery(requests).get('action')).toBe('payment.confirm');
 });
 
 test('U-01 shows before / after in a dialog', async ({ page }) => {

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, Injectable, computed, effect, inject, input, output, signal } from '@angular/core';
 import { ButtonComponent } from '@progress/kendo-angular-buttons';
 import { firstValueFrom } from 'rxjs';
 
@@ -6,6 +6,16 @@ import { ApiError } from '../../../shared/models/api-error';
 import { AttachmentsApi } from '../attachments.api';
 import '../attachments.errors';
 import { FILE_LIMITS, validateFile } from '../attachments.models';
+
+/** Báo cho mọi ảnh đại diện đang hiện (thanh trên, Tài khoản) tải lại sau khi đổi ảnh. */
+@Injectable({ providedIn: 'root' })
+export class AvatarVersion {
+  readonly value = signal(0);
+
+  bump(): void {
+    this.value.update((value) => value + 1);
+  }
+}
 
 /** "Nguyễn Minh Anh" → "MA" (chữ đầu của hai từ cuối). */
 export function avatarInitials(fullName: string): string {
@@ -85,6 +95,7 @@ export function avatarInitials(fullName: string): string {
 })
 export class Avatar {
   private readonly api = inject(AttachmentsApi);
+  private readonly shared = inject(AvatarVersion);
 
   readonly userId = input.required<string>();
   readonly fullName = input('');
@@ -98,12 +109,10 @@ export class Avatar {
   protected readonly imageUrl = signal<string | null>(null);
   protected readonly uploading = signal(false);
   protected readonly error = signal<string | null>(null);
-  private readonly version = signal(0);
-
   constructor() {
     effect((onCleanup) => {
       const userId = this.userId();
-      this.version();
+      this.shared.value();
       let cancelled = false;
       onCleanup(() => (cancelled = true));
       this.load(userId).then((url) => {
@@ -133,7 +142,7 @@ export class Avatar {
     this.uploading.set(true);
     try {
       await firstValueFrom(this.api.uploadAvatar(file));
-      this.version.update((value) => value + 1);
+      this.shared.bump();
       this.changed.emit();
     } catch (error) {
       this.error.set(error instanceof ApiError ? error.message : 'Không tải ảnh lên được.');

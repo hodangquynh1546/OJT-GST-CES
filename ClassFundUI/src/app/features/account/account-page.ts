@@ -1,10 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonComponent } from '@progress/kendo-angular-buttons';
 
 import { AuthService } from '../../core/auth/auth.service';
 import { AppNotifications } from '../../core/services/notification.service';
 import { applyServerErrors } from '../../shared/forms/server-errors';
+import { Avatar } from '../attachments/avatar/avatar';
 import { AuthField } from '../auth/auth-field';
 import { AUTH_FIELD_FOR } from '../auth/auth.errors';
 import {
@@ -14,7 +15,6 @@ import {
   passwordsMatchValidator,
 } from '../auth/auth-validators';
 import { PasswordRules } from '../auth/password-rules';
-import { initialsOf } from '../../shared/utils/initials';
 import { TopBar } from './top-bar';
 
 /**
@@ -23,7 +23,7 @@ import { TopBar } from './top-bar';
  */
 @Component({
   selector: 'app-account-page',
-  imports: [ReactiveFormsModule, ButtonComponent, AuthField, PasswordRules, TopBar],
+  imports: [ReactiveFormsModule, ButtonComponent, Avatar, AuthField, PasswordRules, TopBar],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-top-bar variant="account" />
@@ -35,13 +35,9 @@ import { TopBar } from './top-bar';
       <section class="card" aria-labelledby="profile-title">
         <h2 id="profile-title">Thông tin cá nhân</h2>
         <div class="avatar-row">
-          <span class="avatar" aria-hidden="true">{{ initials() }}</span>
-          <div>
-            <button type="button" kendoButton fillMode="outline" size="small" [disabled]="true" title="Tính năng đổi ảnh đại diện sẽ có sau">
-              Đổi ảnh đại diện
-            </button>
-            <p class="caption">JPG/PNG, tối đa 2 MB</p>
-          </div>
+          @if (auth.user(); as current) {
+            <app-avatar [userId]="current.id" [fullName]="current.fullName" [size]="64" [editable]="true" />
+          }
         </div>
         <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" novalidate>
           @if (profileError(); as message) {
@@ -149,22 +145,6 @@ import { TopBar } from './top-bar';
       gap: 16px;
       margin-bottom: 16px;
     }
-    .avatar {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 64px;
-      height: 64px;
-      border-radius: 32px;
-      background: var(--cf-subtle);
-      font-size: 20px;
-      font-weight: 700;
-    }
-    .caption {
-      margin: 6px 0 0;
-      color: var(--cf-text-muted);
-      font-size: 12px;
-    }
     form {
       display: flex;
       flex-direction: column;
@@ -183,12 +163,11 @@ import { TopBar } from './top-bar';
   `,
 })
 export class AccountPage {
-  private readonly auth = inject(AuthService);
+  protected readonly auth = inject(AuthService);
   private readonly notifications = inject(AppNotifications);
   private readonly fb = inject(NonNullableFormBuilder);
 
   protected readonly nameMaxLength = FULL_NAME_MAX_LENGTH;
-  protected readonly initials = computed(() => initialsOf(this.auth.user()?.fullName));
 
   protected readonly profileForm = this.fb.group({
     fullName: ['', [Validators.required, Validators.maxLength(FULL_NAME_MAX_LENGTH), (c: { value: string }) => (c.value.trim() ? null : { required: true })]],
