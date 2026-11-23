@@ -71,11 +71,11 @@
 | TC-M12-04 | Mọi API ghi của M1–M5 sinh audit đúng quỹ / người; audit không chứa mật khẩu tạm hay hash | FR-45, M12-T3 | Đủ 11 hành động cấp quỹ + 2 cấp tài khoản | `AuditLogsApiTests.Every_write_api_of_merged_modules_records_audit_checklist` |
 | TC-M12-05 | Xem trước / sau của một thao tác | FR-45, FR-46 | Hộp thoại hiện người, thời điểm, IP đã che, JSON trước / sau; tag "Tự ghi nhận" khi thủ quỹ tự thao tác cho mình | E2E `audit.spec.ts` |
 | TC-M13-01 | Học sinh xem báo cáo học sinh khác | FR-51 | 403/404 | |
-| TC-M14-01 | Quyết toán cuối năm khi còn sự kiện chưa quyết toán | BR-35 | 422 `year_end.open_events` | |
-| TC-M14-02 | Quỹ chung dư 300.000đ, 30 thành viên đã đóng bằng nhau, cộng số dư (theo tỷ lệ – OQ-19) | BR-36 | Mỗi người +10.000đ, quỹ `Archived`, thông báo cả lớp (Quỹ chung) | |
-| TC-M14-03 | Quyết toán cuối năm lần thứ hai | BR-34 | 422 `year_end.already_closed` | |
-| TC-M14-04 | Tạo khoản thu sau khi quỹ Archived | BR-37 | 422 `fund.archived` | |
-| TC-M14-05 | Quỹ Archived: học sinh có số dư gửi yêu cầu rút, thủ quỹ xác nhận đã trả | BR-37, OQ-11 | Thành công; số dư về 0; không bị chặn `fund.archived` | |
+| TC-M14-01 | Quyết toán cuối năm khi còn sự kiện chưa quyết toán | BR-35 | 422 `year_end.open_events` | `YearEndSettlementServiceTests.An_event_that_is_not_settled_or_cancelled_blocks_…`; `YearEndSettlementApiTests.An_unsettled_event_blocks_the_year_end` |
+| TC-M14-02 | Quỹ chung dư 300.000đ, 30 thành viên đã đóng bằng nhau, cộng số dư (theo tỷ lệ – OQ-19) | BR-36 | Mỗi người +10.000đ, quỹ `Archived`, thông báo cả lớp (Quỹ chung) | `YearEndSettlementServiceTests.Crediting_the_balance_archives_the_fund_…`; `YearEndSettlementApiTests.Surplus_is_split_across_the_class_…` |
+| TC-M14-03 | Quyết toán cuối năm lần thứ hai | BR-34 | 422 `year_end.already_closed` | `YearEndSettlementServiceTests.The_year_end_can_only_be_done_once`; `…Two_treasurers_closing_the_year_at_once_…` |
+| TC-M14-04 | Tạo khoản thu sau khi quỹ Archived | BR-37 | 422 `fund.archived` | `YearEndSettlementApiTests.After_the_year_end_new_writes_are_refused_…` (khoản thu, chi, sự kiện, danh mục, thành viên, thủ quỹ) |
+| TC-M14-05 | Quỹ Archived: học sinh có số dư gửi yêu cầu rút, thủ quỹ xác nhận đã trả | BR-37, OQ-11 | Thành công; số dư về 0; không bị chặn `fund.archived` | `YearEndSettlementApiTests.After_the_year_end_new_writes_are_refused_but_withdrawals_and_refunds_still_work` |
 | TC-M2-01 | Tài khoản tự đăng ký tạo quỹ | FR-05 | 201, là Owner, có đủ danh mục mặc định, audit `fund.create` | `FundsApiTests.Self_registered_user_creates_fund_and_becomes_owner_with_default_categories_FR05` |
 | TC-M2-02 | Tài khoản Provisioned (học sinh) tạo quỹ | FR-05 | 403 | `FundsApiTests.Provisioned_account_cannot_create_fund_403` |
 | TC-M2-03 | Người ngoài quỹ xem quỹ | FR-07 | 404 (thành viên: 200) | `FundsApiTests.Outsider_viewing_fund_is_404_member_is_200_FR07` |

@@ -116,12 +116,11 @@ test('thẻ quỹ chuyển về Quỹ của tôi; ảnh đại diện sang Tài 
   await expect(page).toHaveURL(/\/account$/);
 });
 
-test('trang chưa làm không lộ mã màn hình của tài liệu thiết kế (S-01, M-01…)', async ({ page }) => {
-  // Tổng kết cuối năm (M14) vẫn là trang giữ chỗ.
+test('trang không lộ mã màn hình của tài liệu thiết kế (S-01, M-01…)', async ({ page }) => {
+  // Mọi màn đã làm xong; kiểm tra trên S-05 (API chưa giả lập nên hiện trạng thái lỗi, vẫn không có mã màn).
   await open(page, 'Owner', '/funds/f1/reports/year-end');
 
   await expect(page.getByRole('heading', { name: 'Tổng kết cuối năm' })).toBeVisible();
-  await expect(page.getByText('Chức năng này đang được phát triển.')).toBeVisible();
   await expect(page.getByText(/Màn hình/)).toHaveCount(0);
   await expect(page.getByText(/\b[A-Z]-\d{2}\b/)).toHaveCount(0);
 });

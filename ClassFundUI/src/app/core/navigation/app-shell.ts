@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 
+import { ArchivedBanner } from '../../features/year-end/archived-banner';
 import { AppHeader } from './app-header';
 import { AppNav } from './app-nav';
 
@@ -10,13 +11,13 @@ import { AppNav } from './app-nav';
  */
 @Component({
   selector: 'app-shell',
-  imports: [AppHeader, AppNav, RouterOutlet],
+  imports: [AppHeader, AppNav, ArchivedBanner, RouterOutlet],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-nav class="nav" />
     <div class="main">
       <app-header />
-      <main class="content"><router-outlet /></main>
+      <main class="content"><app-archived-banner /><router-outlet /></main>
     </div>
   `,
   styles: `

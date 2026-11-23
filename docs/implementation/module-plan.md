@@ -195,6 +195,8 @@ Ký hiệu: **BE** backend, **FE** frontend, **T** test. Mỗi task kết thúc 
 
 ### M14 – Quyết toán cuối năm quỹ chung (FR-53, FR-54, BR-34 → BR-37, OQ-13)
 
+> ✅ **Đã làm 2026-11-23** (nhánh `feature/m14-year-end`): `YearEndSettlementService` + controller, S-05, banner "Quỹ đã tổng kết". Rà soát M14-T2: mọi service ghi tạo mới đã gọi `YearEndRule.EnsureFundActive` (kiểm chứng bằng integration test sau khi quỹ Archived); sửa M9 để xác nhận hoàn tiền sự kiện vẫn làm được khi quỹ Archived (BR-37).
+
 | Task | Nội dung |
 |---|---|
 | M14-T1 BE | `YearEndSettlementService`: preview (tổng thu/chi quỹ chung, số dư, khoản chưa hoàn thành, thành viên Active; phần chia mỗi người bằng `SettlementCalculator`, tỷ lệ theo tổng đã đóng các khoản thu chung); execute một lần (`YearEndRule.EnsureCanClose`; `Settlement` EventId null; thừa → `CreditAsync` hoặc SettlementLine chờ hoàn; không còn nhánh thiếu nếu OQ-19 được duyệt); quỹ → `Archived`; thông báo `SettlementResult` phạm vi Quỹ chung cho cả lớp; audit `year_end.settle`. |

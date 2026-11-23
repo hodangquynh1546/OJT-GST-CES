@@ -50,6 +50,8 @@ export const AUDIT_ACTION_LABEL: Readonly<Record<string, string>> = {
   // M9 – Quyết toán sự kiện
   'settlement.execute': 'Quyết toán sự kiện',
   'settlement.refund': 'Xác nhận đã hoàn tiền',
+  'year_end.settle': 'Tổng kết cuối năm quỹ chung',
+  'year_end.refund': 'Xác nhận hoàn tiền cuối năm',
   // M10 – Số dư cá nhân
   'withdrawal.request': 'Gửi yêu cầu rút số dư',
   'withdrawal.paid': 'Xác nhận đã trả tiền rút',
