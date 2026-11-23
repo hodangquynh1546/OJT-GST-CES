@@ -167,6 +167,8 @@ Ký hiệu: **BE** backend, **FE** frontend, **T** test. Mỗi task kết thúc 
 
 ### M11 – Thông báo UI & nhắc hạn (FR-43, FR-44, OQ-12)
 
+> ✅ **Đã làm 2026-11-23** (nhánh `feature/m11-notifications`): `NotificationsService` + `NotificationsController`, N-01, chuông ở header. Nhắc hạn tạo khi gọi danh sách / đếm chưa đọc.
+
 | Task | Nội dung |
 |---|---|
 | M11-T1 BE | `NotificationsService`: list, unread count, mark read/all; nhắc hạn `ChargeDueSoon` idempotent theo (assignment, ngày) khi gọi list. Rà soát mọi module đã gửi đủ loại thông báo trong FR-43. |

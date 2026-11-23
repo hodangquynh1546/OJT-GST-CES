@@ -147,9 +147,9 @@ Nội bộ cho M3 (TD-10): `IEventInvitationService.InviteToOpenEventsAsync` –
 
 | Method | Path | Permission | FR | Trạng thái |
 |---|---|---|---|---|
-| GET | `/{f}/me/notifications?unreadOnly=` | `Fund.View` | FR-44 | ⬜ |
-| GET | `/{f}/me/notifications/unread-count` | `Fund.View` | FR-44 | ⬜ |
-| POST | `/{f}/me/notifications/{id}/read` · `/me/notifications/read-all` | `Fund.View` | FR-44 | ⬜ |
+| GET | `/{f}/me/notifications?unreadOnly=&page=&pageSize=` → `{ items[], total, page, pageSize, unreadCount }`, mới nhất trước; chỉ của chính mình; mở danh sách cũng tạo nhắc hạn trong ngày (OQ-12, không trùng) | `Fund.View` | FR-44 | ✅ |
+| GET | `/{f}/me/notifications/unread-count` → `{ count }` (cũng tạo nhắc hạn như trên; chuông ở header gọi định kỳ) | `Fund.View` | FR-44 | ✅ |
+| POST | `/{f}/me/notifications/{id}/read` → 204 (của người khác / không có → 404) · `/me/notifications/read-all` → `{ marked }` | `Fund.View` | FR-44 | ✅ |
 
 ## M12 – Audit log
 
