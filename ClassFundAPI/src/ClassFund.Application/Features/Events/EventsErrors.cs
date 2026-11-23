@@ -8,7 +8,7 @@ public static class EventsErrors
 
     /// <summary>Hủy chỉ khi chưa phát sinh tiền (BR-16).</summary>
     public const string HasMoney = "event.has_money";
-    public const string HasMoneyMessage = "Sự kiện đã có thu tiền hoặc ghi chi, không hủy được. Hãy kết thúc rồi quyết toán.";
+    public const string HasMoneyMessage = "Sự kiện đã có thu tiền hoặc ghi chi, không hủy được. Hãy đóng danh sách rồi quyết toán.";
 
     /// <summary>Đã nộp tiền cho sự kiện thì không chuyển sang "Không tham gia".</summary>
     public const string ResponseLocked = "event.response_locked";
@@ -21,5 +21,9 @@ public static class EventsErrors
     public const string InvalidResponse = "event.invalid_response";
     public const string InvalidResponseMessage = "Chỉ chọn Tham gia hoặc Không tham gia.";
 
-    public const string ExclusionReason = "Chưa đóng khoản nào khi sự kiện kết thúc.";
+    public const string ExclusionReasonNothingPaid = "Chưa đóng khoản nào khi đóng danh sách.";
+    public const string ExclusionReasonUnderpaid = "Chưa đóng đủ các khoản thu khi đóng danh sách; số tiền đã đóng được hoàn vào số dư cá nhân.";
+
+    public const string ListDeadlineInPast = "event.list_deadline_in_past";
+    public const string ListDeadlineInPastMessage = "Hạn đóng danh sách không được trước ngày hôm nay.";
 }

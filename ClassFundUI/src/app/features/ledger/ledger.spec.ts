@@ -57,6 +57,7 @@ describe('event models (M8)', () => {
     name: 'Dã ngoại',
     description: null,
     eventDate: '2026-11-20',
+    listDeadline: '2026-11-15',
     status: 'Open',
     invitedCount: 32,
     participantCount: 30,
@@ -90,7 +91,7 @@ describe('event models (M8)', () => {
 describe('audit labels for M7 / M8 (TD-14)', () => {
   it('translates new actions, fields and business dates', () => {
     expect(actionLabel('ledger.reverse')).toBe('Tạo bút toán đảo');
-    expect(actionLabel('event.complete')).toBe('Kết thúc sự kiện');
+    expect(actionLabel('event.close_list')).toBe('Đóng danh sách sự kiện');
     const diff = auditChanges(null, '{"Name":"Dã ngoại","EventDate":"2026-11-20","invitedCount":32,"category":"Quà tặng"}');
     expect(diff.rows.map((row) => [row.label, row.after])).toEqual([
       ['Tên', 'Dã ngoại'],

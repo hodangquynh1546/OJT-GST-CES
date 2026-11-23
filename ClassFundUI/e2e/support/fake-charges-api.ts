@@ -7,12 +7,12 @@ export interface FakeCharge {
   title: string;
   purpose: string | null;
   amountPerPerson: number;
-  dueDate: string;
+  dueDate: string | null;
   status: 'Open' | 'Closed' | 'Cancelled';
   createdAt: string;
   categoryId: string | null;
   categoryName: string | null;
-  progress: { assignedCount: number; paidCount: number; awaitingCount: number; collectedAmount: number } | null;
+  progress: { assignedCount: number; paidCount: number; collectedAmount: number } | null;
   mine: { assignmentId: string; status: string; amountDue: number } | null;
 }
 
@@ -22,38 +22,31 @@ export interface FakeMine {
   title: string;
   purpose: string | null;
   amountDue: number;
-  dueDate: string;
+  dueDate: string | null;
   chargeStatus: 'Open' | 'Closed';
-  status: 'Unpaid' | 'AwaitingConfirmation' | 'Paid';
-  paymentId: string | null;
+  status: 'Unpaid' | 'Paid';
   method: string | null;
-  paymentStatus: string | null;
-  rejectionReason: string | null;
+  paidAt: string | null;
   isSelfDeclared: boolean;
   eventId?: string | null;
   eventName?: string | null;
-  balanceApplied?: number;
 }
 
-export interface FakeQueueItem {
-  id: string;
+/** Một dòng "ai nộp / chưa nộp" của một khoản thu (thủ quỹ). */
+export interface FakeRow {
   assignmentId: string;
-  chargeId: string;
-  chargeTitle: string;
-  payerUserId: string;
-  payerName: string;
-  payerEmail: string;
-  amount: number;
-  method: 'Cash' | 'BankTransfer';
-  transferCode: string | null;
-  status: 'Submitted' | 'Confirmed' | 'Rejected';
-  submittedAt: string;
-  confirmedAt: string | null;
+  userId: string;
+  fullName: string;
+  email: string;
+  role: 'Student' | 'Treasurer' | 'Owner';
+  amountDue: number;
+  status: 'Unpaid' | 'Paid';
   isSelfDeclared: boolean;
+  paymentId: string | null;
+  method: string | null;
+  paymentAt: string | null;
+  hasProof: boolean;
   rejectionReason: string | null;
-  attachments: unknown[];
-  eventId?: string | null;
-  eventName?: string | null;
 }
 
 export interface Recorded {
@@ -62,25 +55,22 @@ export interface Recorded {
   body: unknown;
 }
 
-/** API khoản thu / thanh toán giả lập, mô phỏng hợp đồng backend M6a (docs/api/api-catalogue.md). */
+/** API khoản thu / thu tiền giả lập, mô phỏng hợp đồng backend (docs/api/api-catalogue.md). */
 export class FakeChargesApi {
   readonly requests: Recorded[] = [];
-  /** Mã lỗi buộc POST nộp tiền / xác nhận trả về (mô phỏng xung đột). */
+  /** Lỗi buộc POST collect / uncollect / remind trả về (mô phỏng xung đột). */
   failNext: { status: number; code: string; title: string } | null = null;
-  /** Số dư cá nhân của người đang đăng nhập; 0 = chưa có. `withdrawalPending` mô phỏng yêu cầu rút đang chờ. */
-  balance = 0;
-  withdrawalPending = false;
 
   constructor(
     private readonly page: Page,
     public charges: FakeCharge[],
     public mine: FakeMine[] = [],
-    public queue: FakeQueueItem[] = [],
+    public rows: FakeRow[] = [],
     private readonly memberTotal = 32,
   ) {}
 
   async install(): Promise<void> {
-    await this.page.route(new RegExp(`/api/v1/funds/${FUND_ID}/(charges|me/assignments|me/balance|payments|members|categories)`), (route) => this.handle(route));
+    await this.page.route(new RegExp(`/api/v1/funds/${FUND_ID}/(charges|me/assignments|assignments|members|categories)`), (route) => this.handle(route));
   }
 
   last(method: string, path: string): Recorded | undefined {
@@ -129,64 +119,44 @@ export class FakeChargesApi {
         createdAt: '2026-11-19T01:00:00Z',
         categoryId: body.categoryId,
         categoryName: 'Quỹ lớp',
-        progress: { assignedCount: this.memberTotal, paidCount: 0, awaitingCount: 0, collectedAmount: 0 },
+        progress: { assignedCount: this.memberTotal, paidCount: 0, collectedAmount: 0 },
         mine: null,
       };
       this.charges.unshift(charge);
       return this.json(route, charge, 201);
     }
-    if (method === 'GET' && path === '/me/balance') {
-      const latestWithdrawal = this.withdrawalPending
-        ? { id: 'w1', amount: this.balance, status: 'Requested', requestedAt: '2026-11-20T01:00:00Z', handledAt: null, handledByName: null, rejectionReason: null }
-        : null;
-      return this.json(route, { fundName: 'Lớp 10A1', balance: this.balance, latestWithdrawal, history: [], otherFunds: [] });
+    const one = /^\/charges\/([^/]+)$/.exec(path);
+    if (method === 'GET' && one) {
+      const found = this.charges.find((charge) => charge.id === one[1]);
+      return found ? this.json(route, found) : this.problem(route, 404, 'not_found', 'x');
+    }
+    if (method === 'GET' && /^\/charges\/[^/]+\/assignments$/.test(path)) {
+      const status = url.searchParams.get('status');
+      const items = this.rows.filter((row) => !status || row.status === status);
+      return this.json(route, { items, total: items.length, page: 1, pageSize: 20 });
     }
     if (method === 'GET' && path === '/me/assignments') {
       return this.json(route, this.mine);
     }
-    const submit = /^\/me\/assignments\/([^/]+)\/payments$/.exec(path);
-    if (method === 'POST' && submit) {
-      if (this.failNext) {
-        const { status, code, title } = this.failNext;
-        this.failNext = null;
-        return this.problem(route, status, code, title);
-      }
-      const item = this.mine.find((entry) => entry.assignmentId === submit[1]);
-      if (item) {
-        const instant = body.method === 'PersonalBalance';
-        if (body.useBalance && !instant) {
-          item.balanceApplied = Math.min(this.balance, item.amountDue);
-          this.balance -= item.balanceApplied;
-        }
-        item.status = instant ? 'Paid' : 'AwaitingConfirmation';
-        item.method = body.method;
-        item.paymentStatus = instant ? 'Confirmed' : 'Submitted';
-        if (instant) {
-          this.balance -= item.amountDue;
-        }
-      }
-      const status = body.method === 'PersonalBalance' ? 'Confirmed' : 'Submitted';
-      return this.json(route, { id: 'p-new', assignmentId: submit[1], amount: item?.amountDue ?? 0, method: body.method, transferCode: body.transferCode, status, submittedAt: '2026-11-19T01:00:00Z', isSelfDeclared: false }, 201);
-    }
-    if (method === 'GET' && path === '/payments') {
-      const status = url.searchParams.get('status') ?? 'Submitted';
-      const items = this.queue.filter((entry) => entry.status === status);
-      return this.json(route, { items, total: items.length, page: 1, pageSize: 100 });
-    }
-    const action = /^\/payments\/([^/]+)\/(confirm|reject)$/.exec(path);
+    const action = /^\/assignments\/([^/]+)\/(collect|uncollect|remind)$/.exec(path);
     if (method === 'POST' && action) {
       if (this.failNext) {
         const { status, code, title } = this.failNext;
         this.failNext = null;
         return this.problem(route, status, code, title);
       }
-      const entry = this.queue.find((item) => item.id === action[1]);
-      if (!entry) {
+      const row = this.rows.find((entry) => entry.assignmentId === action[1]);
+      if (!row) {
         return this.problem(route, 404, 'not_found', 'Không tìm thấy');
       }
-      entry.status = action[2] === 'confirm' ? 'Confirmed' : 'Rejected';
-      entry.rejectionReason = body?.reason ?? null;
-      return this.json(route, entry);
+      if (action[2] === 'remind') {
+        return this.json(route, { reminded: 1 });
+      }
+      const collect = action[2] === 'collect';
+      row.status = collect ? 'Paid' : 'Unpaid';
+      row.method = collect ? body.method : null;
+      row.paymentAt = collect ? '2026-11-19T01:00:00Z' : null;
+      return this.json(route, { id: 'p-new', assignmentId: row.assignmentId, amount: row.amountDue, method: body?.method ?? 'Cash', transferCode: body?.transferCode ?? null, status: 'Confirmed', confirmedAt: '2026-11-19T01:00:00Z', isSelfDeclared: false }, collect ? 201 : 200);
     }
     return route.fulfill({ status: 404, contentType: 'application/problem+json', body: JSON.stringify({ status: 404, code: 'not_found', title: 'x' }) });
   }

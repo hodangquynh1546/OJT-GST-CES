@@ -84,14 +84,18 @@
         @if (data.todo; as todo) {
           <section class="cf-card pad stack tight" aria-label="Việc cần làm">
             <h2>Việc cần làm</h2>
-            <a class="between link" [routerLink]="['/funds', fundId(), 'payments']">
-              <span>Xác nhận thanh toán</span>
-              <span class="cf-tag" [class.cf-tag--warning]="todo.pendingPayments > 0">{{ todo.pendingPayments }}</span>
+            <a class="between link" [routerLink]="['/funds', fundId(), 'charges']">
+              <span>Khoản thu chung còn người chưa nộp</span>
+              <span class="cf-tag" [class.cf-tag--warning]="todo.unpaidGeneralCount > 0">{{ todo.unpaidGeneralCount }}</span>
             </a>
             <a class="between link" [routerLink]="['/funds', fundId(), 'withdrawals']">
-              <span>Yêu cầu rút tiền</span>
-              <span class="cf-tag" [class.cf-tag--warning]="todo.pendingWithdrawals > 0">{{ todo.pendingWithdrawals }}</span>
+              <span>Rút số dư cho học sinh</span><span class="cf-tag">Mở</span>
             </a>
+            @for (item of todo.eventsToCloseList; track item.id) {
+              <a class="between link" [routerLink]="['/funds', fundId(), 'events', item.id]">
+                <span>Đóng danh sách “{{ item.name }}”</span><span class="cf-tag cf-tag--warning">Tới hạn</span>
+              </a>
+            }
             @for (item of todo.eventsAwaitingSettlement; track item.id) {
               <a class="between link" [routerLink]="['/funds', fundId(), 'events', item.id, 'settlement']">
                 <span>Quyết toán “{{ item.name }}”</span><span class="cf-tag">Chưa làm</span>
@@ -114,22 +118,18 @@
 
       <div class="kpis">
         <a class="cf-card kpi" [routerLink]="['/funds', fundId(), 'my-payments']">
-          <span class="kpi-l">Bạn cần đóng</span><span class="kpi-v cf-expense">{{ data.me.dueAmount | vndMoney }}</span>
+          <span class="kpi-l">Bạn chưa nộp</span><span class="kpi-v cf-expense">{{ data.me.dueAmount | vndMoney }}</span>
           <span class="cf-muted xs">
             @if (data.me.dueCount > 0) {
-              {{ data.me.dueCount }} khoản · gần nhất hạn {{ data.me.nearestDueDate | vnDate }}
+              {{ data.me.dueCount }} khoản@if (data.me.nearestDueDate) { · gần nhất hạn {{ data.me.nearestDueDate | vnDate }} }
             } @else {
-              Không còn khoản nào
+              Bạn đã nộp đủ
             }
           </span>
         </a>
-        <a class="cf-card kpi" [routerLink]="['/funds', fundId(), 'my-payments']">
-          <span class="kpi-l">Chờ thủ quỹ xác nhận</span><span class="kpi-v pend">{{ data.me.awaitingAmount | vndMoney }}</span>
-          <span class="cf-muted xs">{{ data.me.awaitingTitle ?? 'Không có thanh toán đang chờ' }}</span>
-        </a>
         <a class="cf-card kpi" [routerLink]="['/funds', fundId(), 'balance']">
           <span class="kpi-l">Số dư cá nhân</span><span class="kpi-v">{{ data.me.balance | vndMoney }}</span>
-          <span class="cf-muted xs">Dùng đóng tiền hoặc rút</span>
+          <span class="cf-muted xs">Chỉ xem; cần rút thì liên hệ thủ quỹ</span>
         </a>
       </div>
 
@@ -137,11 +137,11 @@
         <div class="cf-alert cf-alert--warning due">
           <span>
             {{ data.me.nearestDueEventName ? 'Phí' : 'Khoản' }} <strong>{{ data.me.nearestDueTitle }}</strong> {{ data.me.nearestDueAmount | vndMoney }}
-            hết hạn ngày {{ data.me.nearestDueDate | vnDate }}.@if (data.me.nearestDueEventName) {
-              Chưa đóng khoản nào khi sự kiện kết thúc sẽ bị loại khỏi sự kiện.
+            @if (data.me.nearestDueDate) { nộp trước ngày {{ data.me.nearestDueDate | vnDate }}. } @else { chưa nộp. }@if (data.me.nearestDueEventName) {
+              Chưa nộp đủ các khoản khi đóng danh sách sự kiện sẽ bị loại và được hoàn tiền đã nộp vào số dư.
             }
           </span>
-          <a class="cf-primary-link small-btn" [routerLink]="['/funds', fundId(), 'my-payments']">Nộp ngay</a>
+          <a class="cf-primary-link small-btn" [routerLink]="['/funds', fundId(), 'my-payments']">Xem</a>
         </div>
       }
 
@@ -187,10 +187,9 @@
           <div class="between"><span class="strong">{{ charge.title }}</span><span class="cf-muted">{{ charge.paidCount }}/{{ charge.assignedCount }}</span></div>
           <div class="bar" role="img" [attr.aria-label]="charge.paidCount + ' trên ' + charge.assignedCount + ' đã đóng'">
             <span class="paid" [style.width.%]="percent(charge.paidCount, charge.assignedCount)"></span>
-            <span class="await" [style.width.%]="percent(charge.awaitingCount, charge.assignedCount)"></span>
           </div>
           <span class="cf-muted xs">
-            {{ charge.amountPerPerson | vndMoney }}/người · hạn {{ shortDate(charge.dueDate) }}@if (charge.awaitingCount > 0) { · {{ charge.awaitingCount }} chờ xác nhận}
+            {{ charge.amountPerPerson | vndMoney }}/người · không có hạn
           </span>
         </a>
       } @empty {

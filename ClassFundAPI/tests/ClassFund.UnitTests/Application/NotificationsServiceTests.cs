@@ -15,7 +15,7 @@ public class NotificationsServiceTests
 
     public NotificationsServiceTests() => _ctx.ActAs(_ctx.StudentA);
 
-    private NotificationsService CreateService() => new(_ctx.Db, _ctx.CurrentUser, _ctx.Access, new Notifier(_ctx.Db, _ctx.Clock), _ctx.Clock);
+    private NotificationsService CreateService() => new(_ctx.Db, _ctx.CurrentUser, _ctx.Access, new Notifier(_ctx.Db, _ctx.Clock), new ReminderOptions(), _ctx.Clock);
 
     private Notification Seed(User user, string title, DateTimeOffset at, bool read = false, FinancialScope scope = FinancialScope.General, Guid? fundId = null)
     {
@@ -159,18 +159,120 @@ public class NotificationsServiceTests
     }
 
     [Fact]
-    public async Task An_event_charge_reminder_carries_the_event_scope_and_stops_after_settlement()
+    public async Task Event_charges_no_longer_get_the_per_charge_due_date_reminder()
     {
         var open = new Event(_ctx.Fund.Id, "Dã ngoại Ba Vì", null, Today, _ctx.Owner.Id, ServiceTestContext.Start);
-        var settled = new Event(_ctx.Fund.Id, "Cắm trại", null, Today, _ctx.Owner.Id, ServiceTestContext.Start) { Status = EventStatus.Settled };
-        _ctx.Db.Seed(open, settled);
+        _ctx.Db.Seed(open);
         SeedCharge(_ctx.StudentA, Today.AddDays(1), eventId: open.Id);
-        SeedCharge(_ctx.StudentA, Today.AddDays(1), eventId: settled.Id);
 
         await CreateService().UnreadCountAsync(_ctx.Fund.Id, default);
 
-        var item = Assert.Single(DueSoon(_ctx.StudentA));
-        Assert.Equal((FinancialScope.Event, open.Id), (item.Scope, item.EventId!.Value));
-        Assert.StartsWith("[Sự kiện: Dã ngoại Ba Vì]", item.Title);
+        Assert.Empty(DueSoon(_ctx.StudentA));
+    }
+
+    // ---------- Nhắc tự động trước hạn đóng danh sách (D-3 … D-1) ----------
+
+    private Event SeedEventWithDeadline(DateOnly? deadline, EventStatus status = EventStatus.Open, string name = "Dã ngoại Ba Vì")
+    {
+        var fundEvent = new Event(_ctx.Fund.Id, name, null, Today.AddDays(20), _ctx.Owner.Id, ServiceTestContext.Start) { Status = status, ListDeadline = deadline };
+        _ctx.Db.Seed(fundEvent);
+        return fundEvent;
+    }
+
+    private ChargeAssignment SeedEventAssignment(Event fundEvent, User user, long amount = 70_000, AssignmentStatus status = AssignmentStatus.Unpaid)
+    {
+        var charge = new Charge(_ctx.Fund.Id, fundEvent.Id, "Tiền xe", null, amount, null, ChargeKind.Regular, _ctx.Owner.Id, ServiceTestContext.Start);
+        var assignment = new ChargeAssignment(charge.Id, user.Id, amount) { Status = status };
+        _ctx.Db.Seed(charge);
+        _ctx.Db.Seed(assignment);
+        return assignment;
+    }
+
+    private IEnumerable<PaymentReminder> Reminders(User user) => _ctx.Db.Query<PaymentReminder>().Where(item => item.UserId == user.Id);
+
+    [Theory]
+    [InlineData(1, true)]
+    [InlineData(3, true)]
+    [InlineData(4, false)]
+    [InlineData(0, false)]
+    [InlineData(-1, false)]
+    public async Task The_unpaid_are_reminded_only_in_the_last_three_days_before_the_list_deadline(int daysAhead, bool reminded)
+    {
+        var fundEvent = SeedEventWithDeadline(Today.AddDays(daysAhead));
+        SeedEventAssignment(fundEvent, _ctx.StudentA);
+
+        var count = await CreateService().UnreadCountAsync(_ctx.Fund.Id, default);
+
+        Assert.Equal(reminded ? 1 : 0, count);
+        Assert.Equal(reminded ? 1 : 0, Reminders(_ctx.StudentA).Count());
+    }
+
+    [Fact]
+    public async Task The_automatic_reminder_names_the_event_the_amount_and_the_consequence_and_is_logged()
+    {
+        var fundEvent = SeedEventWithDeadline(Today.AddDays(2));
+        SeedEventAssignment(fundEvent, _ctx.StudentA, 70_000);
+        SeedEventAssignment(fundEvent, _ctx.StudentA, 30_000);
+
+        await CreateService().ListAsync(_ctx.Fund.Id, false, 1, 20, default);
+
+        var note = Assert.Single(_ctx.Db.Query<Notification>().Where(item => item.Type == NotificationType.EventUnpaidReminder));
+        Assert.Equal((FinancialScope.Event, fundEvent.Id, _ctx.StudentA.Id), (note.Scope, note.EventId!.Value, note.UserId));
+        Assert.StartsWith("[Sự kiện: Dã ngoại Ba Vì]", note.Title);
+        Assert.Contains("Còn 2 ngày", note.Body);
+        Assert.Contains("100.000", note.Body);
+        Assert.Contains("hoàn vào số dư", note.Body);
+        var log = Assert.Single(Reminders(_ctx.StudentA));
+        Assert.Equal((ReminderKind.Auto, (Guid?)null, fundEvent.Id, Today), (log.Kind, log.SentByUserId, log.EventId!.Value, log.ReminderDate));
+    }
+
+    [Fact]
+    public async Task The_automatic_reminder_is_sent_once_a_day_and_again_the_next_day()
+    {
+        var fundEvent = SeedEventWithDeadline(Today.AddDays(3));
+        SeedEventAssignment(fundEvent, _ctx.StudentA);
+
+        await CreateService().UnreadCountAsync(_ctx.Fund.Id, default);
+        await CreateService().ListAsync(_ctx.Fund.Id, false, 1, 20, default);
+        await CreateService().UnreadCountAsync(_ctx.Fund.Id, default);
+        Assert.Single(Reminders(_ctx.StudentA));
+
+        _ctx.Clock.Now = ServiceTestContext.Start.AddDays(1);
+        await CreateService().UnreadCountAsync(_ctx.Fund.Id, default);
+
+        Assert.Equal([Today, Today.AddDays(1)], Reminders(_ctx.StudentA).Select(item => item.ReminderDate).Order());
+    }
+
+    [Fact]
+    public async Task The_paid_other_people_and_events_that_are_closed_get_no_automatic_reminder()
+    {
+        var open = SeedEventWithDeadline(Today.AddDays(2));
+        var closed = SeedEventWithDeadline(Today.AddDays(2), EventStatus.Completed, "Đã đóng danh sách");
+        var settled = SeedEventWithDeadline(Today.AddDays(2), EventStatus.Settled, "Đã quyết toán");
+        SeedEventAssignment(open, _ctx.StudentA, status: AssignmentStatus.Paid);
+        SeedEventAssignment(open, _ctx.StudentB);
+        SeedEventAssignment(closed, _ctx.StudentA);
+        SeedEventAssignment(settled, _ctx.StudentA);
+        SeedEventWithDeadline(null, name: "Không có hạn");
+
+        await CreateService().UnreadCountAsync(_ctx.Fund.Id, default);
+
+        Assert.Empty(Reminders(_ctx.StudentA));
+        Assert.Empty(Reminders(_ctx.StudentB));
+    }
+
+    [Fact]
+    public async Task The_number_of_reminder_days_is_configurable()
+    {
+        var fundEvent = SeedEventWithDeadline(Today.AddDays(5));
+        SeedEventAssignment(fundEvent, _ctx.StudentA);
+
+        await CreateService().UnreadCountAsync(_ctx.Fund.Id, default);
+        Assert.Empty(Reminders(_ctx.StudentA));
+
+        var wider = new NotificationsService(_ctx.Db, _ctx.CurrentUser, _ctx.Access, new Notifier(_ctx.Db, _ctx.Clock), new ReminderOptions { ListDeadlineDays = 5 }, _ctx.Clock);
+        await wider.UnreadCountAsync(_ctx.Fund.Id, default);
+
+        Assert.Single(Reminders(_ctx.StudentA));
     }
 }

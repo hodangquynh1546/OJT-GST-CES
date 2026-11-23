@@ -4,7 +4,7 @@ import { AN, FakeAuthApi, FakeUser } from '../support/fake-auth-api';
 
 /** Khung sidebar trong quỹ theo canvas "ClassFund UI Design" (S-01): thẻ quỹ, menu theo nhóm, thanh trên. */
 
-const STUDENT_PERMISSIONS = ['Fund.View', 'Event.Participate', 'Payment.Submit', 'Balance.ViewOwn', 'Balance.Withdraw'];
+const STUDENT_PERMISSIONS = ['Fund.View', 'Event.Participate', 'Balance.ViewOwn', 'Balance.Withdraw'];
 const OWNER_PERMISSIONS = [
   ...STUDENT_PERMISSIONS,
   'Fund.Manage',
@@ -58,8 +58,7 @@ test('thủ quỹ chính: thẻ quỹ ở đầu sidebar, ba nhóm menu đúng t
   await expect(nav.getByRole('group', { name: 'Quỹ chung' }).getByRole('link')).toHaveText(['Tổng quan', 'Thu chi chung', 'Khoản thu chung', 'Sự kiện']);
   await expect(nav.getByRole('group', { name: 'Cá nhân' }).getByRole('link')).toHaveText(['Khoản cần đóng', 'Số dư cá nhân', 'Thông báo']);
   await expect(nav.getByRole('group', { name: 'Quản lý' }).getByRole('link')).toHaveText([
-    'Xác nhận thanh toán',
-    'Yêu cầu rút tiền',
+    'Rút số dư',
     'Báo cáo',
     'Học sinh',
     'Thủ quỹ',
@@ -76,7 +75,7 @@ test('học sinh chỉ có hai nhóm đầu, không có nhóm Quản lý', async
 
   await expect(nav.getByRole('group')).toHaveCount(2);
   await expect(nav.getByRole('group', { name: 'Quản lý' })).toHaveCount(0);
-  await expect(nav.getByRole('link', { name: 'Xác nhận thanh toán' })).toHaveCount(0);
+  await expect(nav.getByRole('link', { name: 'Rút số dư' })).toHaveCount(0);
   await expect(page.getByRole('complementary')).toContainText('Học sinh');
 });
 

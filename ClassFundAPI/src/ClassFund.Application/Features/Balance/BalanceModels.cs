@@ -13,42 +13,36 @@ public sealed record BalanceHistoryItemDto(
     FinancialScope? Scope,
     string? EventName);
 
-/// <summary>Yêu cầu rút gần nhất của tôi (đang chờ, hoặc kết quả lần trước để hiện thông báo trên B-01).</summary>
-public sealed record MyWithdrawalDto(
-    Guid Id,
-    long Amount,
-    WithdrawalStatus Status,
-    DateTimeOffset RequestedAt,
-    DateTimeOffset? HandledAt,
-    string? HandledByName,
-    string? RejectionReason);
-
-/// <summary>Số dư của tôi ở quỹ khác (B-01 "Số dư ở các quỹ khác").</summary>
-public sealed record OtherFundBalanceDto(Guid FundId, string FundName, bool IsArchived, long Balance);
-
+/// <summary>Số dư của tôi và lịch sử biến động (chỉ xem; học sinh không tự rút).</summary>
 public sealed record MyBalanceDto(
     string FundName,
     long Balance,
-    MyWithdrawalDto? LatestWithdrawal,
-    IReadOnlyList<BalanceHistoryItemDto> History,
-    IReadOnlyList<OtherFundBalanceDto> OtherFunds);
+    IReadOnlyList<BalanceHistoryItemDto> History);
 
-/// <summary>Một yêu cầu rút ở B-02.</summary>
-public sealed record WithdrawalRequestDto(
-    Guid Id,
+/// <summary>Một thành viên và số dư cá nhân của họ (B-02 "Rút số dư").</summary>
+public sealed record MemberBalanceDto(
     Guid UserId,
     string FullName,
     string Email,
+    MemberRole Role,
+    bool IsActive,
+    long Balance);
+
+/// <summary><see cref="HeldTotal"/> = tổng tiền thủ quỹ đang giữ hộ (tổng số dư mọi thành viên của quỹ).</summary>
+public sealed record MemberBalancesResult(
+    IReadOnlyList<MemberBalanceDto> Items,
+    int Total,
+    int Page,
+    int PageSize,
+    long HeldTotal);
+
+/// <summary>Một lần rút số dư đã thực hiện (lịch sử rút). Dữ liệu cũ có thể ở trạng thái Rejected (yêu cầu bị hủy khi đổi cách rút).</summary>
+public sealed record WithdrawalDto(
+    Guid Id,
+    Guid UserId,
+    string FullName,
     long Amount,
     WithdrawalStatus Status,
-    DateTimeOffset RequestedAt,
-    DateTimeOffset? HandledAt,
+    DateTimeOffset At,
     string? HandledByName,
-    string? RejectionReason,
-    bool IsMine);
-
-public sealed record WithdrawalListResult(
-    IReadOnlyList<WithdrawalRequestDto> Items,
-    int RequestedCount,
-    int PaidCount,
-    int RejectedCount);
+    string? Note);

@@ -5,7 +5,7 @@ import { FUND_ID } from '../support/fake-charges-api';
 
 /** M11-T3 (FE): N-01 Thông báo và chuông ở header với API giả lập. */
 
-const PERMISSIONS = ['Fund.View', 'Event.Participate', 'Payment.Submit', 'Balance.ViewOwn', 'Balance.Withdraw'];
+const PERMISSIONS = ['Fund.View', 'Event.Participate', 'Balance.ViewOwn', 'Balance.Withdraw'];
 
 const user: FakeUser = {
   ...AN,

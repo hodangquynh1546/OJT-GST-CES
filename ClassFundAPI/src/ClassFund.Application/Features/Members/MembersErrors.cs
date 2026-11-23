@@ -44,8 +44,6 @@ public static class MembersErrors
     public const string HasBalanceCode = "member.has_balance";
     public const string HasBalanceMessage = "Thành viên còn số dư cá nhân. Số dư phải về 0 (rút tiền) trước khi ngừng.";
 
-    public const string PendingPaymentsCode = "member.pending_payments";
-    public const string PendingPaymentsMessage = "Thành viên còn thanh toán đang chờ xác nhận. Hãy xác nhận hoặc từ chối trước khi ngừng.";
 
     public const int FullNameMaxLength = 100;
 }

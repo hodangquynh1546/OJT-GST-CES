@@ -29,7 +29,7 @@ public class YearEndSettlementServiceTests
             _ctx.Db,
             _ctx.CurrentUser,
             _ctx.Access,
-            new BalanceService(_ctx.Db, _ctx.CurrentUser, _ctx.Access, _ctx.Audit, _ctx.Clock),
+            new BalanceService(_ctx.Db, _ctx.CurrentUser, _ctx.Access, _ctx.Clock),
             _ctx.Audit,
             new Notifier(_ctx.Db, _ctx.Clock),
             _ctx.Clock);
@@ -63,17 +63,19 @@ public class YearEndSettlementServiceTests
 
     private long BalanceOf(User user) => _ctx.Db.Query<PersonalBalance>().SingleOrDefault(item => item.UserId == user.Id)?.Balance ?? 0;
 
-    /// <summary>A đóng 100.000, B đóng 50.000; chi 90.000 → thừa 60.000 (A 40.000, B 20.000).</summary>
+    /// <summary>Cả 4 thành viên đều đã đóng 100.000 (thủ quỹ nhắc đủ); chi 180.000 → thừa 220.000, mỗi người 55.000.</summary>
     private void StandardYear()
     {
-        Assign(_ctx.StudentA, 100_000);
-        Assign(_ctx.StudentB, 50_000);
-        Assign(_ctx.Treasurer, 0);
-        SpendGeneral(90_000);
+        foreach (var user in new[] { _ctx.Owner, _ctx.Treasurer, _ctx.StudentA, _ctx.StudentB })
+        {
+            Assign(user, 100_000);
+        }
+
+        SpendGeneral(180_000);
     }
 
     [Fact]
-    public async Task Preview_splits_the_surplus_among_every_active_member_in_proportion_and_ignores_event_money()
+    public async Task Preview_splits_the_surplus_equally_among_every_active_member_and_ignores_event_money()
     {
         StandardYear();
         var fundEvent = SeedEvent(EventStatus.Settled);
@@ -81,30 +83,45 @@ public class YearEndSettlementServiceTests
 
         var preview = await CreateService().PreviewAsync(_ctx.Fund.Id, default);
 
-        Assert.Equal((150_000L, 90_000L, 60_000L, 4, true), (preview.TotalCollected, preview.TotalSpent, preview.Surplus, preview.MemberCount, preview.CanExecute));
-        Assert.Equal(40_000, preview.Lines.Single(line => line.UserId == _ctx.StudentA.Id).Amount);
-        Assert.Equal(20_000, preview.Lines.Single(line => line.UserId == _ctx.StudentB.Id).Amount);
-        Assert.Equal(0, preview.Lines.Single(line => line.UserId == _ctx.Treasurer.Id).Amount);
-        Assert.Equal(60_000, preview.Lines.Sum(line => line.Amount));
-        Assert.Equal((1, 1), (preview.OpenChargeCount, preview.UnpaidObligationCount));
+        Assert.Equal((400_000L, 180_000L, 220_000L, 4, true), (preview.TotalCollected, preview.TotalSpent, preview.Surplus, preview.MemberCount, preview.CanExecute));
+        Assert.All(preview.Lines, line => Assert.Equal(55_000, line.Amount));
+        Assert.Equal(220_000, preview.Lines.Sum(line => line.Amount));
+        Assert.Equal((1, 0), (preview.OpenChargeCount, preview.UnpaidObligationCount));
     }
 
     [Fact]
-    public async Task Crediting_the_balance_archives_the_fund_closes_charges_and_excludes_the_unpaid()
+    public async Task Everyone_must_have_paid_in_full_before_the_year_end_BR35()
+    {
+        StandardYear();
+        _ctx.Db.Query<ChargeAssignment>().Single(item => item.UserId == _ctx.StudentB.Id).Status = AssignmentStatus.Unpaid;
+
+        var preview = await CreateService().PreviewAsync(_ctx.Fund.Id, default);
+        var error = await Assert.ThrowsAsync<BusinessRuleException>(() => CreateService().ExecuteAsync(_ctx.Fund.Id, SurplusMethod.PersonalBalance, default));
+
+        Assert.Equal((1, false), (preview.UnpaidObligationCount, preview.CanExecute));
+        Assert.Equal(SettlementErrors.YearEndUnpaidCode, error.Code);
+        Assert.Equal(FundStatus.Active, _ctx.Fund.Status);
+        Assert.Empty(_ctx.Db.Query<Settlement>());
+    }
+
+    [Fact]
+    public async Task Crediting_the_balance_archives_the_fund_and_closes_the_open_charges()
     {
         StandardYear();
 
         var result = await CreateService().ExecuteAsync(_ctx.Fund.Id, SurplusMethod.PersonalBalance, default);
 
-        Assert.Equal((SettlementOutcome.Surplus, 60_000L), (result.Outcome, result.Surplus));
+        Assert.Equal((SettlementOutcome.Surplus, 220_000L), (result.Outcome, result.Surplus));
         Assert.Equal(FundStatus.Archived, _ctx.Fund.Status);
         Assert.Equal(ChargeStatus.Closed, _charge.Status);
-        Assert.Equal(AssignmentStatus.Excluded, _ctx.Db.Query<ChargeAssignment>().Single(item => item.UserId == _ctx.Treasurer.Id).Status);
-        Assert.Equal(40_000, BalanceOf(_ctx.StudentA));
-        Assert.Equal(20_000, BalanceOf(_ctx.StudentB));
+        foreach (var user in new[] { _ctx.Owner, _ctx.Treasurer, _ctx.StudentA, _ctx.StudentB })
+        {
+            Assert.Equal(55_000, BalanceOf(user));
+        }
+
         Assert.All(result.Lines, line => Assert.Equal(SettlementLineStatus.CreditedToBalance, line.Status));
         Assert.Equal(4, _ctx.Db.Query<Notification>().Count(item => item.Type == NotificationType.SettlementResult && item.Scope == FinancialScope.General));
-        Assert.Equal(2, _ctx.Db.Query<Notification>().Count(item => item.Type == NotificationType.BalanceCredited));
+        Assert.Equal(4, _ctx.Db.Query<Notification>().Count(item => item.Type == NotificationType.BalanceCredited));
         Assert.Contains(_ctx.AuditLogs, log => log.Action == SettlementAuditActions.YearEndSettle && log.Scope == FinancialScope.General && log.EventId == null);
         Assert.DoesNotContain(_ctx.Db.Query<LedgerEntry>(), entry => entry.Source == LedgerSource.Refund);
     }
@@ -114,7 +131,7 @@ public class YearEndSettlementServiceTests
     {
         Assign(_ctx.StudentA, 100_000);
         Assign(_ctx.StudentB, 100_000);
-        SpendGeneral(100_000);
+        SpendGeneral(100_000); // thừa 100.000, 4 thành viên → 25.000 mỗi người
         var result = await CreateService().ExecuteAsync(_ctx.Fund.Id, SurplusMethod.DirectRefund, default);
         Assert.Equal(FundStatus.Archived, _ctx.Fund.Status);
         var line = result.Lines.First(item => item.Amount > 0);
@@ -124,7 +141,7 @@ public class YearEndSettlementServiceTests
 
         Assert.Equal(SettlementLineStatus.Refunded, done.Status);
         var entry = _ctx.Db.Query<LedgerEntry>().Single(item => item.Source == LedgerSource.Refund);
-        Assert.Equal((LedgerType.Expense, 50_000L, (Guid?)null), (entry.Type, entry.Amount, entry.EventId));
+        Assert.Equal((LedgerType.Expense, 25_000L, (Guid?)null), (entry.Type, entry.Amount, entry.EventId));
         var again = await Assert.ThrowsAsync<ConflictException>(() => CreateService().ConfirmRefundAsync(_ctx.Fund.Id, line.Id!.Value, default));
         Assert.Equal(SettlementErrors.LineProcessedCode, again.Code);
     }
@@ -159,18 +176,6 @@ public class YearEndSettlementServiceTests
     }
 
     [Fact]
-    public async Task A_payment_waiting_for_confirmation_blocks_the_year_end()
-    {
-        StandardYear();
-        Assign(_ctx.Owner, 0, PaymentStatus.Submitted);
-
-        var error = await Assert.ThrowsAsync<BusinessRuleException>(() => CreateService().ExecuteAsync(_ctx.Fund.Id, SurplusMethod.PersonalBalance, default));
-
-        Assert.Equal(SettlementErrors.YearEndPendingPaymentsCode, error.Code);
-        Assert.Equal(FundStatus.Active, _ctx.Fund.Status);
-    }
-
-    [Fact]
     public async Task The_year_end_can_only_be_done_once()
     {
         StandardYear();
@@ -180,7 +185,7 @@ public class YearEndSettlementServiceTests
 
         Assert.Equal(YearEndRule.AlreadyClosedCode, error.Code);
         Assert.Equal(1, _ctx.Db.Query<Settlement>().Count(item => item.EventId == null));
-        Assert.Equal(40_000, BalanceOf(_ctx.StudentA));
+        Assert.Equal(55_000, BalanceOf(_ctx.StudentA));
     }
 
     [Fact]
@@ -190,7 +195,7 @@ public class YearEndSettlementServiceTests
         var error = await Assert.ThrowsAsync<BusinessRuleException>(() => CreateService().ExecuteAsync(_ctx.Fund.Id, null, default));
         Assert.Equal(SettlementErrors.MethodRequiredCode, error.Code);
 
-        SpendGeneral(60_000); // chi hết số thừa
+        SpendGeneral(220_000); // chi hết số thừa
         var result = await CreateService().ExecuteAsync(_ctx.Fund.Id, null, default);
 
         Assert.Equal((SettlementOutcome.Balanced, FundStatus.Archived), (result.Outcome, _ctx.Fund.Status));

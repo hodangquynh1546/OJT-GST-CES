@@ -60,11 +60,10 @@ export function buildNavItems({ fundId, permissions }: NavContext): NavItem[] {
   add(Permissions.FundView, 'Quỹ chung', 'ledger', permissions.includes(Permissions.LedgerManage) ? 'Thu chi chung' : 'Chi tiêu', '/ledger', ICONS.ledger);
   add(Permissions.FundView, 'Quỹ chung', 'charges', 'Khoản thu chung', '/charges', ICONS.charges);
   add(Permissions.EventParticipate, 'Quỹ chung', 'events', 'Sự kiện', '/events', ICONS.events);
-  add(Permissions.PaymentSubmit, 'Cá nhân', 'my-payments', 'Khoản cần đóng', '/my-payments', ICONS.payments);
+  add(Permissions.FundView, 'Cá nhân', 'my-payments', 'Khoản cần đóng', '/my-payments', ICONS.payments);
   add(Permissions.BalanceViewOwn, 'Cá nhân', 'balance', 'Số dư cá nhân', '/balance', ICONS.balance);
   add(Permissions.FundView, 'Cá nhân', 'notifications', 'Thông báo', '/notifications', ICONS.bell);
-  add(Permissions.PaymentConfirm, 'Quản lý', 'payments', 'Xác nhận thanh toán', '/payments', ICONS.payments);
-  add(Permissions.BalanceHandle, 'Quản lý', 'withdrawals', 'Yêu cầu rút tiền', '/withdrawals', ICONS.balance);
+  add(Permissions.BalanceHandle, 'Quản lý', 'withdrawals', 'Rút số dư', '/withdrawals', ICONS.balance);
   add(Permissions.ReportView, 'Quản lý', 'reports', 'Báo cáo', '/reports', ICONS.reports);
   add(Permissions.MemberManage, 'Quản lý', 'members', 'Học sinh', '/members', ICONS.people);
   add(Permissions.TreasurerManage, 'Quản lý', 'treasurers', 'Thủ quỹ', '/treasurers', ICONS.treasurers);

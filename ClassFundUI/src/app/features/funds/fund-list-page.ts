@@ -14,7 +14,7 @@ import { FundSummary, displaySchoolYear } from './funds.models';
 /**
  * F-01 Quỹ của tôi (FR-08): màn đầu tiên sau đăng nhập, chưa có menu quỹ. Chọn một quỹ mới vào khung có menu.
  * Danh sách + vai trò lấy ngay từ `GET /auth/me` (M1); M2 bổ sung số liệu thẻ từ `GET /funds`: năm học, số thành viên,
- * số dư quỹ chung, số thanh toán chờ xác nhận (chỉ thủ quỹ), trạng thái đã tổng kết.
+ * số dư quỹ chung, số tiền mình chưa nộp, số dư cá nhân, trạng thái đã tổng kết.
  */
 @Component({
   selector: 'app-fund-list-page',
@@ -66,24 +66,17 @@ import { FundSummary, displaySchoolYear } from './funds.models';
                         <span class="meta">Số dư quỹ chung</span>
                         <b class="money">{{ summary.generalBalance | vndMoney }}</b>
                       </span>
-                      @if (summary.pendingPaymentCount !== null) {
-                        <span class="kpi">
-                          <span class="meta">Chờ xác nhận</span>
-                          <b>{{ summary.pendingPaymentCount }} thanh toán</b>
-                        </span>
-                      } @else {
-                        <span class="kpi">
-                          <span class="meta">Bạn cần đóng</span>
-                          <b class="money" [class.owed]="summary.myDueAmount > 0">{{ summary.myDueAmount | vndMoney }}</b>
-                          @if (summary.myDueCount > 0) {
-                            <span class="meta">{{ summary.myDueCount }} khoản</span>
-                          }
-                        </span>
-                        <span class="kpi">
-                          <span class="meta">Số dư cá nhân</span>
-                          <b class="money">{{ summary.myBalance | vndMoney }}</b>
-                        </span>
-                      }
+                      <span class="kpi">
+                        <span class="meta">Bạn chưa nộp</span>
+                        <b class="money" [class.owed]="summary.myDueAmount > 0">{{ summary.myDueAmount | vndMoney }}</b>
+                        @if (summary.myDueCount > 0) {
+                          <span class="meta">{{ summary.myDueCount }} khoản</span>
+                        }
+                      </span>
+                      <span class="kpi">
+                        <span class="meta">Số dư cá nhân</span>
+                        <b class="money">{{ summary.myBalance | vndMoney }}</b>
+                      </span>
                     </span>
                   }
                 }

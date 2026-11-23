@@ -45,7 +45,8 @@ public class FundsApiTests(ApiTestHost host)
         var list = await client.GetFromJsonAsync<JsonElement>("/api/v1/funds");
         var card = Assert.Single(list.EnumerateArray());
         Assert.Equal(0, card.GetProperty("generalBalance").GetInt64());
-        Assert.Equal(0, card.GetProperty("pendingPaymentCount").GetInt32());
+        Assert.Equal(0, card.GetProperty("myDueCount").GetInt32());
+        Assert.Equal(0, card.GetProperty("myBalance").GetInt64());
     }
 
     [Fact]

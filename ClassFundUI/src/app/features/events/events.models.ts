@@ -4,7 +4,7 @@ import { MemberRole } from '../ledger/ledger.models';
 export type ParticipationResponse = 'Pending' | 'Accepted' | 'Declined';
 
 /** Tình trạng đóng tiền của người tham gia với cả sự kiện (FR-32). */
-export type ParticipantPaymentStatus = 'Paid' | 'Pending' | 'Unpaid' | 'NoCharge';
+export type ParticipantPaymentStatus = 'Paid' | 'Unpaid' | 'NoCharge';
 
 export type ChargeStatus = 'Open' | 'Closed' | 'Cancelled';
 
@@ -13,6 +13,7 @@ export interface EventSummary {
   name: string;
   description: string | null;
   eventDate: string | null;
+  listDeadline: string | null;
   status: EventStatus;
   invitedCount: number;
   participantCount: number;
@@ -29,7 +30,7 @@ export interface MyEventCharge {
   chargeId: string;
   title: string;
   amountDue: number;
-  dueDate: string;
+  dueDate: string | null;
   status: AssignmentStatus;
 }
 
@@ -38,11 +39,19 @@ export interface EventCharge {
   title: string;
   purpose: string | null;
   amountPerPerson: number;
-  dueDate: string;
+  dueDate: string | null;
   status: ChargeStatus;
   paidCount: number;
-  pendingCount: number;
   unpaidCount: number;
+}
+
+/** Một người bị loại khi đóng danh sách (E-03 "Lịch sử đóng danh sách"). */
+export interface EventExclusion {
+  userId: string;
+  fullName: string;
+  reason: string | null;
+  refundedAmount: number;
+  excludedAt: string | null;
 }
 
 export interface EventDetail {
@@ -50,6 +59,7 @@ export interface EventDetail {
   name: string;
   description: string | null;
   eventDate: string | null;
+  listDeadline: string | null;
   status: EventStatus;
   createdAt: string;
   completedAt: string | null;
@@ -66,6 +76,7 @@ export interface EventDetail {
   me: { response: ParticipationResponse; isFinal: boolean; exclusionReason: string | null } | null;
   myCharges: MyEventCharge[];
   charges: EventCharge[];
+  exclusions: EventExclusion[];
 }
 
 export interface EventParticipant {
@@ -76,28 +87,39 @@ export interface EventParticipant {
   due: number;
   paymentStatus: ParticipantPaymentStatus;
   hasSelfDeclared: boolean;
-  pendingPaymentCount: number;
 }
 
 export interface EventParticipants {
   items: EventParticipant[];
   total: number;
   paidCount: number;
-  pendingCount: number;
   unpaidCount: number;
 }
 
-export interface CompletionPreview {
-  excluded: { userId: string; fullName: string }[];
-  underpaid: { userId: string; fullName: string; missing: number }[];
-  pendingPaymentCount: number;
+/** Người sẽ bị loại khi đóng danh sách: số tiền đã đóng (hoàn vào số dư cá nhân) và lý do. */
+export interface ExcludedPerson {
+  userId: string;
+  fullName: string;
+  paid: number;
+  refund: number;
+  reason: string;
+}
+
+/** Xem trước / kết quả "Đóng danh sách" (hộp thoại xác nhận). */
+export interface CloseListPreview {
+  excluded: ExcludedPerson[];
   remainingCount: number;
+  openChargeCount: number;
+  totalRefund: number;
+  listDeadline: string | null;
+  beforeDeadline: boolean;
 }
 
 export interface SaveEventBody {
   name: string;
   description: string | null;
   eventDate: string;
+  listDeadline: string;
 }
 
 export type SurplusMethod = 'DirectRefund' | 'PersonalBalance';
@@ -123,7 +145,6 @@ export interface SettlementPreview {
   totalSpent: number;
   surplus: number;
   outcome: SettlementOutcome;
-  pendingPaymentCount: number;
   unpaidObligationCount: number;
   canExecute: boolean;
   lines: SettlementLine[];
@@ -163,8 +184,8 @@ export type Tone = 'event' | 'warning' | 'success' | 'neutral' | 'danger';
 
 /** Nhãn trạng thái trên thẻ / tiêu đề sự kiện như canvas (b-ev / b-warn / b-ok / b-gen). */
 export const EVENT_STATUS_BADGE: Record<EventStatus, { text: string; tone: Tone }> = {
-  Open: { text: 'Đang mở đăng ký & thu chi', tone: 'event' },
-  Completed: { text: 'Đã kết thúc – chờ quyết toán', tone: 'warning' },
+  Open: { text: 'Đang mở đăng ký & thu tiền', tone: 'event' },
+  Completed: { text: 'Đã đóng danh sách – chờ quyết toán', tone: 'warning' },
   Settled: { text: 'Đã quyết toán', tone: 'success' },
   Cancelled: { text: 'Đã hủy', tone: 'neutral' },
 };
@@ -175,9 +196,8 @@ export function isActiveEvent(status: EventStatus): boolean {
 }
 
 export const PAYMENT_STATUS_BADGE: Record<ParticipantPaymentStatus, { text: string; tone: Tone }> = {
-  Paid: { text: 'Đã đóng', tone: 'success' },
-  Pending: { text: 'Chờ xác nhận', tone: 'warning' },
-  Unpaid: { text: 'Chưa đóng', tone: 'danger' },
+  Paid: { text: 'Đã nộp', tone: 'success' },
+  Unpaid: { text: 'Chưa nộp', tone: 'danger' },
   NoCharge: { text: 'Chưa có khoản thu', tone: 'neutral' },
 };
 

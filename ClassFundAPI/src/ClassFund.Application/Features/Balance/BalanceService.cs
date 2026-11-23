@@ -23,26 +23,15 @@ public interface IBalanceService
     Task<long> CreditAsync(Guid fundId, Guid userId, long amount, BalanceTransactionType type, Guid? referenceId, Guid actorUserId, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Trừ số dư (M6b đóng khoản thu bằng số dư – <c>ChargePayment</c>; rút tiền – <c>Withdrawal</c>). Không đủ → 422 <c>balance.insufficient</c>;
-    /// đóng khoản thu khi đang có yêu cầu rút chờ → 422 <c>balance.locked_by_withdrawal</c> (BR-26).
+    /// Trừ số dư (chỉ dùng cho rút số dư – <c>Withdrawal</c>). Khóa dòng số dư rồi kiểm tra lại: không đủ → 422 <c>balance.insufficient</c>.
     /// <b>Chỉ gọi trong transaction của module gọi</b>; không tự SaveChanges.
     /// </summary>
     /// <returns>Số dư sau khi trừ.</returns>
     Task<long> DebitAsync(Guid fundId, Guid userId, long amount, BalanceTransactionType type, Guid? referenceId, Guid actorUserId, CancellationToken cancellationToken);
 
-    /// <summary>
-    /// Số dư hiện có của người dùng ở quỹ (0 nếu chưa có), khóa dòng số dư để quyết định dùng bao nhiêu cho một khoản đóng.
-    /// <b>Chỉ gọi trong transaction của module gọi.</b>
-    /// </summary>
-    Task<long> GetBalanceForUpdateAsync(Guid fundId, Guid userId, CancellationToken cancellationToken);
-
-    Task<bool> HasPendingWithdrawalAsync(Guid fundId, Guid userId, CancellationToken cancellationToken);
-
     /// <summary>B-01: số dư, yêu cầu rút gần nhất, lịch sử biến động, số dư ở các quỹ khác.</summary>
     Task<MyBalanceDto> GetMineAsync(Guid fundId, CancellationToken cancellationToken);
 
-    /// <summary>Rút TOÀN BỘ số dư (OQ-11): số tiền = số dư lúc gửi; mỗi người một yêu cầu đang chờ. Quỹ đã tổng kết vẫn rút được (BR-37).</summary>
-    Task<MyBalanceDto> RequestWithdrawalAsync(Guid fundId, CancellationToken cancellationToken);
 }
 
 /// <inheritdoc />
@@ -50,7 +39,6 @@ public sealed class BalanceService(
     IAppDb db,
     ICurrentUser currentUser,
     IAccessService accessService,
-    AuditTrail audit,
     TimeProvider clock) : IBalanceService
 {
     public const int HistoryLimit = 100;
@@ -61,68 +49,15 @@ public sealed class BalanceService(
         return ApplyAsync(fundId, userId, amount, type, referenceId, actorUserId, cancellationToken);
     }
 
-    public async Task<long> DebitAsync(Guid fundId, Guid userId, long amount, BalanceTransactionType type, Guid? referenceId, Guid actorUserId, CancellationToken cancellationToken)
+    public Task<long> DebitAsync(Guid fundId, Guid userId, long amount, BalanceTransactionType type, Guid? referenceId, Guid actorUserId, CancellationToken cancellationToken)
     {
         MoneyRule.EnsureValid(amount);
-        if (type == BalanceTransactionType.ChargePayment)
-        {
-            WithdrawalRule.EnsureCanSpend(await HasPendingWithdrawalAsync(fundId, userId, cancellationToken));
-        }
-
-        return await ApplyAsync(fundId, userId, -amount, type, referenceId, actorUserId, cancellationToken);
+        return ApplyAsync(fundId, userId, -amount, type, referenceId, actorUserId, cancellationToken);
     }
-
-    public async Task<long> GetBalanceForUpdateAsync(Guid fundId, Guid userId, CancellationToken cancellationToken)
-    {
-        WithdrawalRule.EnsureCanSpend(await HasPendingWithdrawalAsync(fundId, userId, cancellationToken));
-        return (await LockExistingAsync(fundId, userId, cancellationToken))?.Balance ?? 0;
-    }
-
-    public Task<bool> HasPendingWithdrawalAsync(Guid fundId, Guid userId, CancellationToken cancellationToken) =>
-        db.AnyAsync(
-            db.Query<WithdrawalRequest>().Where(request =>
-                request.FundId == fundId && request.UserId == userId && request.Status == WithdrawalStatus.Requested),
-            cancellationToken);
 
     public async Task<MyBalanceDto> GetMineAsync(Guid fundId, CancellationToken cancellationToken)
     {
         var userId = await RequireAsync(fundId, Permissions.BalanceViewOwn, cancellationToken);
-        return await BuildMineAsync(fundId, userId, cancellationToken);
-    }
-
-    public async Task<MyBalanceDto> RequestWithdrawalAsync(Guid fundId, CancellationToken cancellationToken)
-    {
-        var userId = await RequireAsync(fundId, Permissions.BalanceWithdraw, cancellationToken);
-        try
-        {
-            await db.InTransactionAsync(
-                async token =>
-                {
-                    var balance = await LockExistingAsync(fundId, userId, token);
-                    var amount = WithdrawalRule.AmountToRequest(balance?.Balance ?? 0, await HasPendingWithdrawalAsync(fundId, userId, token));
-
-                    var request = new WithdrawalRequest(fundId, userId, amount, clock.GetUtcNow());
-                    db.Add(request);
-                    audit.Record(new AuditEntry(
-                        BalanceAuditActions.WithdrawalRequest,
-                        fundId,
-                        userId,
-                        FinancialScope.System,
-                        EntityType: nameof(WithdrawalRequest),
-                        EntityId: request.Id,
-                        After: new { amount, status = nameof(WithdrawalStatus.Requested) },
-                        Note: "Rút toàn bộ số dư cá nhân."));
-                    await db.SaveChangesAsync(token);
-                    return request;
-                },
-                cancellationToken);
-        }
-        catch (UniqueConstraintException)
-        {
-            // Hai lần bấm cùng lúc: unique "một yêu cầu đang chờ / người / quỹ" là chốt chặn cuối.
-            throw new BusinessRuleException(WithdrawalRule.PendingExistsCode, "Bạn đã có yêu cầu rút tiền đang chờ thủ quỹ xử lý.");
-        }
-
         return await BuildMineAsync(fundId, userId, cancellationToken);
     }
 
@@ -165,36 +100,9 @@ public sealed class BalanceService(
             db.Query<PersonalBalance>().Where(item => item.FundId == fundId && item.UserId == userId).Select(item => (long?)item.Balance),
             cancellationToken) ?? 0;
 
-        var latest = await db.FirstOrDefaultAsync(
-            from request in db.Query<WithdrawalRequest>()
-            where request.FundId == fundId && request.UserId == userId
-            join user in db.Query<User>() on request.HandledByUserId equals (Guid?)user.Id into handlers
-            from handler in handlers.DefaultIfEmpty()
-            // Yêu cầu đang chờ (nếu có) trước, rồi tới kết quả lần gần nhất.
-            orderby request.Status == WithdrawalStatus.Requested ? 0 : 1, request.RequestedAt descending, request.HandledAt descending
-            select new MyWithdrawalDto(
-                request.Id,
-                request.Amount,
-                request.Status,
-                request.RequestedAt,
-                request.HandledAt,
-                handler == null ? null : handler.FullName,
-                request.RejectionReason),
-            cancellationToken);
-
         var history = await HistoryAsync(fundId, userId, cancellationToken);
 
-        var others = await db.ToListAsync(
-            from member in db.Query<FundMember>()
-            where member.UserId == userId && member.Status == MemberStatus.Active && member.FundId != fundId
-            join fund in db.Query<Fund>() on member.FundId equals fund.Id
-            join item in db.Query<PersonalBalance>().Where(item => item.UserId == userId) on fund.Id equals item.FundId into balances
-            from personal in balances.DefaultIfEmpty()
-            orderby fund.Name
-            select new OtherFundBalanceDto(fund.Id, fund.Name, fund.Status == FundStatus.Archived, personal == null ? 0 : personal.Balance),
-            cancellationToken);
-
-        return new MyBalanceDto(fundName, balance, latest, history, others);
+        return new MyBalanceDto(fundName, balance, history);
     }
 
     /// <summary>Lịch sử mới nhất trước, mỗi dòng có nội dung + phạm vi gốc (sự kiện nào, khoản thu nào).</summary>
@@ -220,7 +128,12 @@ public sealed class BalanceService(
             select new { line.Id, settlement.EventId, EventName = fundEvent == null ? null : fundEvent.Name },
             cancellationToken);
 
-        // Đóng khoản thu bằng số dư: Payment → nghĩa vụ → khoản thu.
+        // Hoàn tiền khi đóng danh sách: ReferenceId = mã sự kiện.
+        var refundEvents = await db.ToListAsync(
+            db.Query<Event>().Where(item => references.Contains(item.Id)).Select(item => new { item.Id, item.Name }),
+            cancellationToken);
+
+        // (Dữ liệu cũ) đóng khoản thu bằng số dư: Payment → nghĩa vụ → khoản thu.
         var payments = await db.ToListAsync(
             from payment in db.Query<Payment>()
             where references.Contains(payment.Id)
@@ -248,6 +161,9 @@ public sealed class BalanceService(
                 BalanceTransactionType.ChargeRefund => payment is null
                     ? ("Hoàn số dư do thanh toán bị từ chối", null, null)
                     : ($"Hoàn số dư – thanh toán “{payment.Title}” bị từ chối", payment.EventId is null ? FinancialScope.General : FinancialScope.Event, payment.EventName),
+                BalanceTransactionType.ListCloseRefund => refundEvents.FirstOrDefault(item => item.Id == row.ReferenceId) is { } refunded
+                    ? ("Hoàn tiền đã đóng khi đóng danh sách", FinancialScope.Event, refunded.Name)
+                    : ("Hoàn tiền đã đóng khi đóng danh sách", null, null),
                 BalanceTransactionType.Withdrawal => ("Rút số dư – thủ quỹ đã trả", null, null),
                 _ => ("Điều chỉnh số dư", null, null),
             };

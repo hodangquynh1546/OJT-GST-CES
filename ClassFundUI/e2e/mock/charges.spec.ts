@@ -1,11 +1,11 @@
 import { Page, expect, test } from '@playwright/test';
 
 import { AN, FakeAuthApi, FakeUser } from '../support/fake-auth-api';
-import { FUND_ID, FakeCharge, FakeChargesApi, FakeMine, FakeQueueItem } from '../support/fake-charges-api';
+import { FUND_ID, FakeCharge, FakeChargesApi, FakeMine, FakeRow } from '../support/fake-charges-api';
 
-/** M6a-T4: các màn H-01…H-04 với API giả lập (docs/testing/test-strategy.md). */
+/** Các màn H-01, H-01b, H-02, H-03 với API giả lập: học sinh chỉ xem, thủ quỹ tích "đã thu" (docs/testing/test-strategy.md). */
 
-const STUDENT_PERMISSIONS = ['Fund.View', 'Event.Participate', 'Payment.Submit', 'Balance.ViewOwn', 'Balance.Withdraw'];
+const STUDENT_PERMISSIONS = ['Fund.View', 'Event.Participate', 'Balance.ViewOwn'];
 const TREASURER_PERMISSIONS = [
   ...STUDENT_PERMISSIONS,
   'Fund.Manage',
@@ -37,7 +37,7 @@ const charge = (partial: Partial<FakeCharge> & Pick<FakeCharge, 'id' | 'title'>)
   createdAt: '2026-11-10T01:00:00Z',
   categoryId: 'cat1',
   categoryName: 'Quỹ lớp',
-  progress: { assignedCount: 32, paidCount: 26, awaitingCount: 2, collectedAmount: 5200000 },
+  progress: { assignedCount: 32, paidCount: 26, collectedAmount: 5200000 },
   mine: null,
   ...partial,
 });
@@ -49,31 +49,27 @@ const mine = (partial: Partial<FakeMine> & Pick<FakeMine, 'assignmentId' | 'titl
   dueDate: '2026-12-30',
   chargeStatus: 'Open',
   status: 'Unpaid',
-  paymentId: null,
   method: null,
-  paymentStatus: null,
-  rejectionReason: null,
+  paidAt: null,
   isSelfDeclared: false,
   ...partial,
 });
 
-const queueItem = (id: string, name: string): FakeQueueItem => ({
-  id,
+const row = (id: string, name: string, partial: Partial<FakeRow> = {}): FakeRow => ({
   assignmentId: `a-${id}`,
-  chargeId: 'c1',
-  chargeTitle: 'Quỹ lớp HK1',
-  payerUserId: `u-${id}`,
-  payerName: name,
-  payerEmail: `${id}@truong.edu.vn`,
-  amount: 200000,
-  method: 'Cash',
-  transferCode: null,
-  status: 'Submitted',
-  submittedAt: '2026-11-16T13:14:00Z',
-  confirmedAt: null,
+  userId: `u-${id}`,
+  fullName: name,
+  email: `${id}@truong.edu.vn`,
+  role: 'Student',
+  amountDue: 200000,
+  status: 'Unpaid',
   isSelfDeclared: false,
+  paymentId: null,
+  method: null,
+  paymentAt: null,
+  hasProof: false,
   rejectionReason: null,
-  attachments: [],
+  ...partial,
 });
 
 async function openPage(page: Page, role: 'Treasurer' | 'Student', path: string, api: (page: Page) => FakeChargesApi): Promise<FakeChargesApi> {
@@ -87,60 +83,17 @@ async function openPage(page: Page, role: 'Treasurer' | 'Student', path: string,
   return fake;
 }
 
-test.describe('M6b Đóng bằng số dư', () => {
-  const unpaid = (p: Page, balance: number, withdrawalPending = false) => {
-    const fake = new FakeChargesApi(p, [], [mine({ assignmentId: 'a1', title: 'Quỹ photo HK1', amountDue: 50000 })]);
-    fake.balance = balance;
-    fake.withdrawalPending = withdrawalPending;
-    return fake;
-  };
-
-  test('đủ số dư: chọn "Dùng số dư", trừ ngay và chuyển sang Lịch sử đã đóng', async ({ page }) => {
-    const api = await openPage(page, 'Student', 'my-payments', (p) => unpaid(p, 80000));
-
-    await page.getByRole('button', { name: 'Nộp tiền' }).click();
-    const dialog = page.getByRole('dialog');
-    await expect(dialog).toContainText('Số dư hiện có 80.000 đ');
-    await dialog.getByText('Dùng số dư').click();
-    await dialog.getByRole('button', { name: 'Đóng bằng số dư' }).click();
-
-    await expect(page.getByRole('region', { name: 'Lịch sử đã đóng' })).toContainText('Quỹ photo HK1');
-    expect(api.last('POST', '/me/assignments/a1/payments')?.body).toEqual({ method: 'PersonalBalance', transferCode: null, attachmentId: null });
-  });
-
-  test('số dư không đủ: dùng hết số dư rồi đóng thêm bằng tiền mặt', async ({ page }) => {
-    const api = await openPage(page, 'Student', 'my-payments', (p) => unpaid(p, 20000));
-
-    await page.getByRole('button', { name: 'Nộp tiền' }).click();
-    const dialog = page.getByRole('dialog');
-    await expect(dialog.getByRole('radio', { name: /Dùng số dư/ })).toHaveCount(0);
-    await expect(dialog).toContainText('đóng thêm 30.000 đ');
-    await dialog.getByRole('checkbox').check();
-    await dialog.getByRole('button', { name: 'Xác nhận đã nộp' }).click();
-
-    await expect(page.getByText('Đã gửi. Thủ quỹ sẽ xác nhận khoản đóng của bạn.')).toBeVisible();
-    expect(api.last('POST', '/me/assignments/a1/payments')?.body).toEqual({ method: 'Cash', transferCode: null, attachmentId: null, useBalance: true });
-    await expect(page.getByText('đã dùng 20.000 đ số dư')).toBeVisible();
-  });
-
-  test('đang chờ rút: không hiện lựa chọn "Dùng số dư"', async ({ page }) => {
-    await openPage(page, 'Student', 'my-payments', (p) => unpaid(p, 80000, true));
-
-    await page.getByRole('button', { name: 'Nộp tiền' }).click();
-    await expect(page.getByRole('dialog')).not.toContainText('Dùng số dư');
-  });
-});
-
 test.describe('H-01 Khoản thu chung', () => {
-  test('thủ quỹ thấy tiến độ thu và nút Theo dõi; tab Đã đóng tách riêng', async ({ page }) => {
-    await openPage(page, 'Treasurer', 'charges', (p) => new FakeChargesApi(p, [charge({ id: 'c1', title: 'Quỹ lớp HK1' }), charge({ id: 'c2', title: 'Quỹ cũ', status: 'Closed' })]));
+  test('thủ quỹ thấy tiến độ thu, không có hạn và nút Theo dõi; tab Đã đóng tách riêng', async ({ page }) => {
+    await openPage(page, 'Treasurer', 'charges', (p) => new FakeChargesApi(p, [charge({ id: 'c1', title: 'Quỹ lớp HK1', dueDate: null }), charge({ id: 'c2', title: 'Quỹ cũ', status: 'Closed', dueDate: null })]));
 
     await expect(page.getByRole('heading', { name: 'Khoản thu chung' })).toBeVisible();
-    const row = page.getByRole('article').filter({ hasText: 'Quỹ lớp HK1' });
-    await expect(row).toContainText('200.000 đ/người');
-    await expect(row).toContainText('26/32 đã đóng');
-    await expect(row).toContainText('2 chờ xác nhận');
-    await expect(row.getByRole('link', { name: 'Theo dõi' })).toBeVisible();
+    const item = page.getByRole('article').filter({ hasText: 'Quỹ lớp HK1' });
+    await expect(item).toContainText('200.000 đ/người');
+    await expect(item).toContainText('không có hạn');
+    await expect(item).toContainText('26/32 đã nộp');
+    await expect(item).not.toContainText('chờ xác nhận');
+    await expect(item.getByRole('link', { name: 'Theo dõi' })).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Đang mở 1' })).toBeVisible();
 
     await page.getByRole('tab', { name: 'Đã đóng 1' }).click();
@@ -148,24 +101,20 @@ test.describe('H-01 Khoản thu chung', () => {
     await expect(page.getByText('Quỹ lớp HK1')).toHaveCount(0);
   });
 
-  test('học sinh không có nút Tạo khoản thu / Theo dõi, nhưng nộp tiền được ngay trên dòng', async ({ page }) => {
-    const api = await openPage(page, 'Student', 'charges', (p) =>
+  test('học sinh chỉ xem: không có Tạo khoản thu / Theo dõi / Nộp tiền', async ({ page }) => {
+    await openPage(page, 'Student', 'charges', (p) =>
       new FakeChargesApi(p, [charge({ id: 'c1', title: 'Quỹ lớp HK1', progress: null, mine: { assignmentId: 'a1', status: 'Unpaid', amountDue: 200000 } })], [mine({ assignmentId: 'a1', title: 'Quỹ lớp HK1' })]),
     );
 
     await expect(page.getByRole('button', { name: '+ Tạo khoản thu' })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Theo dõi' })).toHaveCount(0);
-    const row = page.getByRole('article').filter({ hasText: 'Quỹ lớp HK1' });
-    await expect(row).toContainText('Của tôi: Chưa đóng');
-    await expect(row).not.toContainText('đã đóng'); // không lộ tiến độ thu cho học sinh
-
-    await row.getByRole('button', { name: 'Nộp tiền' }).click();
-    await page.getByRole('dialog').getByRole('button', { name: 'Xác nhận đã nộp' }).click();
-    await expect(page.getByText('Đã gửi. Thủ quỹ sẽ xác nhận khoản đóng của bạn.')).toBeVisible();
-    expect(api.last('POST', '/me/assignments/a1/payments')?.body).toEqual({ method: 'Cash', transferCode: null, attachmentId: null });
+    await expect(page.getByRole('button', { name: 'Nộp tiền' })).toHaveCount(0);
+    const item = page.getByRole('article').filter({ hasText: 'Quỹ lớp HK1' });
+    await expect(item).toContainText('Của tôi: Chưa nộp');
+    await expect(item).not.toContainText('đã nộp'); // không lộ tiến độ thu cho học sinh
   });
 
-  test('H-02: kiểm tra ô trống, hiện số thành viên và tổng phải thu, rồi tạo khoản thu', async ({ page }) => {
+  test('H-02: kiểm tra ô trống, không có ô hạn đóng, rồi tạo khoản thu không hạn', async ({ page }) => {
     const api = await openPage(page, 'Treasurer', 'charges', (p) => new FakeChargesApi(p, [], [], [], 32));
 
     await page.getByRole('button', { name: '+ Tạo khoản thu' }).click();
@@ -174,120 +123,96 @@ test.describe('H-01 Khoản thu chung', () => {
     await expect(dialog.getByText('Vui lòng nhập tên khoản thu.')).toBeVisible();
     await expect(dialog.getByText('Vui lòng chọn danh mục thu.')).toBeVisible();
     await expect(dialog.getByText('Số tiền mỗi người phải lớn hơn 0.')).toBeVisible();
-    await expect(dialog.getByText('Vui lòng chọn hạn đóng.')).toBeVisible();
+    await expect(dialog.getByLabel(/Hạn đóng/)).toHaveCount(0);
     expect(api.count('POST', '/charges')).toBe(0);
 
     await dialog.getByLabel(/Tên khoản thu/).fill('Quỹ vệ sinh lớp HK1');
     await dialog.getByLabel(/Danh mục thu/).selectOption({ label: 'Quỹ lớp' });
     await dialog.getByLabel(/Số tiền mỗi người/).fill('20000');
-    await dialog.getByLabel(/Hạn đóng/).fill('2099-12-10');
     await expect(dialog).toContainText('Áp cho 32 thành viên → tổng phải thu 640.000 đ');
     await dialog.getByRole('button', { name: 'Tạo khoản thu' }).click();
 
     await expect(page.getByText('Đã tạo khoản thu “Quỹ vệ sinh lớp HK1”.')).toBeVisible();
     await expect(page.getByRole('article').filter({ hasText: 'Quỹ vệ sinh lớp HK1' })).toBeVisible();
-    expect(api.last('POST', '/charges')?.body).toEqual({ title: 'Quỹ vệ sinh lớp HK1', purpose: null, amountPerPerson: 20000, dueDate: '2099-12-10', categoryId: 'cat1' });
+    expect(api.last('POST', '/charges')?.body).toEqual({ title: 'Quỹ vệ sinh lớp HK1', purpose: null, amountPerPerson: 20000, dueDate: null, categoryId: 'cat1' });
   });
 });
 
-test.describe('H-03 Khoản cần đóng của tôi', () => {
-  test('tách Cần đóng / Lịch sử, nêu lý do bị từ chối và cho gửi lại', async ({ page }) => {
+test.describe('H-01b Theo dõi khoản thu (thủ quỹ tích "đã thu")', () => {
+  const open = (p: Page) =>
+    new FakeChargesApi(p, [charge({ id: 'c1', title: 'Quỹ lớp HK1', dueDate: null })], [], [row('1', 'Phạm Đức Long'), row('2', 'Lê Thu Hà', { status: 'Paid', method: 'Cash', paymentAt: '2026-11-18T01:00:00Z' })]);
+
+  test('tích đã thu chỉ có Tiền mặt / Chuyển khoản, rồi dòng chuyển sang Đã nộp', async ({ page }) => {
+    const api = await openPage(page, 'Treasurer', 'charges/c1', open);
+
+    const dong = page.getByRole('row').filter({ hasText: 'Phạm Đức Long' });
+    await expect(dong).toContainText('Chưa nộp');
+    await dong.getByRole('button', { name: 'Đã thu' }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByText('Tiền mặt')).toBeVisible();
+    await expect(dialog.getByText('Chuyển khoản', { exact: true })).toBeVisible();
+    await expect(dialog).not.toContainText('Dùng số dư');
+    await dialog.getByText('Chuyển khoản', { exact: true }).click();
+    await dialog.getByLabel(/Mã giao dịch/).fill('FT123');
+    await dialog.getByRole('button', { name: 'Xác nhận đã thu' }).click();
+
+    await expect(page.getByText('Đã ghi nhận Phạm Đức Long đã nộp.')).toBeVisible();
+    expect(api.last('POST', '/assignments/a-1/collect')?.body).toEqual({ method: 'BankTransfer', transferCode: 'FT123' });
+    await expect(page.getByRole('row').filter({ hasText: 'Phạm Đức Long' })).toContainText('Đã nộp');
+  });
+
+  test('bỏ xác nhận thu bắt buộc có lý do', async ({ page }) => {
+    const api = await openPage(page, 'Treasurer', 'charges/c1', open);
+
+    await page.getByRole('row').filter({ hasText: 'Lê Thu Hà' }).getByRole('button', { name: 'Bỏ xác nhận thu' }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByRole('button', { name: 'Bỏ xác nhận thu' })).toBeDisabled();
+    await dialog.getByLabel('Lý do').fill('Tích nhầm người');
+    await dialog.getByRole('button', { name: 'Bỏ xác nhận thu' }).click();
+
+    await expect(page.getByText('Đã bỏ xác nhận thu của Lê Thu Hà.')).toBeVisible();
+    expect(api.last('POST', '/assignments/a-2/uncollect')?.body).toEqual({ reason: 'Tích nhầm người' });
+    await expect(page.getByRole('row').filter({ hasText: 'Lê Thu Hà' })).toContainText('Chưa nộp');
+  });
+
+  test('"Nhắc đóng" từng người và lỗi 409 nhắc quá sớm hiện thông báo tiếng Việt', async ({ page }) => {
+    const api = await openPage(page, 'Treasurer', 'charges/c1', open);
+    const dong = page.getByRole('row').filter({ hasText: 'Phạm Đức Long' });
+
+    await dong.getByRole('button', { name: 'Nhắc đóng' }).click();
+    await expect(page.getByText('Đã nhắc Phạm Đức Long đóng khoản này.')).toBeVisible();
+    expect(api.last('POST', '/assignments/a-1/remind')).toBeTruthy();
+
+    api.failNext = { status: 409, code: 'charge.remind_too_soon', title: 'x' };
+    await dong.getByRole('button', { name: 'Nhắc đóng' }).click();
+    await expect(page.getByText('Vừa nhắc xong. Vui lòng chờ ít nhất 1 giờ rồi nhắc lại.')).toBeVisible();
+  });
+});
+
+test.describe('H-03 Khoản cần đóng của tôi (chỉ xem)', () => {
+  test('tách Chưa nộp / Đã nộp, không có nút nộp tiền', async ({ page }) => {
     await openPage(page, 'Student', 'my-payments', (p) =>
       new FakeChargesApi(p, [], [
-        mine({ assignmentId: 'a1', title: 'Quỹ photo HK1', amountDue: 30000 }),
-        mine({ assignmentId: 'a2', title: 'Áo lớp', status: 'Unpaid', paymentStatus: 'Rejected', rejectionReason: 'Ảnh bill không thấy số tiền' }),
-        mine({ assignmentId: 'a3', title: 'Quỹ lớp HK1', status: 'AwaitingConfirmation', method: 'BankTransfer', paymentStatus: 'Submitted' }),
-        mine({ assignmentId: 'a4', title: 'Quỹ đầu năm', amountDue: 400000, status: 'Paid', method: 'BankTransfer', paymentStatus: 'Confirmed' }),
+        mine({ assignmentId: 'a1', title: 'Quỹ photo HK1', amountDue: 30000, dueDate: null }),
+        mine({ assignmentId: 'a2', title: 'Áo lớp', amountDue: 200000 }),
+        mine({ assignmentId: 'a4', title: 'Quỹ đầu năm', amountDue: 400000, status: 'Paid', method: 'BankTransfer' }),
       ]),
     );
 
-    await expect(page.locator('.stat').filter({ hasText: 'Còn phải đóng' })).toContainText('230.000 đ');
-    await expect(page.locator('.stat').filter({ hasText: 'Chờ thủ quỹ xác nhận' })).toContainText('200.000 đ');
-    const open = page.getByRole('region', { name: 'Cần đóng' });
-    await expect(open.getByText('Quỹ photo HK1')).toBeVisible();
-    await expect(open.getByText('Bị từ chối: “Ảnh bill không thấy số tiền” – vui lòng gửi lại')).toBeVisible();
-    await expect(open.getByRole('button', { name: 'Gửi lại' })).toHaveCount(1);
-    await expect(open.getByRole('button', { name: 'Nộp tiền' })).toHaveCount(1);
-    await expect(page.getByRole('region', { name: 'Lịch sử đã đóng' }).getByText('Quỹ đầu năm')).toBeVisible();
-  });
-
-  test('chuyển khoản: nút gửi bị khóa tới khi có ảnh minh chứng; Hủy không gọi API', async ({ page }) => {
-    const api = await openPage(page, 'Student', 'my-payments', (p) => new FakeChargesApi(p, [], [mine({ assignmentId: 'a1', title: 'Quỹ photo HK1' })]));
-
-    await page.getByRole('button', { name: 'Nộp tiền' }).click();
-    const dialog = page.getByRole('dialog');
-    await dialog.getByText('Chuyển khoản', { exact: true }).click();
-    await expect(dialog.getByRole('button', { name: 'Xác nhận đã nộp' })).toBeDisabled();
-    await expect(dialog.getByText('bắt buộc')).toBeVisible();
-    await dialog.getByRole('button', { name: 'Hủy' }).click();
-    await expect(dialog).toHaveCount(0);
-    expect(api.count('POST', '/payments')).toBe(0);
-  });
-
-  test('lỗi 409 từ backend hiện thông báo tiếng Việt ngay trong hộp thoại', async ({ page }) => {
-    const api = await openPage(page, 'Student', 'my-payments', (p) => new FakeChargesApi(p, [], [mine({ assignmentId: 'a1', title: 'Quỹ photo HK1' })]));
-    api.failNext = { status: 409, code: 'payment.not_payable', title: 'x' };
-
-    await page.getByRole('button', { name: 'Nộp tiền' }).click();
-    await page.getByRole('dialog').getByRole('button', { name: 'Xác nhận đã nộp' }).click();
-
-    await expect(page.getByRole('dialog').getByRole('alert')).toContainText('Khoản này đã nộp hoặc đang chờ thủ quỹ xác nhận.');
+    await expect(page.locator('.stat').filter({ hasText: 'Chưa nộp' })).toContainText('230.000 đ');
+    await expect(page.locator('.stat').filter({ hasText: 'Đã nộp' })).toContainText('400.000 đ');
+    await expect(page.locator('.stat').filter({ hasText: 'Chờ thủ quỹ xác nhận' })).toHaveCount(0);
+    const pending = page.getByRole('region', { name: 'Chưa nộp' });
+    await expect(pending.getByText('Quỹ photo HK1')).toBeVisible();
+    await expect(pending.getByText('Không có hạn')).toBeVisible();
+    await expect(page.getByRole('button', { name: /Nộp tiền|Gửi lại/ })).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'Đã nộp' }).getByText('Quỹ đầu năm')).toBeVisible();
   });
 });
 
-test.describe('H-04 phạm vi trong hàng chờ', () => {
-  test('phân biệt khoản quỹ chung và khoản của từng sự kiện', async ({ page }) => {
-    await openPage(page, 'Treasurer', 'payments', (p) =>
-      new FakeChargesApi(p, [], [], [
-        queueItem('p1', 'Phạm Đức Long'),
-        { ...queueItem('p2', 'Lê Thu Hà'), eventId: 'e1', eventName: 'Dã ngoại Ba Vì', chargeTitle: 'Tiền xe' },
-      ]),
-    );
-
-    await expect(page.getByRole('button', { name: /Phạm Đức Long/ })).toContainText('Quỹ chung');
-    await expect(page.getByRole('button', { name: /Lê Thu Hà/ })).toContainText('Sự kiện: Dã ngoại Ba Vì');
-    await page.getByRole('button', { name: /Lê Thu Hà/ }).click();
-    await expect(page.getByText('Sự kiện: Dã ngoại Ba Vì').last()).toBeVisible();
-  });
-});
-
-test.describe('H-04 Xác nhận thanh toán', () => {
-  test('xác nhận: khoản rời hàng chờ và gọi đúng API', async ({ page }) => {
-    const api = await openPage(page, 'Treasurer', 'payments', (p) => new FakeChargesApi(p, [], [], [queueItem('p1', 'Phạm Đức Long'), queueItem('p2', 'Lê Thu Hà')]));
-
-    await expect(page.getByText('2 chờ')).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Phạm Đức Long · Quỹ lớp HK1' })).toBeVisible();
-    await page.getByRole('button', { name: 'Xác nhận đã nhận tiền' }).click();
-
-    await expect(page.getByText('Đã xác nhận khoản đóng của Phạm Đức Long.')).toBeVisible();
-    await expect(page.getByRole('button', { name: /Phạm Đức Long/ })).toHaveCount(0);
-    expect(api.last('POST', '/payments/p1/confirm')).toBeTruthy();
-    await expect(page.getByRole('heading', { name: 'Lê Thu Hà · Quỹ lớp HK1' })).toBeVisible();
-  });
-
-  test('từ chối bắt buộc có lý do và không gọi API khi để trống', async ({ page }) => {
-    const api = await openPage(page, 'Treasurer', 'payments', (p) => new FakeChargesApi(p, [], [], [queueItem('p1', 'Phạm Đức Long')]));
-
-    await page.getByRole('button', { name: 'Từ chối', exact: true }).click();
-    await expect(page.getByText('Vui lòng nhập lý do từ chối.')).toBeVisible();
-    expect(api.count('POST', '/reject')).toBe(0);
-
-    await page.getByLabel(/Lý do từ chối/).fill('Sai số tiền');
-    await page.getByRole('button', { name: 'Từ chối', exact: true }).click();
-    await expect(page.getByText('Đã từ chối khoản đóng của Phạm Đức Long.')).toBeVisible();
-    expect(api.last('POST', '/payments/p1/reject')?.body).toEqual({ reason: 'Sai số tiền' });
-  });
-
-  test('hàng chờ trống hiện hướng dẫn; học sinh vào thẳng đường dẫn bị chuyển tới trang "Không có quyền"', async ({ page }) => {
-    await openPage(page, 'Treasurer', 'payments', (p) => new FakeChargesApi(p, [], [], []));
-    await expect(page.getByText('Không có thanh toán nào đang chờ')).toBeVisible();
-
-    const student = await page.context().newPage();
-    const auth = new FakeAuthApi(student);
-    auth.addAccount(userAs('Student'), 'Passw0rd1');
-    auth.signIn(userAs('Student'));
-    await auth.install();
-    await student.goto(`/funds/${FUND_ID}/payments`);
-    await expect(student).toHaveURL(/\/forbidden$/);
+test.describe('Phân quyền', () => {
+  test('trang Xác nhận thanh toán không còn: đường dẫn /payments không tồn tại', async ({ page }) => {
+    await openPage(page, 'Treasurer', 'charges', (p) => new FakeChargesApi(p, []));
+    await expect(page.getByRole('link', { name: 'Xác nhận thanh toán' })).toHaveCount(0);
   });
 });

@@ -30,13 +30,14 @@ public class RolePermissionsTests
     }
 
     [Fact]
-    public void Student_cannot_confirm_payments_or_see_audit()
+    public void Student_cannot_collect_payments_withdraw_or_see_audit()
     {
         var student = RolePermissions.For(MemberRole.Student);
         Assert.DoesNotContain(Permissions.PaymentConfirm, student);
+        Assert.DoesNotContain(Permissions.BalanceHandle, student);
         Assert.DoesNotContain(Permissions.AuditView, student);
         Assert.DoesNotContain(Permissions.ReportView, student);
-        Assert.Contains(Permissions.PaymentSubmit, student);
+        Assert.Contains(Permissions.BalanceViewOwn, student);
     }
 
     [Fact]
@@ -106,24 +107,27 @@ public class FileRuleTests
 
 public class WithdrawalRuleTests
 {
-    [Fact]
-    public void Withdrawal_requests_the_whole_balance() =>
-        Assert.Equal(150_000, WithdrawalRule.AmountToRequest(150_000, hasPendingRequest: false));
+    [Theory]
+    [InlineData(10_000)]
+    [InlineData(11_000)]
+    [InlineData(150_000)]
+    public void Valid_amounts_are_at_least_10k_and_a_multiple_of_1k(long amount) => WithdrawalRule.EnsureValidAmount(amount);
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1_000)]
+    [InlineData(9_000)]
+    [InlineData(10_500)]
+    [InlineData(12_345)]
+    [InlineData(-5_000)]
+    public void Amounts_below_10k_or_not_a_multiple_of_1k_are_refused(long amount) =>
+        Assert.Equal(WithdrawalRule.InvalidAmountCode, Assert.Throws<BusinessRuleException>(() => WithdrawalRule.EnsureValidAmount(amount)).Code);
 
     [Fact]
-    public void Cannot_request_twice_or_with_zero_balance()
+    public void The_whole_balance_may_be_withdrawn_but_not_more()
     {
-        Assert.Equal(WithdrawalRule.PendingExistsCode,
-            Assert.Throws<BusinessRuleException>(() => WithdrawalRule.AmountToRequest(150_000, hasPendingRequest: true)).Code);
-        Assert.Equal(WithdrawalRule.NothingToWithdrawCode,
-            Assert.Throws<BusinessRuleException>(() => WithdrawalRule.AmountToRequest(0, hasPendingRequest: false)).Code);
-    }
-
-    [Fact]
-    public void Balance_pending_withdrawal_cannot_be_spent()
-    {
-        Assert.Throws<BusinessRuleException>(() => WithdrawalRule.EnsureCanSpend(hasPendingRequest: true));
-        WithdrawalRule.EnsureCanSpend(hasPendingRequest: false);
+        WithdrawalRule.EnsureWithinBalance(38_000, 38_000);
+        Assert.Equal(WithdrawalRule.InsufficientCode, Assert.Throws<BusinessRuleException>(() => WithdrawalRule.EnsureWithinBalance(39_000, 38_000)).Code);
     }
 }
 
@@ -180,15 +184,23 @@ public class EventStatusRulesTests
     [InlineData(EventStatus.Completed, false)]
     [InlineData(EventStatus.Settled, false)]
     [InlineData(EventStatus.Cancelled, false)]
-    public void Only_open_events_accept_new_charges_and_expenses(EventStatus status, bool expected) =>
-        Assert.Equal(expected, EventStatusRules.AcceptsNewChargesAndExpenses(status));
+    public void Only_open_events_accept_new_charges(EventStatus status, bool expected) =>
+        Assert.Equal(expected, EventStatusRules.AcceptsNewCharges(status));
 
     [Theory]
-    [InlineData(EventStatus.Open, true)]
+    [InlineData(EventStatus.Open, false)]
     [InlineData(EventStatus.Completed, true)]
     [InlineData(EventStatus.Settled, false)]
     [InlineData(EventStatus.Cancelled, false)]
-    public void Payments_are_accepted_until_settlement(EventStatus status, bool expected) =>
+    public void Expenses_are_only_allowed_after_the_list_is_closed_and_before_settlement(EventStatus status, bool expected) =>
+        Assert.Equal(expected, EventStatusRules.AcceptsExpenses(status));
+
+    [Theory]
+    [InlineData(EventStatus.Open, true)]
+    [InlineData(EventStatus.Completed, false)]
+    [InlineData(EventStatus.Settled, false)]
+    [InlineData(EventStatus.Cancelled, false)]
+    public void Payments_are_only_collected_while_the_list_is_open(EventStatus status, bool expected) =>
         Assert.Equal(expected, EventStatusRules.AcceptsPayments(status));
 }
 

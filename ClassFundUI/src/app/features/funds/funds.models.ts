@@ -17,9 +17,7 @@ export interface FundSummary {
   memberCount: number;
   /** Số dư quỹ chung (không gồm tiền sự kiện). */
   generalBalance: number;
-  /** Chỉ có với người xác nhận được thanh toán (thủ quỹ). */
-  pendingPaymentCount: number | null;
-  /** Số tiền mình còn phải đóng ở các khoản thu đang mở (chung và sự kiện) và số khoản. */
+  /** Số tiền mình chưa nộp ở các khoản thu đang mở (chung và sự kiện) và số khoản. */
   myDueAmount: number;
   myDueCount: number;
   /** Số dư cá nhân của mình ở quỹ này. */

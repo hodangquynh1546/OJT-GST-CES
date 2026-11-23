@@ -6,6 +6,7 @@ using ClassFund.Application.Features.Ledger;
 using ClassFund.Domain.Authorization;
 using ClassFund.Domain.Entities;
 using ClassFund.Domain.Enums;
+using ClassFund.Domain.Rules;
 
 namespace ClassFund.Application.Features.Reports;
 
@@ -29,7 +30,7 @@ public interface IReportsService
 }
 
 /// <inheritdoc />
-public sealed class ReportsService(IAppDb db, ICurrentUser currentUser, IAccessService accessService, IEventsService events) : IReportsService
+public sealed class ReportsService(IAppDb db, ICurrentUser currentUser, IAccessService accessService, IEventsService events, TimeProvider clock) : IReportsService
 {
     public const int RecentEntryCount = 5;
     public const int NotificationCount = 3;
@@ -257,7 +258,7 @@ public sealed class ReportsService(IAppDb db, ICurrentUser currentUser, IAccessS
     private async Task<IReadOnlyList<OpenChargeDto>> OpenChargesAsync(Guid fundId, CancellationToken cancellationToken)
     {
         var charges = await db.ToListAsync(
-            db.Query<Charge>().Where(charge => charge.FundId == fundId && charge.EventId == null && charge.Status == ChargeStatus.Open).OrderBy(charge => charge.DueDate),
+            db.Query<Charge>().Where(charge => charge.FundId == fundId && charge.EventId == null && charge.Status == ChargeStatus.Open).OrderBy(charge => charge.CreatedAt),
             cancellationToken);
         var ids = charges.Select(charge => charge.Id).ToArray();
         var assignments = await db.ToListAsync(
@@ -276,8 +277,7 @@ public sealed class ReportsService(IAppDb db, ICurrentUser currentUser, IAccessS
                     charge.AmountPerPerson,
                     charge.DueDate,
                     mine.Length,
-                    mine.Count(assignment => assignment.Status == AssignmentStatus.Paid),
-                    mine.Count(assignment => assignment.Status == AssignmentStatus.AwaitingConfirmation));
+                    mine.Count(assignment => assignment.Status == AssignmentStatus.Paid));
             })
             // "Chưa hoàn thành": còn người chưa đóng.
             .Where(charge => charge.PaidCount < charge.AssignedCount)
@@ -286,33 +286,36 @@ public sealed class ReportsService(IAppDb db, ICurrentUser currentUser, IAccessS
 
     private async Task<ManagerTodoDto> TodoAsync(Guid fundId, IReadOnlyList<OverviewEventDto> eventList, CancellationToken cancellationToken)
     {
-        var pendingPayments = await db.CountAsync(
-            from payment in db.Query<Payment>()
-            where payment.Status == PaymentStatus.Submitted
-            join assignment in db.Query<ChargeAssignment>() on payment.AssignmentId equals assignment.Id
+        var unpaidGeneral = await db.CountAsync(
+            from assignment in db.Query<ChargeAssignment>()
+            where assignment.Status == AssignmentStatus.Unpaid
             join charge in db.Query<Charge>() on assignment.ChargeId equals charge.Id
-            where charge.FundId == fundId
-            select payment.Id,
+            where charge.FundId == fundId && charge.EventId == null && charge.Status == ChargeStatus.Open
+            select assignment.Id,
             cancellationToken);
-        var pendingWithdrawals = await db.CountAsync(
-            db.Query<WithdrawalRequest>().Where(request => request.FundId == fundId && request.Status == WithdrawalStatus.Requested), cancellationToken);
+
+        var today = VietnamTime.DateOf(clock.GetUtcNow());
+        var deadlines = await db.ToListAsync(
+            db.Query<Event>()
+                .Where(item => item.FundId == fundId && item.Status == EventStatus.Open && item.ListDeadline != null && item.ListDeadline <= today)
+                .Select(item => new NamedItemDto(item.Id, item.Name)),
+            cancellationToken);
         var awaiting = eventList.Where(item => item.Status == EventStatus.Completed).Select(item => new NamedItemDto(item.Id, item.Name)).ToArray();
-        return new ManagerTodoDto(pendingPayments, pendingWithdrawals, awaiting);
+        return new ManagerTodoDto(unpaidGeneral, deadlines, awaiting);
     }
 
     private async Task<MyOverviewDto> MyOverviewAsync(Guid fundId, Guid userId, CancellationToken cancellationToken)
     {
         var rows = await db.ToListAsync(
             from assignment in db.Query<ChargeAssignment>()
-            where assignment.UserId == userId && (assignment.Status == AssignmentStatus.Unpaid || assignment.Status == AssignmentStatus.AwaitingConfirmation)
+            where assignment.UserId == userId && assignment.Status == AssignmentStatus.Unpaid
             join charge in db.Query<Charge>() on assignment.ChargeId equals charge.Id
             where charge.FundId == fundId && charge.Status == ChargeStatus.Open
             join item in db.Query<Event>() on charge.EventId equals (Guid?)item.Id into events
             from fundEvent in events.DefaultIfEmpty()
             select new { assignment.Status, assignment.AmountDue, charge.Title, charge.DueDate, EventName = fundEvent == null ? null : fundEvent.Name },
             cancellationToken);
-        var unpaid = rows.Where(row => row.Status == AssignmentStatus.Unpaid).OrderBy(row => row.DueDate).ToArray();
-        var awaiting = rows.Where(row => row.Status == AssignmentStatus.AwaitingConfirmation).ToArray();
+        var unpaid = rows.Where(row => row.Status == AssignmentStatus.Unpaid).OrderBy(row => row.DueDate ?? DateOnly.MaxValue).ToArray();
         var nearest = unpaid.FirstOrDefault();
         var balance = await db.FirstOrDefaultAsync(
             db.Query<PersonalBalance>().Where(item => item.FundId == fundId && item.UserId == userId).Select(item => (long?)item.Balance),
@@ -325,8 +328,6 @@ public sealed class ReportsService(IAppDb db, ICurrentUser currentUser, IAccessS
             nearest?.DueDate,
             nearest?.AmountDue ?? 0,
             nearest?.EventName,
-            awaiting.Sum(row => row.AmountDue),
-            awaiting.Length == 1 ? awaiting[0].Title : awaiting.Length > 1 ? $"{awaiting.Length} khoản" : null,
             balance);
     }
 
@@ -377,11 +378,10 @@ public sealed class ReportsService(IAppDb db, ICurrentUser currentUser, IAccessS
 
         var unpaid = await db.ToListAsync(
             from assignment in db.Query<ChargeAssignment>()
-            where userIds.Contains(assignment.UserId)
-                && (assignment.Status == AssignmentStatus.Unpaid || assignment.Status == AssignmentStatus.AwaitingConfirmation)
+            where userIds.Contains(assignment.UserId) && assignment.Status == AssignmentStatus.Unpaid
             join charge in db.Query<Charge>() on assignment.ChargeId equals charge.Id
             where charge.FundId == fundId && charge.EventId == null && charge.Status == ChargeStatus.Open
-            orderby charge.DueDate
+            orderby charge.CreatedAt
             select new { assignment.UserId, charge.Title, assignment.Status },
             cancellationToken);
 

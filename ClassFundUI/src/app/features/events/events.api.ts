@@ -8,7 +8,7 @@ import { PagedResult } from '../../shared/models/paged-result';
 import { toHttpParams } from '../../shared/utils/http-params';
 import { AssignmentRow, CreateChargeRequest } from '../charges/charges.models';
 import {
-  CompletionPreview,
+  CloseListPreview,
   EventCharge,
   EventDetail,
   EventParticipants,
@@ -47,12 +47,14 @@ export class EventsApi {
     return this.http.post<EventDetail>(this.url(fundId, eventId, '/cancel'), { reason });
   }
 
-  completionPreview(fundId: string, eventId: string): Observable<CompletionPreview> {
-    return this.http.get<CompletionPreview>(this.url(fundId, eventId, '/completion-preview'));
+  /** Xem trước "Đóng danh sách": ai bị loại (chưa đóng đủ), số tiền hoàn vào số dư, hạn đóng danh sách. */
+  closeListPreview(fundId: string, eventId: string): Observable<CloseListPreview> {
+    return this.http.get<CloseListPreview>(this.url(fundId, eventId, '/close-list-preview'));
   }
 
-  complete(fundId: string, eventId: string): Observable<CompletionPreview> {
-    return this.http.post<CompletionPreview>(this.url(fundId, eventId, '/complete'), null);
+  /** Đóng danh sách (Open → Completed): loại người chưa đóng đủ, hoàn tiền đã đóng vào số dư cá nhân. */
+  closeList(fundId: string, eventId: string, confirmEarly: boolean): Observable<CloseListPreview> {
+    return this.http.post<CloseListPreview>(this.url(fundId, eventId, '/close-list'), { confirmEarly });
   }
 
   participants(fundId: string, eventId: string, paymentStatus: ParticipantPaymentStatus | null = null): Observable<EventParticipants> {

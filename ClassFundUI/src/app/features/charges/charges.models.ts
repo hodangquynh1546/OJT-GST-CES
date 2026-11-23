@@ -1,6 +1,5 @@
 import { AssignmentStatus, PaymentMethod, PaymentStatus } from '../../shared/models/labels';
 import { MemberRole } from '../../core/auth/auth.models';
-import { Attachment } from '../attachments/attachments.models';
 
 export type ChargeStatus = 'Open' | 'Closed' | 'Cancelled';
 
@@ -14,7 +13,6 @@ export const CHARGE_STATUS_LABEL: Record<ChargeStatus, string> = {
 export interface ChargeProgress {
   assignedCount: number;
   paidCount: number;
-  awaitingCount: number;
   collectedAmount: number;
 }
 
@@ -30,7 +28,8 @@ export interface Charge {
   title: string;
   purpose: string | null;
   amountPerPerson: number;
-  dueDate: string;
+  /** Khoản thu chung không có hạn (null): thủ quỹ nhắc đóng đến khi mọi người đã nộp. */
+  dueDate: string | null;
   status: ChargeStatus;
   createdAt: string;
   categoryId: string | null;
@@ -43,7 +42,7 @@ export interface CreateChargeRequest {
   title: string;
   purpose: string | null;
   amountPerPerson: number;
-  dueDate: string;
+  dueDate: string | null;
   categoryId: string;
 }
 
@@ -64,68 +63,39 @@ export interface AssignmentRow {
   rejectionReason: string | null;
 }
 
-/** Khoản cần đóng của chính mình (khớp `MyAssignmentItemDto`). */
+/** Khoản cần đóng của chính mình (khớp `MyAssignmentItemDto`) – chỉ xem: Đã nộp / Chưa nộp. */
 export interface MyAssignmentItem {
   assignmentId: string;
   chargeId: string;
   title: string;
   purpose: string | null;
   amountDue: number;
-  dueDate: string;
+  dueDate: string | null;
   chargeStatus: ChargeStatus;
   status: AssignmentStatus;
-  paymentId: string | null;
   method: PaymentMethod | null;
-  paymentStatus: PaymentStatus | null;
-  rejectionReason: string | null;
+  paidAt: string | null;
   isSelfDeclared: boolean;
   eventId: string | null;
   eventName: string | null;
-  /** Số dư cá nhân đã dùng cho khoản này (đóng một phần bằng số dư). */
-  balanceApplied: number;
 }
 
-export interface SubmitPaymentRequest {
-  method: Extract<PaymentMethod, 'Cash' | 'BankTransfer' | 'PersonalBalance'>;
-  transferCode: string | null;
-  attachmentId: string | null;
-  /** Dùng số dư cá nhân trước, phần còn thiếu đóng bằng `method`. */
-  useBalance?: boolean;
+/** Thủ quỹ chỉ được chọn Tiền mặt hoặc Chuyển khoản (số dư không phải phương thức thanh toán). */
+export type CollectMethod = Extract<PaymentMethod, 'Cash' | 'BankTransfer'>;
+
+export interface CollectPaymentRequest {
+  method: CollectMethod;
+  transferCode?: string | null;
 }
 
-export interface SubmittedPayment {
+/** Khớp `PaymentDto`. */
+export interface CollectedPayment {
   id: string;
   assignmentId: string;
   amount: number;
   method: PaymentMethod;
   transferCode: string | null;
   status: PaymentStatus;
-  submittedAt: string;
-  isSelfDeclared: boolean;
-  balanceApplied: number;
-}
-
-/** Một dòng hàng chờ xác nhận (khớp `PaymentQueueItemDto`). */
-export interface PaymentQueueItem {
-  id: string;
-  assignmentId: string;
-  chargeId: string;
-  chargeTitle: string;
-  payerUserId: string;
-  payerName: string;
-  payerEmail: string;
-  amount: number;
-  method: PaymentMethod;
-  transferCode: string | null;
-  status: PaymentStatus;
-  submittedAt: string;
   confirmedAt: string | null;
   isSelfDeclared: boolean;
-  rejectionReason: string | null;
-  attachments: Attachment[];
-  /** Phần đã trừ từ số dư cá nhân; thủ quỹ chỉ cần nhận `amount - balanceApplied`. */
-  balanceApplied: number;
-  /** Khoản thu của sự kiện nào (null = quỹ chung). */
-  eventId: string | null;
-  eventName: string | null;
 }

@@ -50,12 +50,10 @@ public class FundsServiceTests
         Assert.Equal(MemberRole.Owner, asOwner.MyRole);
         Assert.Equal(4, asOwner.MemberCount);
         Assert.Equal(700_000, asOwner.GeneralBalance);
-        Assert.Equal(1, asOwner.PendingPaymentCount);
 
         _ctx.ActAs(_ctx.StudentA);
         var asStudent = Assert.Single(await Service.ListMineAsync(default));
         Assert.Equal(MemberRole.Student, asStudent.MyRole);
-        Assert.Null(asStudent.PendingPaymentCount);
     }
 
     [Fact]

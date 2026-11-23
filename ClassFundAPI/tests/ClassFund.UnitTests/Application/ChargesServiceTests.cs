@@ -88,7 +88,7 @@ public class ChargesServiceTests
         _ctx.ActAs(_ctx.StudentA);
         var asStudent = (await CreateService().ListAsync(_ctx.Fund.Id, new ChargeFilter(null, 1, 20), default)).Items.Single();
 
-        Assert.Equal(new ChargeProgressDto(4, 1, 0, 50_000), asTreasurer.Progress);
+        Assert.Equal(new ChargeProgressDto(4, 1, 50_000), asTreasurer.Progress);
         Assert.Null(asStudent.Progress);
         Assert.Equal(AssignmentStatus.Paid, asStudent.Mine?.Status);
     }

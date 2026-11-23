@@ -14,28 +14,36 @@ export interface Recorded {
   query: URLSearchParams;
 }
 
-interface Request {
-  id: string;
+interface MemberBalance {
   userId: string;
   fullName: string;
   email: string;
+  role: 'Student' | 'Treasurer' | 'Owner';
+  isActive: boolean;
+  balance: number;
+}
+
+interface Withdrawal {
+  id: string;
+  userId: string;
+  fullName: string;
   amount: number;
-  status: 'Requested' | 'Paid' | 'Rejected';
-  requestedAt: string;
-  handledAt: string | null;
+  status: 'Paid' | 'Rejected';
+  at: string;
   handledByName: string | null;
-  rejectionReason: string | null;
-  isMine: boolean;
+  note: string | null;
 }
 
 export class FakeBalanceReportsApi {
   readonly requests: Recorded[] = [];
   balance = 38_000;
-  myRequest: Request | null = null;
-  readonly withdrawals: Request[] = [
-    { id: 'w1', userId: 'u-ha', fullName: 'Lê Thu Hà', email: 'ha.le@truong.edu.vn', amount: 38_000, status: 'Requested', requestedAt: '2026-11-17T03:05:00Z', handledAt: null, handledByName: null, rejectionReason: null, isMine: false },
-    { id: 'w2', userId: 'u-linh', fullName: 'Đỗ Khánh Linh', email: 'linh.do@truong.edu.vn', amount: 63_000, status: 'Requested', requestedAt: '2026-11-16T14:30:00Z', handledAt: null, handledByName: null, rejectionReason: null, isMine: false },
-    { id: 'w3', userId: 'u-long', fullName: 'Phạm Đức Long', email: 'long.pham@truong.edu.vn', amount: 38_000, status: 'Paid', requestedAt: '2026-11-10T01:00:00Z', handledAt: '2026-11-10T03:00:00Z', handledByName: 'Trần Quang Huy', rejectionReason: null, isMine: false },
+  readonly members: MemberBalance[] = [
+    { userId: 'u-ha', fullName: 'Lê Thu Hà', email: 'ha.le@truong.edu.vn', role: 'Student', isActive: true, balance: 38_000 },
+    { userId: 'u-linh', fullName: 'Đỗ Khánh Linh', email: 'linh.do@truong.edu.vn', role: 'Student', isActive: true, balance: 63_000 },
+    { userId: 'u-long', fullName: 'Phạm Đức Long', email: 'long.pham@truong.edu.vn', role: 'Student', isActive: true, balance: 0 },
+  ];
+  readonly withdrawals: Withdrawal[] = [
+    { id: 'w3', userId: 'u-long', fullName: 'Phạm Đức Long', amount: 38_000, status: 'Paid', at: '2026-11-10T03:00:00Z', handledByName: 'Trần Quang Huy', note: null },
   ];
 
   constructor(private readonly page: Page) {}
@@ -46,7 +54,7 @@ export class FakeBalanceReportsApi {
     auth.signIn(user);
     await auth.install();
     const api = new FakeBalanceReportsApi(page);
-    await page.route(new RegExp(`/api/v1/funds/${FUND_ID}/(me/balance|me/withdrawal-requests|withdrawal-requests|reports)`), (route) => api.handle(route, user === student));
+    await page.route(new RegExp(`/api/v1/funds/${FUND_ID}/(me/balance|balances|withdrawals|reports)`), (route) => api.handle(route, user === student));
     await page.goto(url);
     return api;
   }
@@ -63,22 +71,18 @@ export class FakeBalanceReportsApi {
     return {
       fundName: 'Lớp 10A1',
       balance: this.balance,
-      latestWithdrawal: this.myRequest,
       history: [
         { id: 'h1', type: 'SettlementCredit', amount: 38_000, balanceAfter: 38_000, createdAt: '2026-11-14T11:00:00Z', description: 'Tiền thừa quyết toán', scope: 'Event', eventName: 'Tham quan bảo tàng' },
         { id: 'h2', type: 'ChargePayment', amount: -25_000, balanceAfter: 0, createdAt: '2026-10-30T01:12:00Z', description: 'Đóng “Quỹ photo T10”', scope: 'General', eventName: null },
+        { id: 'h4', type: 'ListCloseRefund', amount: 70_000, balanceAfter: 95_000, createdAt: '2026-11-20T01:00:00Z', description: 'Hoàn tiền đã đóng khi đóng danh sách', scope: 'Event', eventName: 'Dã ngoại Ba Vì' },
         { id: 'h3', type: 'SettlementCredit', amount: 25_000, balanceAfter: 25_000, createdAt: '2026-10-28T10:30:00Z', description: 'Tiền thừa quyết toán', scope: 'Event', eventName: 'Liên hoan giữa kỳ' },
-      ],
-      otherFunds: [
-        { fundId: 'f2', fundName: 'CLB Tiếng Anh', isArchived: false, balance: 0 },
-        { fundId: 'f3', fundName: 'Lớp 9A1', isArchived: true, balance: 0 },
       ],
     };
   }
 
-  private list() {
-    const count = (status: Request['status']) => this.withdrawals.filter((item) => item.status === status).length;
-    return { items: this.withdrawals, requestedCount: count('Requested'), paidCount: count('Paid'), rejectedCount: count('Rejected') };
+  private balances(search: string | null) {
+    const items = this.members.filter((member) => !search || member.fullName.toLowerCase().includes(search.toLowerCase()) || member.email.includes(search));
+    return { items, total: items.length, page: 1, pageSize: 100, heldTotal: this.members.reduce((sum, member) => sum + member.balance, 0) };
   }
 
   private overview(isStudent: boolean) {
@@ -99,15 +103,15 @@ export class FakeBalanceReportsApi {
             { id: 'le4', transactionDate: '2026-11-12', title: 'In tài liệu ôn tập giữa kỳ', categoryName: 'Học tập', type: 'Expense', source: 'Manual', amount: 180_000, performedByName: 'Nguyễn Minh Anh', attachmentCount: 1, isSelfDeclared: false, paymentMethod: null, isReversed: false },
           ],
       openCharges: [
-        { id: 'c1', title: 'Quỹ lớp HK1', amountPerPerson: 200_000, dueDate: '2026-11-30', assignedCount: 32, paidCount: 26, awaitingCount: 2 },
-        { id: 'c2', title: 'Áo lớp', amountPerPerson: 200_000, dueDate: '2026-11-25', assignedCount: 32, paidCount: 21, awaitingCount: 3 },
-        { id: 'c3', title: 'Quỹ photo HK1', amountPerPerson: 30_000, dueDate: '2026-12-05', assignedCount: 32, paidCount: 10, awaitingCount: 0 },
+        { id: 'c1', title: 'Quỹ lớp HK1', amountPerPerson: 200_000, dueDate: null, assignedCount: 32, paidCount: 26 },
+        { id: 'c2', title: 'Áo lớp', amountPerPerson: 200_000, dueDate: null, assignedCount: 32, paidCount: 21 },
+        { id: 'c3', title: 'Quỹ photo HK1', amountPerPerson: 30_000, dueDate: null, assignedCount: 32, paidCount: 10 },
       ],
       events: [
         { id: 'e1', name: 'Dã ngoại Ba Vì', eventDate: '2026-11-20', status: 'Open', participantCount: 30, paidInFullCount: 26, myResponse: 'Accepted' },
         { id: 'e2', name: 'Liên hoan giữa kỳ', eventDate: '2026-10-26', status: 'Completed', participantCount: 28, paidInFullCount: 28, myResponse: 'Accepted' },
       ],
-      todo: isStudent ? null : { pendingPayments: 4, pendingWithdrawals: 1, eventsAwaitingSettlement: [{ id: 'e2', name: 'Liên hoan giữa kỳ' }] },
+      todo: isStudent ? null : { unpaidGeneralCount: 4, eventsToCloseList: [{ id: 'e1', name: 'Dã ngoại Ba Vì' }], eventsAwaitingSettlement: [{ id: 'e2', name: 'Liên hoan giữa kỳ' }] },
       me: {
         dueAmount: 580_000,
         dueCount: 3,
@@ -115,12 +119,10 @@ export class FakeBalanceReportsApi {
         nearestDueDate: '2026-11-18',
         nearestDueAmount: 350_000,
         nearestDueEventName: 'Dã ngoại Ba Vì',
-        awaitingAmount: 200_000,
-        awaitingTitle: 'Quỹ lớp HK1',
         balance: 38_000,
       },
       notifications: [
-        { title: 'Thanh toán bị từ chối', body: 'Áo lớp: “Ảnh bill không thấy số tiền”', scope: 'General', eventName: null, createdAt: '2026-11-17T01:00:00Z', isRead: false },
+        { title: 'Nhắc đóng khoản thu', body: 'Áo lớp: bạn chưa nộp, hãy đưa tiền cho thủ quỹ', scope: 'General', eventName: null, createdAt: '2026-11-17T01:00:00Z', isRead: false },
         { title: 'Tiền thừa +38.000 đ', body: 'Đã cộng vào số dư cá nhân', scope: 'Event', eventName: 'Tham quan bảo tàng', createdAt: '2026-11-14T11:00:00Z', isRead: true },
       ],
     };
@@ -138,27 +140,22 @@ export class FakeBalanceReportsApi {
     if (method === 'GET' && path === '/me/balance') {
       return route.fulfill({ json: this.mine() });
     }
-    if (method === 'POST' && path === '/me/withdrawal-requests') {
-      if (this.myRequest?.status === 'Requested') {
-        return this.problem(route, 422, 'withdrawal.pending_exists', 'Bạn đã có yêu cầu rút tiền đang chờ thủ quỹ xử lý.');
-      }
-      this.myRequest = { id: 'mine', userId: 'u-me', fullName: 'Lê Thu Hà', email: 'ha@x', amount: this.balance, status: 'Requested', requestedAt: '2026-11-17T03:05:00Z', handledAt: null, handledByName: null, rejectionReason: null, isMine: true };
-      return route.fulfill({ status: 201, json: this.mine() });
+    if (method === 'GET' && path === '/balances') {
+      return route.fulfill({ json: this.balances(url.searchParams.get('search')) });
     }
-    if (method === 'GET' && path === '/withdrawal-requests') {
-      return route.fulfill({ json: this.list() });
-    }
-    const action = /^\/withdrawal-requests\/([^/]+)\/(paid|reject)$/.exec(path);
-    if (method === 'POST' && action) {
-      const item = this.withdrawals.find((row) => row.id === action[1])!;
-      if (item.status !== 'Requested') {
-        return this.problem(route, 409, 'withdrawal.not_pending', 'Yêu cầu rút này đã được xử lý.');
+    const withdraw = /^\/balances\/([^/]+)\/withdraw$/.exec(path);
+    if (method === 'POST' && withdraw) {
+      const member = this.members.find((row) => row.userId === withdraw[1])!;
+      const amount = Number(body!['amount']);
+      if (amount > member.balance) {
+        return this.problem(route, 422, 'balance.insufficient', 'Số dư cá nhân không đủ.');
       }
-      item.status = action[2] === 'paid' ? 'Paid' : 'Rejected';
-      item.handledAt = '2026-11-18T03:00:00Z';
-      item.handledByName = 'Nguyễn Minh Anh';
-      item.rejectionReason = action[2] === 'reject' ? String(body!['reason']) : null;
-      return route.fulfill({ json: item });
+      member.balance -= amount;
+      this.withdrawals.unshift({ id: `w${this.withdrawals.length + 10}`, userId: member.userId, fullName: member.fullName, amount, status: 'Paid', at: '2026-11-20T03:00:00Z', handledByName: 'Nguyễn Minh Anh', note: null });
+      return route.fulfill({ json: member });
+    }
+    if (method === 'GET' && path === '/withdrawals') {
+      return route.fulfill({ json: { items: this.withdrawals, total: this.withdrawals.length, page: 1, pageSize: 50 } });
     }
     if (method === 'GET' && path === '/reports/overview') {
       return route.fulfill({ json: this.overview(isStudent) });
@@ -201,7 +198,7 @@ export class FakeBalanceReportsApi {
       return route.fulfill({
         json: [
           { userId: 'u-ha', fullName: 'Lê Thu Hà', role: 'Student', paidGeneral: 400_000, unpaidGeneral: [{ title: 'Áo lớp', status: 'Unpaid' }, { title: 'Photo HK1', status: 'Unpaid' }], paidEvents: 350_000, refunded: 63_000, usedBalance: 25_000, balance: 38_000 },
-          { userId: 'u-long', fullName: 'Phạm Đức Long', role: 'Student', paidGeneral: 600_000, unpaidGeneral: [{ title: 'HK1', status: 'AwaitingConfirmation' }], paidEvents: 850_000, refunded: 38_000, usedBalance: 0, balance: 0 },
+          { userId: 'u-long', fullName: 'Phạm Đức Long', role: 'Student', paidGeneral: 600_000, unpaidGeneral: [{ title: 'HK1', status: 'Unpaid' }], paidEvents: 850_000, refunded: 38_000, usedBalance: 0, balance: 0 },
           { userId: 'u-linh', fullName: 'Đỗ Khánh Linh', role: 'Student', paidGeneral: 830_000, unpaidGeneral: [], paidEvents: 500_000, refunded: 63_000, usedBalance: 200_000, balance: 63_000 },
         ],
       });

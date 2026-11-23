@@ -1,9 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { ButtonComponent } from '@progress/kendo-angular-buttons';
 import { switchMap } from 'rxjs';
 
-import { AppNotifications } from '../../core/services/notification.service';
 import { AppState } from '../../shared/components/app-state/app-state';
 import { PageHeader } from '../../shared/components/page-header/page-header';
 import { ScopeBadge } from '../../shared/components/scope-badge/scope-badge';
@@ -15,28 +13,26 @@ import { ChargesApi } from './charges.api';
 import './charges.errors';
 import { MyAssignmentItem } from './charges.models';
 import { daysUntil, dueText, todayInVietnam } from './charges.utils';
-import { PayDialog, PayTarget } from './pay-dialog';
 
-/** H-03 Khoản cần đóng của tôi (FR-20, FR-23): nộp tiền, theo dõi trạng thái xác nhận, nộp lại khi bị từ chối. */
+/** H-03 Khoản cần đóng của tôi (FR-20, FR-23), chỉ xem: Đã nộp / Chưa nộp. Thủ quỹ là người tích "đã thu". */
 @Component({
   selector: 'app-my-payments-page',
-  imports: [ButtonComponent, PageHeader, ScopeBadge, AppState, PayDialog, VndMoneyPipe],
+  imports: [PageHeader, ScopeBadge, AppState, VndMoneyPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="page">
-      <app-page-header title="Khoản cần đóng của tôi" subtitle="Các khoản thu chung của lớp và tình trạng đóng của bạn." />
+      <app-page-header title="Khoản cần đóng của tôi" subtitle="Các khoản thu của lớp và tình trạng nộp của bạn. Khi nộp tiền, hãy đưa cho thủ quỹ – thủ quỹ sẽ ghi nhận cho bạn." />
 
       @if (kind(); as value) {
         <app-state [kind]="value" [title]="value === 'empty' ? 'Bạn chưa có khoản nào cần đóng' : undefined" />
       } @else {
         <section class="stats" aria-label="Tóm tắt">
-          <div class="cf-card stat"><span class="cf-muted">Còn phải đóng</span><b class="big">{{ owed() | vndMoney }}</b><span class="cf-muted">{{ owedCount() }} khoản</span></div>
-          <div class="cf-card stat"><span class="cf-muted">Chờ thủ quỹ xác nhận</span><b class="big await">{{ awaiting() | vndMoney }}</b><span class="cf-muted">{{ awaitingCount() }} khoản</span></div>
-          <div class="cf-card stat"><span class="cf-muted">Đã đóng</span><b class="big cf-income">{{ paid() | vndMoney }}</b><span class="cf-muted">{{ paidCount() }} khoản</span></div>
+          <div class="cf-card stat"><span class="cf-muted">Chưa nộp</span><b class="big">{{ owed() | vndMoney }}</b><span class="cf-muted">{{ owedCount() }} khoản</span></div>
+          <div class="cf-card stat"><span class="cf-muted">Đã nộp</span><b class="big cf-income">{{ paid() | vndMoney }}</b><span class="cf-muted">{{ paidCount() }} khoản</span></div>
         </section>
 
-        <h2>Cần đóng</h2>
-        <section class="cf-card list" aria-label="Cần đóng">
+        <h2>Chưa nộp</h2>
+        <section class="cf-card list" aria-label="Chưa nộp">
           @for (item of open(); track item.assignmentId) {
             <article class="item">
               <div class="main">
@@ -47,18 +43,15 @@ import { PayDialog, PayTarget } from './pay-dialog';
                 <span class="cf-muted note">{{ note(item) }}</span>
               </div>
               <b class="cf-money amount">{{ item.amountDue | vndMoney }}</b>
-              <span class="cf-tag" [class.cf-tag--warning]="item.status === 'AwaitingConfirmation'" [class.cf-tag--danger]="rejected(item)">{{ statusText(item) }}</span>
-              @if (item.status === 'Unpaid' && item.chargeStatus === 'Open') {
-                <button kendoButton themeColor="primary" type="button" (click)="pay(item)">{{ rejected(item) ? 'Gửi lại' : 'Nộp tiền' }}</button>
-              }
+              <span class="cf-tag cf-tag--warning">Chưa nộp</span>
             </article>
           } @empty {
-            <p class="cf-muted none">Bạn không còn khoản nào cần đóng.</p>
+            <p class="cf-muted none">Bạn đã nộp đủ mọi khoản.</p>
           }
         </section>
 
-        <h2>Lịch sử đã đóng</h2>
-        <section class="cf-card list" aria-label="Lịch sử đã đóng">
+        <h2>Đã nộp</h2>
+        <section class="cf-card list" aria-label="Đã nộp">
           @for (item of done(); track item.assignmentId) {
             <article class="item">
               <div class="main">
@@ -69,19 +62,16 @@ import { PayDialog, PayTarget } from './pay-dialog';
                 <span class="cf-muted note">{{ note(item) }}</span>
               </div>
               <b class="cf-money amount">{{ item.amountDue | vndMoney }}</b>
-              <span class="cf-tag cf-tag--success">Đã xác nhận</span>
+              <span class="cf-tag cf-tag--success">Đã nộp</span>
               @if (item.isSelfDeclared) { <span class="cf-tag cf-tag--warning">Tự ghi nhận</span> }
             </article>
           } @empty {
-            <p class="cf-muted none">Chưa có khoản nào đã đóng.</p>
+            <p class="cf-muted none">Chưa có khoản nào đã nộp.</p>
           }
         </section>
       }
     </div>
 
-    @if (paying(); as target) {
-      <app-pay-dialog [fundId]="fundId()" [target]="target" (closed)="paying.set(null)" (paid)="onPaid($event)" />
-    }
   `,
   styles: `
     .page {
@@ -89,7 +79,7 @@ import { PayDialog, PayTarget } from './pay-dialog';
     }
     .stats {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(2, 1fr);
       gap: 16px;
       margin-bottom: 24px;
     }
@@ -101,9 +91,6 @@ import { PayDialog, PayTarget } from './pay-dialog';
     .big {
       font-size: 24px;
       font-variant-numeric: tabular-nums;
-    }
-    .await {
-      color: var(--cf-warning-fg);
     }
     h2 {
       margin: 0 0 12px;
@@ -150,13 +137,11 @@ import { PayDialog, PayTarget } from './pay-dialog';
 })
 export class MyPaymentsPage {
   private readonly api = inject(ChargesApi);
-  private readonly notifications = inject(AppNotifications);
 
   readonly fundId = input.required<string>();
 
   private readonly today = todayInVietnam();
   private readonly refresh = signal(0);
-  protected readonly paying = signal<PayTarget | null>(null);
 
   private readonly state = toSignal(
     toObservable(computed(() => ({ fundId: this.fundId(), refresh: this.refresh() }))).pipe(
@@ -173,8 +158,6 @@ export class MyPaymentsPage {
   protected readonly done = computed(() => this.items().filter((item) => item.status === 'Paid'));
   protected readonly owedCount = computed(() => this.items().filter((item) => item.status === 'Unpaid').length);
   protected readonly owed = computed(() => this.sum('Unpaid'));
-  protected readonly awaitingCount = computed(() => this.items().filter((item) => item.status === 'AwaitingConfirmation').length);
-  protected readonly awaiting = computed(() => this.sum('AwaitingConfirmation'));
   protected readonly paidCount = computed(() => this.done().length);
   protected readonly paid = computed(() => this.sum('Paid'));
 
@@ -189,44 +172,16 @@ export class MyPaymentsPage {
       .reduce((total, item) => total + item.amountDue, 0);
   }
 
-  protected rejected(item: MyAssignmentItem): boolean {
-    return item.status === 'Unpaid' && item.paymentStatus === 'Rejected';
-  }
-
-  protected statusText(item: MyAssignmentItem): string {
-    if (this.rejected(item)) {
-      return 'Bị từ chối';
-    }
-    return item.status === 'AwaitingConfirmation' ? 'Chờ xác nhận' : 'Chưa đóng';
-  }
-
   protected note(item: MyAssignmentItem): string {
-    if (this.rejected(item)) {
-      return `Bị từ chối: “${item.rejectionReason ?? ''}” – vui lòng gửi lại`;
-    }
+    const due = item.dueDate ? `Hạn ${new VnDatePipe().transform(item.dueDate)}` : 'Không có hạn';
     if (item.status === 'Paid') {
       const method = item.method ? ` · ${PAYMENT_METHOD_LABEL[item.method]}` : '';
-      return `Hạn ${new VnDatePipe().transform(item.dueDate)}${method}`;
+      return `${due}${method}`;
     }
-    if (item.status === 'AwaitingConfirmation') {
-      const method = item.method ? ` · ${PAYMENT_METHOD_LABEL[item.method]}` : '';
-      const used = item.balanceApplied > 0 ? ` · đã dùng ${new Intl.NumberFormat('vi-VN').format(item.balanceApplied)} đ số dư` : '';
-      return `Đã gửi${method}${used} · chờ thủ quỹ xác nhận`;
-    }
-    const due = new VnDatePipe().transform(item.dueDate);
     const purpose = item.purpose ? ` · ${item.purpose}` : '';
-    return item.chargeStatus === 'Open'
-      ? `Hạn ${due} · ${dueText(daysUntil(item.dueDate, this.today))}${purpose}`
-      : `Khoản thu đã đóng · hạn ${due}`;
-  }
-
-  protected pay(item: MyAssignmentItem): void {
-    this.paying.set({ assignmentId: item.assignmentId, title: item.title, amountDue: item.amountDue });
-  }
-
-  protected onPaid(result: { selfDeclared: boolean }): void {
-    this.paying.set(null);
-    this.refresh.update((value) => value + 1);
-    this.notifications.success(result.selfDeclared ? 'Đã tự ghi nhận khoản đóng của bạn.' : 'Đã gửi. Thủ quỹ sẽ xác nhận khoản đóng của bạn.');
+    if (item.chargeStatus !== 'Open') {
+      return `Khoản thu đã đóng · ${due}`;
+    }
+    return item.dueDate ? `${due} · ${dueText(daysUntil(item.dueDate, this.today))}${purpose}` : `${due}${purpose}`;
   }
 }

@@ -310,8 +310,8 @@ export class EventList {
       await firstValueFrom(this.api.respond(this.fundId(), event.id, response));
       this.notifications.success(
         response === 'Accepted'
-          ? 'Đã xác nhận tham gia. Khoản thu sự kiện sẽ hiện ở “Khoản cần đóng”.'
-          : 'Đã ghi nhận không tham gia – bạn sẽ không phải đóng tiền sự kiện này.',
+          ? 'Đã xác nhận tham gia. Khoản thu sự kiện sẽ hiện ở “Khoản cần đóng” (bạn chỉ xem; đưa tiền cho thủ quỹ).'
+          : 'Đã ghi nhận không tham gia – bạn sẽ không phải nộp tiền sự kiện này.',
       );
       this.reload$.next();
     } catch (error) {

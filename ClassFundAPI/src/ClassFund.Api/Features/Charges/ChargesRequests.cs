@@ -45,7 +45,6 @@ public sealed class CreateChargeRequestValidator : AbstractValidator<CreateCharg
             .Must(value => value is null || value.Trim().Length <= ChargesErrors.PurposeMaxLength)
             .WithMessage("Mục đích tối đa 1000 ký tự.");
         RuleFor(request => request.AmountPerPerson).GreaterThan(0).WithMessage("Số tiền mỗi người phải lớn hơn 0.");
-        RuleFor(request => request.DueDate).NotNull().WithMessage("Vui lòng chọn hạn đóng.");
         RuleFor(request => request.CategoryId).NotNull().WithMessage("Vui lòng chọn danh mục thu.");
     }
 }

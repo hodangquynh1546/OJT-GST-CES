@@ -4,7 +4,7 @@ using ClassFund.Domain.Enums;
 namespace ClassFund.Domain.Entities;
 
 /// <summary>Khoản thu. EventId null = khoản thu chung của lớp; có giá trị = khoản thu của sự kiện (không bao giờ cả hai).</summary>
-public sealed class Charge(Guid fundId, Guid? eventId, string title, string? purpose, long amountPerPerson, DateOnly dueDate, ChargeKind kind, Guid createdByUserId, DateTimeOffset createdAt) : Entity
+public sealed class Charge(Guid fundId, Guid? eventId, string title, string? purpose, long amountPerPerson, DateOnly? dueDate, ChargeKind kind, Guid createdByUserId, DateTimeOffset createdAt) : Entity
 {
     public Guid FundId { get; init; } = fundId;
 
@@ -17,7 +17,8 @@ public sealed class Charge(Guid fundId, Guid? eventId, string title, string? pur
     /// <summary>Số tiền mỗi người phải đóng (VND, số nguyên).</summary>
     public long AmountPerPerson { get; set; } = amountPerPerson;
 
-    public DateOnly DueDate { get; set; } = dueDate;
+    /// <summary>Hạn đóng. Null = không có hạn (khoản thu chung đi xuyên suốt với quỹ; khoản thu sự kiện dùng hạn đóng danh sách của sự kiện).</summary>
+    public DateOnly? DueDate { get; set; } = dueDate;
 
     public ChargeKind Kind { get; init; } = kind;
 

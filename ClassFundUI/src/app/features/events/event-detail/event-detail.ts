@@ -10,6 +10,7 @@ import { LabelComponent } from '@progress/kendo-angular-label';
 import { BehaviorSubject, combineLatest, filter, firstValueFrom, map, of, switchMap } from 'rxjs';
 
 import { Permissions } from '../../../core/auth/permissions';
+import { ConfirmDialog } from '../../../core/services/confirm-dialog.service';
 import { AppNotifications } from '../../../core/services/notification.service';
 import { CurrentFund } from '../../../core/services/current-fund.service';
 import { AppState } from '../../../shared/components/app-state/app-state';
@@ -25,6 +26,7 @@ import { LedgerApi } from '../../ledger/ledger.api';
 import { LedgerEntry, LedgerEntryDetail, LedgerList, signedAmount } from '../../ledger/ledger.models';
 import { CategoriesApi } from '../../categories/categories.api';
 import { Category } from '../../categories/categories.models';
+import { ChargeCollectList } from '../../charges/charge-collect-list';
 import { CHARGE_STATUS_LABEL, ChargeStatus } from '../../charges/charges.models';
 import { EventFormDialog } from '../event-form-dialog/event-form-dialog';
 import { EventsApi } from '../events.api';
@@ -32,7 +34,8 @@ import '../events.errors';
 import '../../charges/charges.errors';
 import {
   CANCEL_REASON_MAX,
-  CompletionPreview,
+  CloseListPreview,
+  EventCharge,
   EVENT_STATUS_BADGE,
   EventDetail as EventDetailModel,
   EventParticipant,
@@ -58,8 +61,9 @@ const ASSIGNMENT_TONE: Record<AssignmentStatus, Tone> = {
 
 /**
  * E-03 · Chi tiết sự kiện (FR-31 → FR-34) theo canvas Event (thủ quỹ) và StuEventDetail (học sinh).
- * Thủ quỹ: tiến trình, KPI, tab Người tham gia (lọc tình trạng đóng) · Khoản thu sự kiện · Thu chi sự kiện (ghi chi ≤ số dư),
- * Kết thúc (xem trước người bị loại / được nhắc, BR-19), Hủy (khi chưa có tiền). Học sinh: trả lời tham gia, khoản của mình, chi công khai.
+ * Thủ quỹ: tiến trình, KPI, tab Người tham gia · Khoản thu sự kiện (tích "đã thu", nhắc đóng) · Thu chi sự kiện (chỉ ghi chi sau khi đóng danh sách),
+ * "Đóng danh sách" (xem trước người bị loại và tiền hoàn vào số dư, BR-19), lịch sử đóng danh sách, Hủy (khi chưa có tiền).
+ * Học sinh: trả lời tham gia, khoản của mình (chỉ xem), chi công khai.
  */
 @Component({
   selector: 'app-event-detail',
@@ -67,6 +71,7 @@ const ASSIGNMENT_TONE: Record<AssignmentStatus, Tone> = {
     AppState,
     AttachmentGallery,
     ButtonComponent,
+    ChargeCollectList,
     CellTemplateDirective,
     ColumnComponent,
     DialogActionsComponent,
@@ -97,7 +102,8 @@ export class EventDetail {
   private readonly route = inject(ActivatedRoute);
   private readonly notifications = inject(AppNotifications);
   private readonly currentFund = inject(CurrentFund);
-  private readonly reload$ = new BehaviorSubject<void>(undefined);
+  private readonly confirm = inject(ConfirmDialog);
+  protected readonly reload$ = new BehaviorSubject<void>(undefined);
 
   protected readonly statusBadge = EVENT_STATUS_BADGE;
   protected readonly paymentBadge = PAYMENT_STATUS_BADGE;
@@ -109,19 +115,20 @@ export class EventDetail {
   protected readonly reasonMax = CANCEL_REASON_MAX;
   protected readonly peopleFilters: readonly { value: PeopleFilter; label: string }[] = [
     { value: 'all', label: 'Tất cả' },
-    { value: 'Paid', label: 'Đã đóng' },
-    { value: 'Pending', label: 'Chờ xác nhận' },
-    { value: 'Unpaid', label: 'Chưa đóng' },
+    { value: 'Paid', label: 'Đã nộp' },
+    { value: 'Unpaid', label: 'Chưa nộp' },
   ];
 
   protected readonly canManage = computed(() => this.currentFund.can(Permissions.EventManage));
-  protected readonly canConfirm = computed(() => this.currentFund.can(Permissions.PaymentConfirm));
   protected readonly canRemind = computed(() => this.currentFund.can(Permissions.ChargeManage));
   protected readonly tab = signal<DetailTab>('people');
   protected readonly peopleFilter = signal<PeopleFilter>('all');
   protected readonly busy = signal(false);
   protected readonly dialog = signal<'end' | 'cancel' | 'expense' | 'edit' | 'charge' | null>(null);
-  protected readonly preview = signal<CompletionPreview | null>(null);
+  protected readonly preview = signal<CloseListPreview | null>(null);
+  protected readonly confirmEarly = signal(false);
+  /** Khoản thu sự kiện đang mở danh sách người nộp (thủ quỹ tích "đã thu"). */
+  protected readonly tracked = signal<string | null>(null);
   protected readonly proof = signal<LedgerEntryDetail | null>(null);
   protected readonly cancelReason = new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(CANCEL_REASON_MAX)] });
 
@@ -130,12 +137,10 @@ export class EventDetail {
   protected readonly chargePurpose = signal('');
   protected readonly chargeAmount = signal(0);
   protected readonly chargeAmountText = computed(() => (this.chargeAmount() > 0 ? this.chargeAmount().toLocaleString('vi-VN') : ''));
-  protected readonly chargeDueDate = signal('');
   protected readonly chargeCategoryId = signal('');
   protected readonly chargeCategories = signal<Category[]>([]);
-  protected readonly chargeErrors = signal<{ title?: string; category?: string; amount?: string; dueDate?: string }>({});
+  protected readonly chargeErrors = signal<{ title?: string; category?: string; amount?: string }>({});
   protected readonly chargeCreateError = signal<string | null>(null);
-  protected readonly today = new Date().toISOString().slice(0, 10);
 
   protected readonly fundId = toSignal(this.route.paramMap.pipe(map((params) => params.get('fundId') ?? '')), { initialValue: '' });
   protected readonly eventId = toSignal(this.route.paramMap.pipe(map((params) => params.get('eventId') ?? '')), { initialValue: '' });
@@ -193,7 +198,7 @@ export class EventDetail {
 
   protected readonly isOpen = computed(() => this.event()?.status === 'Open');
   protected readonly isCompleted = computed(() => this.event()?.status === 'Completed');
-  /** Bước hiện tại của tiến trình: 0 đang mở, 1 đã kết thúc, 2 đã quyết toán. */
+  /** Bước hiện tại của tiến trình: 0 đang mở, 1 đã đóng danh sách, 2 đã quyết toán. */
   protected readonly step = computed(() => ({ Open: 0, Completed: 1, Settled: 2, Cancelled: -1 })[this.event()?.status ?? 'Open']);
 
   protected dotClass(index: number): string {
@@ -210,22 +215,19 @@ export class EventDetail {
     if (!data) {
       return 0;
     }
-    return value === 'all' ? data.total : value === 'Paid' ? data.paidCount : value === 'Pending' ? data.pendingCount : data.unpaidCount;
+    return value === 'all' ? data.total : value === 'Paid' ? data.paidCount : data.unpaidCount;
   }
 
-  /** Cột Ghi chú như canvas: thiếu bao nhiêu, đang chờ, sẽ bị loại khi kết thúc. */
+  /** Cột Ghi chú: thiếu bao nhiêu, hoặc sẽ bị loại khi đóng danh sách. */
   protected note(person: EventParticipant): string {
-    if (person.paymentStatus === 'Pending') {
-      return `${person.pendingPaymentCount} thanh toán chờ xác nhận`;
-    }
     if (person.paymentStatus !== 'Unpaid') {
       return '';
     }
     if (person.paid === 0 && this.isOpen()) {
-      return 'Chưa đóng khoản nào – bị loại khi kết thúc';
+      return 'Chưa nộp khoản nào – bị loại khi đóng danh sách';
     }
     const missing = `Thiếu ${new Intl.NumberFormat('vi-VN').format(Math.max(0, person.due - person.paid))} đ`;
-    return this.isOpen() ? missing : `${missing} · vẫn được đóng`;
+    return this.isOpen() ? `${missing} – bị loại khi đóng danh sách, tiền đã nộp hoàn vào số dư` : missing;
   }
 
   /** `yyyy-MM-dd` → "17/11" như cột Ngày của canvas. */
@@ -234,43 +236,30 @@ export class EventDetail {
     return `${day}/${month}`;
   }
 
-  protected names(people: { fullName: string }[]): string {
-    return people.map((person) => person.fullName).join(' · ');
-  }
-
-  /** Canvas: "Phạm Đức Long (thiếu 80.000 đ) và 4 người khác". */
-  protected underpaidText(plan: CompletionPreview): string {
-    const money = new Intl.NumberFormat('vi-VN');
-    const shown = plan.underpaid.slice(0, 3).map((person) => `${person.fullName} (thiếu ${money.format(person.missing)} đ)`);
-    const rest = plan.underpaid.length - shown.length;
-    return rest > 0 ? `${shown.join(', ')} và ${rest} người khác` : shown.join(', ');
-  }
-
   protected badgeOf(status: ParticipantPaymentStatus): { text: string; tone: Tone } {
     return this.paymentBadge[status];
   }
 
   // ---------- Thao tác thủ quỹ ----------
 
-  protected async askEnd(event: EventDetailModel): Promise<void> {
+  protected async askCloseList(event: EventDetailModel): Promise<void> {
     this.preview.set(null);
+    this.confirmEarly.set(false);
     this.dialog.set('end');
     try {
-      this.preview.set(await firstValueFrom(this.api.completionPreview(this.fundId(), event.id)));
+      this.preview.set(await firstValueFrom(this.api.closeListPreview(this.fundId(), event.id)));
     } catch (error) {
       this.dialog.set(null);
       this.notifications.error(error instanceof ApiError ? error.message : 'Không tải được danh sách. Vui lòng thử lại.');
     }
   }
 
-  protected async end(event: EventDetailModel): Promise<void> {
+  protected async closeList(event: EventDetailModel): Promise<void> {
     await this.run(async () => {
-      const result = await firstValueFrom(this.api.complete(this.fundId(), event.id));
+      const result = await firstValueFrom(this.api.closeList(this.fundId(), event.id, this.confirmEarly()));
       this.dialog.set(null);
       this.peopleFilter.set('all');
-      this.notifications.success(
-        `Đã kết thúc sự kiện: còn ${result.remainingCount} người. Đã loại ${result.excluded.length} người và nhắc ${result.underpaid.length} người chưa đóng đủ.`,
-      );
+      this.notifications.success(`Đã đóng danh sách: còn ${result.remainingCount} người, loại ${result.excluded.length} người (hoàn ${new Intl.NumberFormat('vi-VN').format(result.totalRefund)} đ vào số dư).`);
     });
   }
 
@@ -349,7 +338,6 @@ export class EventDetail {
     this.chargeTitle.set('');
     this.chargePurpose.set('');
     this.chargeAmount.set(0);
-    this.chargeDueDate.set('');
     this.chargeCategoryId.set('');
     this.chargeErrors.set({});
     this.chargeCreateError.set(null);
@@ -360,12 +348,10 @@ export class EventDetail {
   }
 
   protected async doCreateCharge(event: EventDetailModel): Promise<void> {
-    const errors: { title?: string; category?: string; amount?: string; dueDate?: string } = {};
+    const errors: { title?: string; category?: string; amount?: string } = {};
     if (!this.chargeTitle().trim()) errors.title = 'Vui lòng nhập tên khoản thu.';
     if (!this.chargeCategoryId()) errors.category = 'Vui lòng chọn danh mục thu.';
     if (this.chargeAmount() <= 0) errors.amount = 'Số tiền mỗi người phải lớn hơn 0.';
-    if (!this.chargeDueDate()) errors.dueDate = 'Vui lòng chọn hạn đóng.';
-    else if (this.chargeDueDate() < this.today) errors.dueDate = 'Hạn đóng không được trước ngày hôm nay.';
     this.chargeErrors.set(errors);
     this.chargeCreateError.set(null);
     if (Object.keys(errors).length > 0 || this.busy()) return;
@@ -376,7 +362,7 @@ export class EventDetail {
           title: this.chargeTitle().trim(),
           purpose: this.chargePurpose().trim() || null,
           amountPerPerson: this.chargeAmount(),
-          dueDate: this.chargeDueDate(),
+          dueDate: null,
           categoryId: this.chargeCategoryId(),
         }),
       );
@@ -385,7 +371,25 @@ export class EventDetail {
     });
   }
 
-  protected async doCloseCharge(event: EventDetailModel, chargeId: string): Promise<void> {
+  protected toggleTracked(chargeId: string): void {
+    this.tracked.update((current) => (current === chargeId ? null : chargeId));
+  }
+
+  /** Cảnh báo khi còn người chưa nộp: đóng khoản thu thì không tích "đã thu" thêm được nữa. */
+  protected askCloseCharge(event: EventDetailModel, charge: EventCharge): void {
+    this.confirm
+      .confirm({
+        title: 'Đóng khoản thu sự kiện',
+        message:
+          charge.unpaidCount > 0
+            ? `Còn ${charge.unpaidCount} người chưa nộp khoản “${charge.title}”. Sau khi đóng khoản thu bạn không tích “đã thu” thêm được nữa. Vẫn đóng khoản thu?`
+            : `Đóng khoản “${charge.title}”? Mọi người đã nộp đủ.`,
+        confirmLabel: 'Đóng khoản thu',
+      })
+      .subscribe((confirmed) => confirmed && void this.doCloseCharge(event, charge.id));
+  }
+
+  private async doCloseCharge(event: EventDetailModel, chargeId: string): Promise<void> {
     await this.run(async () => {
       await firstValueFrom(this.api.closeCharge(this.fundId(), event.id, chargeId));
       this.notifications.success('Đã đóng khoản thu sự kiện.');

@@ -57,7 +57,10 @@ public class CategoriesAndFilesApiTests(ApiTestHost host)
         // Avatar không tải qua endpoint quỹ.
         Assert.Equal(HttpStatusCode.BadRequest, (await asA.PostAsync(url, ApiTestHost.Multipart(ApiTestHost.Png, "a.png", "image/png", "Avatar"))).StatusCode);
 
-        var upload = await asA.PostAsync(url, ApiTestHost.Multipart(ApiTestHost.Png, "bill-cua-A.png", "image/png", "PaymentProof"));
+        // Học sinh không còn tự nộp: minh chứng chuyển khoản do thủ quỹ tải lên (Payment.Confirm).
+        Assert.Equal(HttpStatusCode.Forbidden, (await asA.PostAsync(url, ApiTestHost.Multipart(ApiTestHost.Png, "bill-cua-A.png", "image/png", "PaymentProof"))).StatusCode);
+        var asOwner = await host.LoginAsync(owner);
+        var upload = await asOwner.PostAsync(url, ApiTestHost.Multipart(ApiTestHost.Png, "bill-cua-A.png", "image/png", "PaymentProof"));
         Assert.Equal(HttpStatusCode.Created, upload.StatusCode);
         var proofId = (await upload.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
 
@@ -80,7 +83,6 @@ public class CategoriesAndFilesApiTests(ApiTestHost host)
         Assert.Equal(ApiTestHost.Png, await own.Content.ReadAsByteArrayAsync());
         Assert.Contains("nosniff", own.Headers.GetValues("X-Content-Type-Options"));
 
-        var asOwner = await host.LoginAsync(owner);
         Assert.Equal(HttpStatusCode.OK, (await asOwner.GetAsync($"{url}/{proofId}")).StatusCode);
 
         var outsider = await host.LoginAsync(await host.CreateUserAsync());

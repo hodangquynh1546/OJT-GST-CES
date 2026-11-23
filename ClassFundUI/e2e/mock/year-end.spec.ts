@@ -5,7 +5,7 @@ import { FUND_ID } from '../support/fake-charges-api';
 
 /** M14-T3: S-05 Tổng kết cuối năm và banner "Quỹ đã tổng kết" với API giả lập. */
 
-const STUDENT_PERMISSIONS = ['Fund.View', 'Event.Participate', 'Payment.Submit', 'Balance.ViewOwn', 'Balance.Withdraw'];
+const STUDENT_PERMISSIONS = ['Fund.View', 'Event.Participate', 'Balance.ViewOwn', 'Balance.Withdraw'];
 const TREASURER_PERMISSIONS = [...STUDENT_PERMISSIONS, 'Event.Manage', 'Charge.Manage', 'Ledger.Manage', 'Payment.Confirm', 'Settlement.Execute', 'Report.View'];
 
 function userAs(role: 'Treasurer' | 'Student'): FakeUser {
@@ -26,7 +26,6 @@ const preview = (partial: Record<string, unknown> = {}) => ({
   surplus: 80000,
   outcome: 'Surplus',
   unsettledEventCount: 0,
-  pendingPaymentCount: 0,
   openChargeCount: 1,
   unpaidObligationCount: 1,
   canExecute: true,
@@ -109,9 +108,9 @@ test.describe('S-05 Tổng kết cuối năm', () => {
     await expect(page.getByRole('heading', { name: 'Tổng kết cuối năm' })).toBeVisible();
     await expect(page.getByText('Năm học 2026-2027')).toBeVisible();
     await expect(page.getByText('Chỉ làm một lần.').first()).toBeVisible();
-    await expect(page.getByText('1 khoản chưa đóng', { exact: false })).toBeVisible();
+    await expect(page.getByText('1 khoản chưa nộp', { exact: false })).toBeVisible();
     const table = page.getByRole('region', { name: 'Bảng chia tiền thừa' });
-    await expect(table.getByRole('row', { name: /Phạm Đức Long/ })).toContainText('50%');
+    await expect(table.getByRole('row', { name: /Phạm Đức Long/ })).not.toContainText('50%');
     await expect(table.getByRole('row', { name: /Nguyễn Minh Anh/ })).toContainText('0 đ');
     await expect(page.getByRole('button', { name: 'Tổng kết cuối năm' })).toBeDisabled();
   });
@@ -129,11 +128,11 @@ test.describe('S-05 Tổng kết cuối năm', () => {
     await expect(page.getByRole('status').filter({ hasText: 'Quỹ đã tổng kết cuối năm – chỉ xem.' })).toBeVisible();
   });
 
-  test('còn sự kiện chưa xong hoặc thanh toán chờ: chặn nút tổng kết', async ({ page }) => {
-    await open(page, 'Treasurer', { result: null, preview: preview({ unsettledEventCount: 2, pendingPaymentCount: 1, canExecute: false }) });
+  test('còn sự kiện chưa xong hoặc còn người chưa nộp: chặn nút tổng kết', async ({ page }) => {
+    await open(page, 'Treasurer', { result: null, preview: preview({ unsettledEventCount: 2, unpaidObligationCount: 3, canExecute: false }) });
 
     await expect(page.getByText('Còn 2 sự kiện chưa quyết toán hoặc chưa hủy')).toBeVisible();
-    await expect(page.getByText('Còn 1 thanh toán chờ xác nhận')).toBeVisible();
+    await expect(page.getByText('Còn 3 khoản chưa nộp', { exact: false })).toBeVisible();
     await page.getByRole('radio', { name: /Hoàn tiền trực tiếp/ }).check();
     await expect(page.getByRole('button', { name: 'Tổng kết cuối năm' })).toBeDisabled();
   });

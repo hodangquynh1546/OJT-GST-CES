@@ -3,7 +3,7 @@ using ClassFund.Domain.Enums;
 namespace ClassFund.Application.Features.Charges;
 
 /// <summary>Tiến độ thu của một khoản (chỉ trả cho người có <c>Charge.Manage</c>). Không tính nghĩa vụ đã hủy.</summary>
-public sealed record ChargeProgressDto(int AssignedCount, int PaidCount, int AwaitingCount, long CollectedAmount);
+public sealed record ChargeProgressDto(int AssignedCount, int PaidCount, long CollectedAmount);
 
 /// <summary>Tình trạng đóng của chính người đang xem.</summary>
 public sealed record MyAssignmentDto(Guid AssignmentId, AssignmentStatus Status, long AmountDue);
@@ -14,7 +14,7 @@ public sealed record ChargeDto(
     string Title,
     string? Purpose,
     long AmountPerPerson,
-    DateOnly DueDate,
+    DateOnly? DueDate,
     ChargeStatus Status,
     DateTimeOffset CreatedAt,
     Guid? CategoryId,
@@ -22,7 +22,7 @@ public sealed record ChargeDto(
     ChargeProgressDto? Progress,
     MyAssignmentDto? Mine);
 
-public sealed record CreateChargeInput(string Title, string? Purpose, long AmountPerPerson, DateOnly DueDate, Guid CategoryId);
+public sealed record CreateChargeInput(string Title, string? Purpose, long AmountPerPerson, DateOnly? DueDate, Guid CategoryId);
 
 public sealed record ChargeFilter(ChargeStatus? Status, int Page, int PageSize);
 

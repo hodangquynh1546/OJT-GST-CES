@@ -3,56 +3,46 @@ using Microsoft.AspNetCore.Mvc;
 using ClassFund.Api.Authorization;
 using ClassFund.Api.Common;
 using ClassFund.Api.ErrorHandling;
-using ClassFund.Application.Common.Paging;
+using ClassFund.Application.Features.Charges;
 using ClassFund.Application.Features.Payments;
 using ClassFund.Domain.Authorization;
 
 namespace ClassFund.Api.Features.Payments;
 
-/// <summary>Nộp và xác nhận thanh toán khoản thu chung (FR-20 → FR-23).</summary>
+/// <summary>Thu tiền: học sinh xem khoản cần đóng; thủ quỹ tích "đã thu" (Tiền mặt / Chuyển khoản) cho khoản thu chung và sự kiện.</summary>
 [ApiVersion(1)]
 [Route(ApiRoutes.Fund)]
 public sealed class PaymentsController(IPaymentsService service) : ApiControllerBase
 {
     [HttpGet("me/assignments")]
-    [RequirePermission(Permissions.PaymentSubmit)]
+    [RequirePermission(Permissions.FundView)]
     [ProducesResponseType<IReadOnlyList<MyAssignmentItemDto>>(StatusCodes.Status200OK)]
     public Task<IReadOnlyList<MyAssignmentItemDto>> Mine(Guid fundId, CancellationToken cancellationToken) =>
         service.ListMineAsync(fundId, cancellationToken);
 
-    [HttpPost("me/assignments/{assignmentId:guid}/payments")]
-    [RequirePermission(Permissions.PaymentSubmit)]
+    /// <summary>Ghi nhận đã thu. 409 <c>payment.not_payable</c> (đã thu) / <c>payment.charge_not_open</c>; 422 <c>payment.method_invalid</c>.</summary>
+    [HttpPost("assignments/{assignmentId:guid}/collect")]
+    [RequirePermission(Permissions.PaymentConfirm)]
     [ProducesResponseType<PaymentDto>(StatusCodes.Status201Created)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, ApiProblems.ContentType)]
-    public async Task<IActionResult> Submit(Guid fundId, Guid assignmentId, SubmitPaymentRequest request, CancellationToken cancellationToken) =>
+    public async Task<IActionResult> Collect(Guid fundId, Guid assignmentId, CollectPaymentRequest request, CancellationToken cancellationToken) =>
         StatusCode(
             StatusCodes.Status201Created,
-            await service.SubmitAsync(fundId, assignmentId, new SubmitPaymentInput(request.Method!.Value, request.TransferCode, request.AttachmentId, request.UseBalance), cancellationToken));
+            await service.CollectAsync(fundId, assignmentId, new CollectPaymentInput(request.Method!.Value, request.TransferCode), cancellationToken));
 
-    [HttpPost("assignments/{assignmentId:guid}/record-cash")]
+    /// <summary>Hủy ghi nhận thu (tích nhầm): bút toán đảo, nghĩa vụ về Chưa nộp. 409 <c>payment.not_collected</c>.</summary>
+    [HttpPost("assignments/{assignmentId:guid}/uncollect")]
     [RequirePermission(Permissions.PaymentConfirm)]
-    [ProducesResponseType<PaymentDto>(StatusCodes.Status201Created)]
+    [ProducesResponseType<PaymentDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, ApiProblems.ContentType)]
-    public async Task<IActionResult> RecordCash(Guid fundId, Guid assignmentId, CancellationToken cancellationToken) =>
-        StatusCode(StatusCodes.Status201Created, await service.RecordCashAsync(fundId, assignmentId, cancellationToken));
+    public Task<PaymentDto> Uncollect(Guid fundId, Guid assignmentId, UncollectPaymentRequest request, CancellationToken cancellationToken) =>
+        service.UncollectAsync(fundId, assignmentId, request.Reason, cancellationToken);
 
-    [HttpGet("payments")]
-    [RequirePermission(Permissions.PaymentConfirm)]
-    [ProducesResponseType<PagedResult<PaymentQueueItemDto>>(StatusCodes.Status200OK)]
-    public Task<PagedResult<PaymentQueueItemDto>> List(Guid fundId, [FromQuery] PaymentListRequest request, CancellationToken cancellationToken) =>
-        service.ListAsync(fundId, new PaymentFilter(request.Status, request.Page, request.PageSize), cancellationToken);
-
-    [HttpPost("payments/{paymentId:guid}/confirm")]
-    [RequirePermission(Permissions.PaymentConfirm)]
-    [ProducesResponseType<PaymentQueueItemDto>(StatusCodes.Status200OK)]
+    /// <summary>"Nhắc đóng" một người còn khoản chưa nộp; 409 nhắc quá sớm, 422 không còn gì để nhắc.</summary>
+    [HttpPost("assignments/{assignmentId:guid}/remind")]
+    [RequirePermission(Permissions.ChargeManage)]
+    [ProducesResponseType<RemindResult>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, ApiProblems.ContentType)]
-    public Task<PaymentQueueItemDto> Confirm(Guid fundId, Guid paymentId, CancellationToken cancellationToken) =>
-        service.ConfirmAsync(fundId, paymentId, cancellationToken);
-
-    [HttpPost("payments/{paymentId:guid}/reject")]
-    [RequirePermission(Permissions.PaymentConfirm)]
-    [ProducesResponseType<PaymentQueueItemDto>(StatusCodes.Status200OK)]
-    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict, ApiProblems.ContentType)]
-    public Task<PaymentQueueItemDto> Reject(Guid fundId, Guid paymentId, RejectPaymentRequest request, CancellationToken cancellationToken) =>
-        service.RejectAsync(fundId, paymentId, request.Reason, cancellationToken);
+    public Task<RemindResult> Remind(Guid fundId, Guid assignmentId, CancellationToken cancellationToken) =>
+        service.RemindAsync(fundId, assignmentId, cancellationToken);
 }

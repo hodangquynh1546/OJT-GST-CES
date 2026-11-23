@@ -16,6 +16,9 @@ public sealed class Event(Guid fundId, string name, string? description, DateOnl
 
     public EventStatus Status { get; set; } = EventStatus.Open;
 
+    /// <summary>Hạn đóng danh sách (thủ quỹ nhập khi tạo / sửa); từ hạn này thủ quỹ đóng danh sách, trước hạn có nhắc tự động. Null ở sự kiện tạo trước khi có cột này.</summary>
+    public DateOnly? ListDeadline { get; set; }
+
     /// <summary>Thời điểm thủ quỹ kết thúc sự kiện (chuyển sang Completed); null khi chưa kết thúc.</summary>
     public DateTimeOffset? CompletedAt { get; set; }
 
@@ -42,4 +45,10 @@ public sealed class EventParticipant(Guid eventId, Guid userId) : Entity
     public bool IsFinal { get; set; }
 
     public string? ExclusionReason { get; set; }
+
+    /// <summary>Thời điểm bị loại khi đóng danh sách; null khi chưa bị loại.</summary>
+    public DateTimeOffset? ExcludedAt { get; set; }
+
+    /// <summary>Số tiền đã đóng được hoàn vào số dư cá nhân khi bị loại; null khi chưa bị loại (0 nếu chưa đóng đồng nào).</summary>
+    public long? RefundedAmount { get; set; }
 }

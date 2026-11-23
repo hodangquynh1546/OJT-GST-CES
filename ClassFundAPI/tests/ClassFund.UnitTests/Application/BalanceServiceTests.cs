@@ -8,19 +8,21 @@ using ClassFund.Domain.Rules;
 
 namespace ClassFund.UnitTests.Application;
 
-/// <summary>M10-T4: BalanceService + WithdrawalsService (FR-40 → FR-42, BR-25, BR-26, OQ-11).</summary>
+/// <summary>M10 (mentor, 2026-11): số dư chỉ vào từ quyết toán / hoàn tiền khi đóng danh sách, chỉ ra khi thủ quỹ rút (BR-25, BR-26).</summary>
 public class BalanceServiceTests
 {
     private readonly ServiceTestContext _ctx = new();
 
-    private BalanceService Balances => new(_ctx.Db, _ctx.CurrentUser, _ctx.Access, _ctx.Audit, _ctx.Clock);
+    private BalanceService Balances => new(_ctx.Db, _ctx.CurrentUser, _ctx.Access, _ctx.Clock);
 
     private WithdrawalsService Withdrawals => new(_ctx.Db, _ctx.CurrentUser, _ctx.Access, Balances, _ctx.Audit, new Notifier(_ctx.Db, _ctx.Clock), _ctx.Clock);
 
     private long BalanceOf(User user) => _ctx.Db.Query<PersonalBalance>().SingleOrDefault(item => item.UserId == user.Id && item.FundId == _ctx.Fund.Id)?.Balance ?? 0;
 
-    private Task Credit(User user, long amount) =>
-        Balances.CreditAsync(_ctx.Fund.Id, user.Id, amount, BalanceTransactionType.SettlementCredit, null, _ctx.Owner.Id, default);
+    private Task Credit(User user, long amount, BalanceTransactionType type = BalanceTransactionType.SettlementCredit, Guid? reference = null) =>
+        Balances.CreditAsync(_ctx.Fund.Id, user.Id, amount, type, reference, _ctx.Owner.Id, default);
+
+    // ---------- Cộng / trừ ----------
 
     [Fact]
     public async Task Credit_creates_balance_and_history_with_balance_after_BR25()
@@ -34,134 +36,152 @@ public class BalanceServiceTests
     }
 
     [Fact]
-    public async Task Debit_never_goes_negative_and_payments_are_blocked_while_withdrawal_pending()
+    public async Task Debit_never_goes_negative()
     {
         await Credit(_ctx.StudentA, 30_000);
-        var short_ = await Assert.ThrowsAsync<BusinessRuleException>(() =>
-            Balances.DebitAsync(_ctx.Fund.Id, _ctx.StudentA.Id, 30_001, BalanceTransactionType.ChargePayment, null, _ctx.StudentA.Id, default));
-        Assert.Equal(BalanceErrors.Insufficient, short_.Code);
 
-        _ctx.ActAs(_ctx.StudentA);
-        await Balances.RequestWithdrawalAsync(_ctx.Fund.Id, default);
-        var locked = await Assert.ThrowsAsync<BusinessRuleException>(() =>
-            Balances.DebitAsync(_ctx.Fund.Id, _ctx.StudentA.Id, 10_000, BalanceTransactionType.ChargePayment, null, _ctx.StudentA.Id, default));
-        Assert.Equal(WithdrawalRule.BalanceLockedCode, locked.Code);
+        var error = await Assert.ThrowsAsync<BusinessRuleException>(() =>
+            Balances.DebitAsync(_ctx.Fund.Id, _ctx.StudentA.Id, 30_001, BalanceTransactionType.Withdrawal, null, _ctx.Owner.Id, default));
+
+        Assert.Equal(BalanceErrors.Insufficient, error.Code);
         Assert.Equal(30_000, BalanceOf(_ctx.StudentA));
     }
 
-    [Fact]
-    public async Task Withdraw_requests_the_whole_balance_once_OQ11()
-    {
-        _ctx.ActAs(_ctx.StudentA);
-        var empty = await Assert.ThrowsAsync<BusinessRuleException>(() => Balances.RequestWithdrawalAsync(_ctx.Fund.Id, default));
-        Assert.Equal(WithdrawalRule.NothingToWithdrawCode, empty.Code);
-
-        await Credit(_ctx.StudentA, 38_000);
-        var mine = await Balances.RequestWithdrawalAsync(_ctx.Fund.Id, default);
-
-        Assert.Equal(38_000, mine.Balance); // giữ nguyên tới khi thủ quỹ trả
-        Assert.Equal((38_000L, WithdrawalStatus.Requested), (mine.LatestWithdrawal!.Amount, mine.LatestWithdrawal.Status));
-        Assert.Single(_ctx.AuditLogs, log => log.Action == BalanceAuditActions.WithdrawalRequest);
-
-        var twice = await Assert.ThrowsAsync<BusinessRuleException>(() => Balances.RequestWithdrawalAsync(_ctx.Fund.Id, default));
-        Assert.Equal(WithdrawalRule.PendingExistsCode, twice.Code);
-    }
+    // ---------- Xem số dư của tôi ----------
 
     [Fact]
-    public async Task Archived_fund_still_allows_withdrawal_BR37()
+    public async Task A_student_sees_only_their_balance_and_history_with_the_refund_event_named()
     {
-        await Credit(_ctx.StudentA, 10_000);
-        _ctx.Fund.Status = FundStatus.Archived;
-        _ctx.ActAs(_ctx.StudentA);
-        var mine = await Balances.RequestWithdrawalAsync(_ctx.Fund.Id, default);
-        Assert.Equal(WithdrawalStatus.Requested, mine.LatestWithdrawal!.Status);
-    }
-
-    [Fact]
-    public async Task Paid_deducts_exactly_the_requested_amount_and_notifies()
-    {
-        await Credit(_ctx.StudentA, 38_000);
-        _ctx.ActAs(_ctx.StudentA);
-        var request = (await Balances.RequestWithdrawalAsync(_ctx.Fund.Id, default)).LatestWithdrawal!;
-        await Credit(_ctx.StudentA, 5_000); // tiền thừa mới cộng trong lúc chờ không bị rút theo
-
-        _ctx.ActAs(_ctx.Treasurer);
-        var paid = await Withdrawals.MarkPaidAsync(_ctx.Fund.Id, request.Id, default);
-
-        Assert.Equal(WithdrawalStatus.Paid, paid.Status);
-        Assert.Equal(_ctx.Treasurer.FullName, paid.HandledByName);
-        Assert.Equal(5_000, BalanceOf(_ctx.StudentA));
-        var withdrawal = _ctx.Db.Query<BalanceTransaction>().Single(item => item.Type == BalanceTransactionType.Withdrawal);
-        Assert.Equal((-38_000L, 5_000L, request.Id), (withdrawal.Amount, withdrawal.BalanceAfter, withdrawal.ReferenceId!.Value));
-        Assert.Empty(_ctx.Db.Query<LedgerEntry>()); // không ghi sổ thu chi (BR-26)
-        Assert.Single(_ctx.Db.Query<Notification>(), item => item.UserId == _ctx.StudentA.Id && item.Type == NotificationType.WithdrawalProcessed);
-        Assert.False(Assert.Single(_ctx.AuditLogs, log => log.Action == BalanceAuditActions.WithdrawalPaid).IsSelfAction);
-
-        var again = await Assert.ThrowsAsync<ConflictException>(() => Withdrawals.MarkPaidAsync(_ctx.Fund.Id, request.Id, default));
-        Assert.Equal(BalanceErrors.NotPending, again.Code);
-    }
-
-    [Fact]
-    public async Task Reject_needs_reason_and_reopens_the_balance()
-    {
-        await Credit(_ctx.StudentA, 38_000);
-        _ctx.ActAs(_ctx.StudentA);
-        var request = (await Balances.RequestWithdrawalAsync(_ctx.Fund.Id, default)).LatestWithdrawal!;
-
-        _ctx.ActAs(_ctx.Owner);
-        var noReason = await Assert.ThrowsAsync<BusinessRuleException>(() => Withdrawals.RejectAsync(_ctx.Fund.Id, request.Id, " ", default));
-        Assert.Equal(BalanceErrors.ReasonRequired, noReason.Code);
-        var rejected = await Withdrawals.RejectAsync(_ctx.Fund.Id, request.Id, " Đóng Dã ngoại trước ", default);
-
-        Assert.Equal((WithdrawalStatus.Rejected, "Đóng Dã ngoại trước"), (rejected.Status, rejected.RejectionReason));
-        Assert.Equal(38_000, BalanceOf(_ctx.StudentA));
-        Assert.False(await Balances.HasPendingWithdrawalAsync(_ctx.Fund.Id, _ctx.StudentA.Id, default));
-
-        _ctx.ActAs(_ctx.StudentA);
-        var mine = await Balances.GetMineAsync(_ctx.Fund.Id, default);
-        Assert.Equal("Đóng Dã ngoại trước", mine.LatestWithdrawal!.RejectionReason);
-        Assert.Equal(WithdrawalStatus.Requested, (await Balances.RequestWithdrawalAsync(_ctx.Fund.Id, default)).LatestWithdrawal!.Status);
-    }
-
-    [Fact]
-    public async Task Treasurer_handling_own_request_is_a_self_action()
-    {
-        await Credit(_ctx.Treasurer, 20_000);
-        _ctx.ActAs(_ctx.Treasurer);
-        var request = (await Balances.RequestWithdrawalAsync(_ctx.Fund.Id, default)).LatestWithdrawal!;
-        var list = await Withdrawals.ListAsync(_ctx.Fund.Id, WithdrawalStatus.Requested, default);
-        Assert.True(Assert.Single(list.Items).IsMine);
-
-        await Withdrawals.MarkPaidAsync(_ctx.Fund.Id, request.Id, default);
-        Assert.True(Assert.Single(_ctx.AuditLogs, log => log.Action == BalanceAuditActions.WithdrawalPaid).IsSelfAction);
-    }
-
-    [Fact]
-    public async Task Students_cannot_handle_requests()
-    {
-        _ctx.ActAs(_ctx.StudentA);
-        await Assert.ThrowsAsync<ForbiddenAccessException>(() => Withdrawals.ListAsync(_ctx.Fund.Id, null, default));
-    }
-
-    [Fact]
-    public async Task My_balance_history_describes_each_change_and_lists_other_funds()
-    {
-        var picnic = new Event(_ctx.Fund.Id, "Tham quan bảo tàng", null, null, _ctx.Owner.Id, ServiceTestContext.Start);
-        var settlement = new Settlement(_ctx.Fund.Id, picnic.Id, 30, 6_000_000, 4_860_000, _ctx.Owner.Id, ServiceTestContext.Start);
-        var line = new SettlementLine(settlement.Id, _ctx.StudentA.Id, 200_000, 38_000) { Status = SettlementLineStatus.CreditedToBalance };
-        var other = new Fund("CLB Tiếng Anh", _ctx.Owner.Id, "2026-2027", ServiceTestContext.Start);
+        var picnic = new Event(_ctx.Fund.Id, "Dã ngoại Ba Vì", null, new DateOnly(2026, 12, 20), _ctx.Owner.Id, ServiceTestContext.Start);
         _ctx.Db.Seed(picnic);
-        _ctx.Db.Seed(settlement);
-        _ctx.Db.Seed(line);
-        _ctx.Db.Seed(other);
-        _ctx.Db.Seed(new FundMember(other.Id, _ctx.StudentA.Id, MemberRole.Student, ServiceTestContext.Start));
-        await Balances.CreditAsync(_ctx.Fund.Id, _ctx.StudentA.Id, 38_000, BalanceTransactionType.SettlementCredit, line.Id, _ctx.Owner.Id, default);
-
+        await Credit(_ctx.StudentA, 70_000, BalanceTransactionType.ListCloseRefund, picnic.Id);
+        await Credit(_ctx.StudentB, 5_000);
         _ctx.ActAs(_ctx.StudentA);
+
         var mine = await Balances.GetMineAsync(_ctx.Fund.Id, default);
 
-        var item = Assert.Single(mine.History);
-        Assert.Equal(("Tiền thừa quyết toán", (FinancialScope?)FinancialScope.Event, "Tham quan bảo tàng"), (item.Description, item.Scope, item.EventName));
-        Assert.Equal(("CLB Tiếng Anh", 0L), (Assert.Single(mine.OtherFunds).FundName, mine.OtherFunds[0].Balance));
+        Assert.Equal(70_000, mine.Balance);
+        var row = Assert.Single(mine.History);
+        Assert.Equal(("Hoàn tiền đã đóng khi đóng danh sách", FinancialScope.Event, "Dã ngoại Ba Vì"), (row.Description, row.Scope, row.EventName));
+    }
+
+    // ---------- Rút số dư (thủ quỹ) ----------
+
+    [Fact]
+    public async Task A_treasurer_withdraws_part_of_a_balance_with_history_audit_and_notification()
+    {
+        await Credit(_ctx.StudentA, 80_000);
+        _ctx.ActAs(_ctx.Treasurer);
+
+        var row = await Withdrawals.WithdrawAsync(_ctx.Fund.Id, _ctx.StudentA.Id, 30_000, default);
+
+        Assert.Equal((50_000L, _ctx.StudentA.Id), (row.Balance, row.UserId));
+        Assert.Equal(50_000, BalanceOf(_ctx.StudentA));
+        var debit = _ctx.Db.Query<BalanceTransaction>().Single(item => item.Type == BalanceTransactionType.Withdrawal);
+        Assert.Equal((-30_000L, 50_000L), (debit.Amount, debit.BalanceAfter));
+        var record = Assert.Single(_ctx.Db.Query<WithdrawalRequest>());
+        Assert.Equal((WithdrawalStatus.Paid, 30_000L, _ctx.Treasurer.Id), (record.Status, record.Amount, record.HandledByUserId));
+        Assert.Equal(record.Id, debit.ReferenceId);
+        Assert.Contains(_ctx.AuditLogs, log => log.Action == BalanceAuditActions.Withdraw && log.Scope == FinancialScope.System && !log.IsSelfAction);
+        Assert.Equal(NotificationType.WithdrawalProcessed, Assert.Single(_ctx.Db.Query<Notification>()).Type);
+        Assert.Empty(_ctx.Db.Query<LedgerEntry>());
+    }
+
+    [Fact]
+    public async Task The_whole_balance_can_be_withdrawn_and_a_treasurers_own_withdrawal_is_self_declared()
+    {
+        await Credit(_ctx.Treasurer, 38_000);
+        _ctx.ActAs(_ctx.Treasurer);
+
+        var row = await Withdrawals.WithdrawAsync(_ctx.Fund.Id, _ctx.Treasurer.Id, 38_000, default);
+
+        Assert.Equal(0, row.Balance);
+        Assert.Contains(_ctx.AuditLogs, log => log.Action == BalanceAuditActions.Withdraw && log.IsSelfAction);
+    }
+
+    [Theory]
+    [InlineData(9_000)]
+    [InlineData(10_500)]
+    [InlineData(0)]
+    public async Task A_withdrawal_must_be_at_least_10k_and_a_multiple_of_1k(long amount)
+    {
+        await Credit(_ctx.StudentA, 80_000);
+        _ctx.ActAs(_ctx.Treasurer);
+
+        var error = await Assert.ThrowsAsync<BusinessRuleException>(() => Withdrawals.WithdrawAsync(_ctx.Fund.Id, _ctx.StudentA.Id, amount, default));
+
+        Assert.Equal(WithdrawalRule.InvalidAmountCode, error.Code);
+        Assert.Equal(80_000, BalanceOf(_ctx.StudentA));
+    }
+
+    [Fact]
+    public async Task A_withdrawal_cannot_exceed_the_balance_and_changes_nothing_when_refused()
+    {
+        await Credit(_ctx.StudentA, 20_000);
+        _ctx.ActAs(_ctx.Treasurer);
+
+        var error = await Assert.ThrowsAsync<BusinessRuleException>(() => Withdrawals.WithdrawAsync(_ctx.Fund.Id, _ctx.StudentA.Id, 21_000, default));
+
+        Assert.Equal(BalanceErrors.Insufficient, error.Code);
+        Assert.Equal(20_000, BalanceOf(_ctx.StudentA));
+        Assert.Empty(_ctx.Db.Query<WithdrawalRequest>());
+    }
+
+    [Fact]
+    public async Task Students_cannot_withdraw_or_list_balances_and_strangers_are_not_members()
+    {
+        await Credit(_ctx.StudentA, 80_000);
+
+        _ctx.ActAs(_ctx.StudentA);
+        await Assert.ThrowsAsync<ForbiddenAccessException>(() => Withdrawals.WithdrawAsync(_ctx.Fund.Id, _ctx.StudentA.Id, 10_000, default));
+        await Assert.ThrowsAsync<ForbiddenAccessException>(() => Withdrawals.ListBalancesAsync(_ctx.Fund.Id, null, 1, 20, default));
+
+        _ctx.ActAs(_ctx.Treasurer);
+        await Assert.ThrowsAsync<NotFoundException>(() => Withdrawals.WithdrawAsync(_ctx.Fund.Id, _ctx.Outsider.Id, 10_000, default));
+    }
+
+    [Fact]
+    public async Task Withdrawing_is_still_possible_after_the_year_end_BR37()
+    {
+        await Credit(_ctx.StudentA, 80_000);
+        _ctx.Fund.Status = FundStatus.Archived;
+        _ctx.ActAs(_ctx.Treasurer);
+
+        var row = await Withdrawals.WithdrawAsync(_ctx.Fund.Id, _ctx.StudentA.Id, 80_000, default);
+
+        Assert.Equal(0, row.Balance);
+    }
+
+    // ---------- Danh sách số dư và lịch sử rút ----------
+
+    [Fact]
+    public async Task The_balance_list_shows_every_member_with_the_biggest_balance_first_and_the_held_total()
+    {
+        await Credit(_ctx.StudentA, 38_000);
+        await Credit(_ctx.StudentB, 63_000);
+        _ctx.ActAs(_ctx.Treasurer);
+
+        var all = await Withdrawals.ListBalancesAsync(_ctx.Fund.Id, null, 1, 20, default);
+        var filtered = await Withdrawals.ListBalancesAsync(_ctx.Fund.Id, "treasurer", 1, 20, default);
+
+        Assert.Equal(4, all.Total);
+        Assert.Equal([_ctx.StudentB.Id, _ctx.StudentA.Id], all.Items.Take(2).Select(item => item.UserId));
+        Assert.Equal(101_000, all.HeldTotal);
+        Assert.Equal(_ctx.Treasurer.Id, Assert.Single(filtered.Items).UserId);
+    }
+
+    [Fact]
+    public async Task The_withdrawal_history_lists_newest_first_with_who_handled_it()
+    {
+        await Credit(_ctx.StudentA, 80_000);
+        _ctx.ActAs(_ctx.Treasurer);
+        await Withdrawals.WithdrawAsync(_ctx.Fund.Id, _ctx.StudentA.Id, 10_000, default);
+        _ctx.Clock.Now = ServiceTestContext.Start.AddHours(1);
+        await Withdrawals.WithdrawAsync(_ctx.Fund.Id, _ctx.StudentA.Id, 20_000, default);
+
+        var history = await Withdrawals.HistoryAsync(_ctx.Fund.Id, 1, 20, default);
+
+        Assert.Equal([20_000L, 10_000L], history.Items.Select(item => item.Amount));
+        Assert.All(history.Items, item => Assert.Equal(_ctx.Treasurer.FullName, item.HandledByName));
     }
 }

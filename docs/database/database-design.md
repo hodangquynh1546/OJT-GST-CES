@@ -65,9 +65,9 @@ erDiagram
 
 | Bảng | Cột chính | Ràng buộc / index |
 |---|---|---|
-| `Event` | FundId, Name, Description, EventDate, Status (`Open`/`Completed`/`Settled`/`Cancelled` – OQ-18), CompletedAt (thời điểm kết thúc, đổi tên từ ListLockedAt – TD-03), CreatedByUserId, CreatedAt | `IX_Event_Fund_Status` |
-| `EventParticipant` | EventId, UserId, Response (`Pending`/`Accepted`/`Declined`), RespondedAt, IsFinal (còn tham gia sau khi kết thúc, BR-19), ExclusionReason | `UX_EventParticipant_Event_User` |
-| `Charge` | FundId, **EventId?**, Title, Purpose, AmountPerPerson, DueDate, Kind (`Regular` – đã bỏ `Supplementary`, OQ-18), Status (`Open`/`Closed`/`Cancelled`), CreatedByUserId, CreatedAt | CHECK AmountPerPerson > 0; `IX_Charge_Fund_Event_Status` |
+| `Event` | FundId, Name, Description, EventDate, **ListDeadline** (hạn đóng danh sách, OQ-21), Status (`Open`/`Completed`/`Settled`/`Cancelled` – OQ-18), CompletedAt (thời điểm đóng danh sách, đổi tên từ ListLockedAt – TD-03), CreatedByUserId, CreatedAt | `IX_Event_Fund_Status` |
+| `EventParticipant` | EventId, UserId, Response (`Pending`/`Accepted`/`Declined`), RespondedAt, IsFinal (còn tham gia sau khi đóng danh sách, BR-19), ExclusionReason, **ExcludedAt?**, **RefundedAmount** (tiền hoàn vào số dư khi bị loại) | `UX_EventParticipant_Event_User` |
+| `Charge` | FundId, **EventId?**, Title, Purpose, AmountPerPerson, **DueDate? (null = khoản thu chung không hạn, BR-04)**, Kind (`Regular` – đã bỏ `Supplementary`, OQ-18), Status (`Open`/`Closed`/`Cancelled`), CreatedByUserId, CreatedAt | CHECK AmountPerPerson > 0; `IX_Charge_Fund_Event_Status` |
 | `ChargeAssignment` | ChargeId, UserId, AmountDue, Status (`Unpaid`/`AwaitingConfirmation`/`Paid`/`Excluded`/`Cancelled`) | `UX_ChargeAssignment_Charge_User`; CHECK AmountDue ≥ 0 |
 | `Payment` | AssignmentId, PayerUserId, Amount, Method (`Cash`/`BankTransfer`/`PersonalBalance`), TransferCode, Status (`Submitted`/`Confirmed`/`Rejected`), SubmittedAt, ConfirmedByUserId, ConfirmedAt, ConfirmationMode (`Verified`/`SelfDeclared`), RejectionReason | `UX_Payment_OneActivePerAssignment` (unique partial: Status <> 'Rejected'); CHECK Amount > 0 |
 
@@ -87,8 +87,9 @@ Bút toán đảo: dòng mới cùng phạm vi, Type ngược lại, `ReversesEn
 | `Settlement` | FundId, **EventId?** (null = quyết toán cuối năm quỹ chung), ParticipantCount, TotalCollected, TotalSpent, Outcome (`Balanced`/`Surplus`), SurplusMethod?, AllocationRule? (sự kiện luôn `Proportional`), SettledByUserId, SettledAt | `UX_Settlement_EventId` (partial, EventId NOT NULL); `UX_Settlement_OneYearEndPerFund` (partial, EventId NULL) – mỗi phạm vi quyết toán đúng một lần |
 | `SettlementLine` | SettlementId, UserId, Contributed, RefundAmount, Status (`PendingRefund`/`Refunded`/`CreditedToBalance`), ConfirmedByUserId, ConfirmedAt | `UX_SettlementLine_Settlement_User`; CHECK RefundAmount ≥ 0 |
 | `PersonalBalance` | FundId, UserId, Balance, `xmin` | `UX_PersonalBalance_Fund_User`; CHECK Balance ≥ 0 |
-| `BalanceTransaction` | FundId, UserId, Type (`SettlementCredit`/`ChargePayment`/`Withdrawal`/`Adjustment`), Amount (có dấu), BalanceAfter, ReferenceId, CreatedByUserId, CreatedAt | CHECK BalanceAfter ≥ 0. **Append-only** |
-| `WithdrawalRequest` | FundId, UserId, Amount, Status (`Requested`/`Paid`/`Rejected`), RequestedAt, HandledByUserId, HandledAt, RejectionReason. Amount = toàn bộ số dư lúc yêu cầu (OQ-11) | `IX_WithdrawalRequest_Fund_Status`; `UX_WithdrawalRequest_OnePendingPerUser` (partial: Status = 'Requested') |
+| `PaymentReminder` | FundId, EventId?, ChargeId, UserId (người được nhắc), Kind (`Auto`/`Manual`), SentByUserId?, SentAt, ReminderDate (ngày VN) – nhật ký **mọi** lần nhắc đóng (BR-15) | `IX_PaymentReminder_Fund_At`; `UX_PaymentReminder_AutoPerDay` (partial: Kind = Auto, mỗi người / khoản thu / ngày một lần) |
+| `BalanceTransaction` | FundId, UserId, Type (`SettlementCredit`/`ChargePayment`/`ChargeRefund`/`Withdrawal`/`Adjustment`/**`ListCloseRefund`**), Amount (có dấu), BalanceAfter, ReferenceId, CreatedByUserId, CreatedAt | CHECK BalanceAfter ≥ 0. **Append-only** |
+| `WithdrawalRequest` | **Lịch sử rút** (2026-11-23): mỗi lần thủ quỹ rút số dư ghi một dòng `Paid` (Amount = số tiền nhập, HandledByUserId = thủ quỹ); dòng `Requested` cũ được migration đổi thành `Rejected` (OQ-21) | `IX_WithdrawalRequest_Fund_Status`; `UX_WithdrawalRequest_OnePendingPerUser` (partial: Status = 'Requested') |
 
 ### 3.5. Thông báo & nhật ký
 

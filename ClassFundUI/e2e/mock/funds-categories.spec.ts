@@ -4,10 +4,10 @@ import { Page, expect, test } from '@playwright/test';
 
 const OWNER_PERMISSIONS = [
   'Fund.View', 'Fund.Manage', 'Member.Manage', 'Treasurer.Manage', 'Category.Manage', 'Event.Manage', 'Event.Participate',
-  'Charge.Manage', 'Ledger.Manage', 'Payment.Submit', 'Payment.Confirm', 'Settlement.Execute', 'Balance.ViewOwn',
-  'Balance.Withdraw', 'Balance.Handle', 'Report.View', 'Audit.View',
+  'Charge.Manage', 'Ledger.Manage', 'Payment.Confirm', 'Settlement.Execute', 'Balance.ViewOwn',
+  'Balance.Handle', 'Report.View', 'Audit.View',
 ];
-const STUDENT_PERMISSIONS = ['Fund.View', 'Event.Participate', 'Payment.Submit', 'Balance.ViewOwn', 'Balance.Withdraw'];
+const STUDENT_PERMISSIONS = ['Fund.View', 'Event.Participate', 'Balance.ViewOwn', 'Balance.Withdraw'];
 
 function me(memberships: object[], canCreate = true) {
   return {
@@ -36,9 +36,9 @@ test('F-01 shows fund cards with role and treasurer KPIs', async ({ page }) => {
   await page.route('**/api/v1/funds', (route) =>
     route.fulfill({
       json: [
-        { id: 'f1', name: 'Lớp 10A1', schoolYear: '2026-2027', status: 'Active', myRole: 'Owner', memberCount: 32, generalBalance: 4820000, pendingPaymentCount: 4 },
-        { id: 'f2', name: 'CLB Tiếng Anh', schoolYear: '2026-2027', status: 'Active', myRole: 'Student', memberCount: 18, generalBalance: 1200000, pendingPaymentCount: null, myDueAmount: 250000, myDueCount: 2, myBalance: 38000 },
-        { id: 'f3', name: 'Lớp 9A1', schoolYear: '2025-2026', status: 'Archived', myRole: 'Treasurer', memberCount: 30, generalBalance: 0, pendingPaymentCount: 0 },
+        { id: 'f1', name: 'Lớp 10A1', schoolYear: '2026-2027', status: 'Active', myRole: 'Owner', memberCount: 32, generalBalance: 4820000, myDueAmount: 0, myDueCount: 0, myBalance: 0 },
+        { id: 'f2', name: 'CLB Tiếng Anh', schoolYear: '2026-2027', status: 'Active', myRole: 'Student', memberCount: 18, generalBalance: 1200000, myDueAmount: 250000, myDueCount: 2, myBalance: 38000 },
+        { id: 'f3', name: 'Lớp 9A1', schoolYear: '2025-2026', status: 'Archived', myRole: 'Treasurer', memberCount: 30, generalBalance: 0, myDueAmount: 0, myDueCount: 0, myBalance: 0 },
       ],
     }),
   );
@@ -50,10 +50,9 @@ test('F-01 shows fund cards with role and treasurer KPIs', async ({ page }) => {
   await expect(owner).toContainText('2026–2027 · 32 thành viên');
   await expect(owner).toContainText('Thủ quỹ chính');
   await expect(owner).toContainText('4.820.000 đ');
-  await expect(owner).toContainText('4 thanh toán');
   const student = page.getByRole('link', { name: /CLB Tiếng Anh/ });
   await expect(student).not.toContainText('Chờ xác nhận');
-  await expect(student).toContainText('Bạn cần đóng');
+  await expect(student).toContainText('Bạn chưa nộp');
   await expect(student).toContainText('250.000 đ');
   await expect(student).toContainText('2 khoản');
   await expect(student).toContainText('Số dư cá nhân');

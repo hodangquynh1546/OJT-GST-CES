@@ -15,7 +15,6 @@ registerErrorMessages({
   'member.cannot_remove_owner': 'Không thể ngừng thủ quỹ chính của quỹ.',
   'member.already_removed': 'Thành viên này đã bị ngừng.',
   'member.has_balance': 'Thành viên còn số dư cá nhân. Số dư phải về 0 (rút tiền) trước khi ngừng.',
-  'member.pending_payments': 'Thành viên còn thanh toán đang chờ xác nhận. Hãy xác nhận hoặc từ chối trước khi ngừng.',
   'fund.archived': 'Quỹ đã tổng kết cuối năm, chỉ được xem.',
 });
 

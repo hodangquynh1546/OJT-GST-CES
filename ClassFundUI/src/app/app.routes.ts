@@ -53,11 +53,10 @@ export const routes: Routes = [
           // Sự kiện (gồm quyết toán: events/:eventId/settlement)
           fundChild('events', Permissions.EventParticipate, () => import('./features/events/events.routes').then((m) => m.EVENT_ROUTES)),
           // Việc của học sinh (thủ quỹ cũng có)
-          fundChild('my-payments', Permissions.PaymentSubmit, () => import('./features/charges/charges.routes').then((m) => m.MY_PAYMENT_ROUTES)),
+          fundChild('my-payments', Permissions.FundView, () => import('./features/charges/charges.routes').then((m) => m.MY_PAYMENT_ROUTES)),
           fundChild('balance', Permissions.BalanceViewOwn, () => import('./features/balance/balance.routes').then((m) => m.BALANCE_ROUTES)),
           fundChild('notifications', Permissions.FundView, () => import('./features/notifications/notifications.routes').then((m) => m.NOTIFICATION_ROUTES)),
           // Quản lý của thủ quỹ
-          fundChild('payments', Permissions.PaymentConfirm, () => import('./features/charges/charges.routes').then((m) => m.PAYMENT_CONFIRM_ROUTES)),
           fundChild('withdrawals', Permissions.BalanceHandle, () => import('./features/balance/balance.routes').then((m) => m.WITHDRAWAL_ROUTES)),
           fundChild('reports', Permissions.ReportView, () => import('./features/reports/reports.routes').then((m) => m.REPORT_ROUTES)),
           fundChild('members', Permissions.MemberManage, () => import('./features/members/members.routes').then((m) => m.MEMBER_ROUTES)),

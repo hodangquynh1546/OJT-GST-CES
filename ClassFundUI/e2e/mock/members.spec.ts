@@ -15,17 +15,15 @@ const OWNER_PERMISSIONS = [
   'Event.Participate',
   'Charge.Manage',
   'Ledger.Manage',
-  'Payment.Submit',
   'Payment.Confirm',
   'Settlement.Execute',
   'Balance.ViewOwn',
-  'Balance.Withdraw',
   'Balance.Handle',
   'Report.View',
   'Audit.View',
 ];
 const TREASURER_PERMISSIONS = OWNER_PERMISSIONS.filter((item) => item !== 'Treasurer.Manage');
-const STUDENT_PERMISSIONS = ['Fund.View', 'Event.Participate', 'Payment.Submit', 'Balance.ViewOwn', 'Balance.Withdraw'];
+const STUDENT_PERMISSIONS = ['Fund.View', 'Event.Participate', 'Balance.ViewOwn', 'Balance.Withdraw'];
 
 function userAs(role: Role): FakeUser {
   const permissions = role === 'Owner' ? OWNER_PERMISSIONS : role === 'Treasurer' ? TREASURER_PERMISSIONS : STUDENT_PERMISSIONS;

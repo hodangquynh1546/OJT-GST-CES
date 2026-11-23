@@ -21,7 +21,7 @@ import { YearEndApi } from '../year-end.api';
 import { YearEndPreview, YearEndResult } from '../year-end.models';
 
 /**
- * S-05 · Tổng kết cuối năm quỹ chung (FR-53, FR-54). Làm một lần: chia tiền thừa cho cả lớp theo tỷ lệ số đã đóng vào các khoản thu chung,
+ * S-05 · Tổng kết cuối năm quỹ chung (FR-53, FR-54). Làm một lần: chia đều tiền thừa cho cả lớp theo đầu người (chỉ khi mọi người đã nộp đủ khoản thu chung),
  * hoàn trực tiếp hoặc cộng vào số dư; xong quỹ chuyển "Đã tổng kết" (chỉ xem).
  */
 @Component({
@@ -95,15 +95,10 @@ import { YearEndPreview, YearEndResult } from '../year-end.models';
             <a [routerLink]="['/funds', fundId(), 'events']">Mở danh sách sự kiện</a>
           </div>
         }
-        @if (plan.pendingPaymentCount > 0) {
-          <div class="cf-alert cf-alert--danger">
-            Còn <b>{{ plan.pendingPaymentCount }}</b> thanh toán chờ xác nhận. Hãy xác nhận hoặc từ chối hết.
-            <a [routerLink]="['/funds', fundId(), 'payments']">Mở hàng chờ xác nhận</a>
-          </div>
-        }
         @if (plan.unpaidObligationCount > 0) {
-          <div class="cf-alert">
-            Có <b>{{ plan.unpaidObligationCount }}</b> khoản chưa đóng ở {{ plan.openChargeCount }} khoản thu chung còn mở; chúng được đóng lại khi tổng kết, không truy thu và không trừ vào phần của người khác.
+          <div class="cf-alert cf-alert--danger">
+            Còn <b>{{ plan.unpaidObligationCount }}</b> khoản chưa nộp ở {{ plan.openChargeCount }} khoản thu chung còn mở. Thủ quỹ nhắc đóng và tích “đã thu” đủ cho mọi người rồi mới tổng kết, để chia đều theo đầu người.
+            <a [routerLink]="['/funds', fundId(), 'charges']">Mở khoản thu chung</a>
           </div>
         }
         <div class="cf-alert cf-alert--warning">
@@ -113,7 +108,7 @@ import { YearEndPreview, YearEndResult } from '../year-end.models';
         @if (plan.surplus > 0) {
           <section class="cf-card pad stack" aria-label="Cách xử lý tiền thừa">
             <h2>Cách xử lý tiền thừa</h2>
-            <p class="cf-muted">Tiền thừa chia cho cả lớp theo tỷ lệ tổng số tiền mỗi người đã đóng vào các khoản thu chung cả năm.</p>
+            <p class="cf-muted">Khi mọi người đã nộp đủ, tiền thừa chia đều theo đầu người cho cả lớp (làm tròn xuống bội 1.000 đ; phần lẻ dưới 1.000 đ không chia).</p>
             <div class="methods" role="radiogroup" aria-label="Cách xử lý tiền thừa">
               @for (option of methodOptions; track option) {
                 <label class="method">
@@ -129,15 +124,14 @@ import { YearEndPreview, YearEndResult } from '../year-end.models';
         }
 
         <section class="cf-card" aria-label="Bảng chia tiền thừa">
-          <div class="card-h"><h2>Chia theo tỷ lệ đã đóng</h2></div>
+          <div class="card-h"><h2>Chia đều theo đầu người</h2></div>
           <table class="grid">
-            <thead><tr><th>Thành viên</th><th class="num">Đã đóng cả năm</th><th class="num">Tỷ lệ</th><th class="num">Được nhận lại</th></tr></thead>
+            <thead><tr><th>Thành viên</th><th class="num">Đã nộp cả năm</th><th class="num">Được nhận lại</th></tr></thead>
             <tbody>
               @for (line of plan.lines; track line.userId) {
                 <tr>
                   <td>{{ line.fullName }}</td>
                   <td class="num">{{ line.contributed | vndMoney }}</td>
-                  <td class="num cf-muted">{{ ratio(line) }}</td>
                   <td class="num strong">{{ line.amount | vndMoney }}</td>
                 </tr>
               }
@@ -157,7 +151,7 @@ import { YearEndPreview, YearEndResult } from '../year-end.models';
           <b>Chỉ làm một lần.</b> Quỹ chuyển sang "Đã tổng kết" và không quay lại được.
           @if (preview(); as plan) {
             @if (plan.surplus > 0) {
-              Tiền thừa <b>{{ plan.surplus | vndMoney }}</b> được chia cho cả lớp theo tỷ lệ đã đóng và
+              Tiền thừa <b>{{ plan.surplus | vndMoney }}</b> được chia đều cho cả lớp và
               {{ method() === 'PersonalBalance' ? 'cộng ngay vào số dư cá nhân.' : 'chờ bạn hoàn trực tiếp.' }}
             } @else {
               Thu chi vừa đủ, không có tiền thừa.
@@ -226,11 +220,6 @@ export class YearEndPage {
 
   constructor() {
     void this.load();
-  }
-
-  protected ratio(line: SettlementLine): string {
-    const total = this.preview()?.lines.reduce((sum, item) => sum + item.contributed, 0) ?? 0;
-    return total > 0 ? `${Math.round((line.contributed / total) * 1000) / 10}%` : '–';
   }
 
   private currentFundId(): string {

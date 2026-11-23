@@ -1,5 +1,3 @@
-import { AssignmentStatus } from '../../shared/models/labels';
-
 /** Phần trăm (0–100, làm tròn) của `part` trên `total`; 0 khi `total` bằng 0. */
 export function percentOf(part: number, total: number): number {
   return total > 0 ? Math.min(100, Math.round((part / total) * 100)) : 0;
@@ -17,10 +15,6 @@ export function daysUntil(dueDate: string, today: string): number {
 /** Hôm nay theo giờ Việt Nam, dạng `yyyy-MM-dd`. */
 export function todayInVietnam(now: Date = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
-}
-
-export function hasPaymentToHandle(status: AssignmentStatus): boolean {
-  return status === 'AwaitingConfirmation';
 }
 
 /** Mô tả hạn: "còn 3 ngày", "hôm nay", "quá hạn 2 ngày". */

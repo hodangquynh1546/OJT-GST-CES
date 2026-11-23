@@ -8,7 +8,7 @@ public static class LedgerErrors
 
     /// <summary>BR-20: sự kiện đã kết thúc / quyết toán / hủy thì không ghi chi mới.</summary>
     public const string EventClosed = "ledger.event_closed";
-    public const string EventClosedMessage = "Sự kiện đã kết thúc hoặc đã quyết toán / hủy, không ghi chi mới.";
+    public const string EventClosedMessage = "Sự kiện đã quyết toán hoặc đã hủy, không ghi chi mới.";
 
     /// <summary>Sự kiện đã quyết toán / hủy: sổ của sự kiện đã khóa, không đảo được nữa.</summary>
     public const string ScopeLocked = "ledger.scope_locked";

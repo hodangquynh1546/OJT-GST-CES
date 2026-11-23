@@ -8,7 +8,7 @@ using ClassFund.Domain.Enums;
 namespace ClassFund.IntegrationTests.Modules;
 
 /// <summary>
-/// M14-T4 trên PostgreSQL thật: tổng kết cuối năm một lần (kể cả khi hai thủ quỹ bấm cùng lúc), chia cho cả lớp theo tỷ lệ đã đóng,
+/// M14-T4 trên PostgreSQL thật: tổng kết cuối năm một lần (kể cả khi hai thủ quỹ bấm cùng lúc), chia đều theo đầu người (chặn khi còn người chưa đóng đủ),
 /// quỹ → Archived chặn mọi ghi mới nhưng vẫn rút được số dư và xác nhận hoàn tiền (BR-37, TC-M14-05).
 /// </summary>
 [Collection(ApiCollection.Name)]
@@ -24,8 +24,8 @@ public class YearEndSettlementApiTests(ApiTestHost host)
 
     private sealed record World(Fund Fund, User Owner, User A, User B, HttpClient OwnerClient, HttpClient AClient, HttpClient BClient, Guid IncomeCategoryId, Guid ExpenseCategoryId);
 
-    /// <summary>A đóng 100.000, B đóng 100.000 (đã xác nhận) vào một khoản thu chung; chi 120.000 → thừa 80.000, mỗi người 40.000.</summary>
-    private async Task<World> YearWithSurplusAsync()
+    /// <summary>Owner, A, B đều được thủ quỹ tích đã thu 100.000 vào một khoản thu chung; chi 120.000 → thừa 180.000, mỗi người 60.000.</summary>
+    private async Task<World> YearWithSurplusAsync(bool everyonePaid = true)
     {
         var owner = await host.CreateUserAsync();
         var a = await host.CreateUserAsync(UserOrigin.Provisioned);
@@ -49,11 +49,11 @@ public class YearEndSettlementApiTests(ApiTestHost host)
         });
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
 
-        foreach (var client in new[] { aClient, bClient })
+        foreach (var client in everyonePaid ? new[] { ownerClient, aClient, bClient } : new[] { aClient, bClient })
         {
             var mine = (await ReadAsync(await client.GetAsync($"{Base(fund.Id)}/me/assignments"))).EnumerateArray().Single();
-            var paid = await ReadAsync(await client.PostAsJsonAsync($"{Base(fund.Id)}/me/assignments/{mine.GetProperty("assignmentId").GetGuid()}/payments", new { method = "Cash" }));
-            Assert.Equal(HttpStatusCode.OK, (await ownerClient.PostAsync($"{Base(fund.Id)}/payments/{paid.GetProperty("id").GetGuid()}/confirm", null)).StatusCode);
+            var paid = await ownerClient.PostAsJsonAsync($"{Base(fund.Id)}/assignments/{mine.GetProperty("assignmentId").GetGuid()}/collect", new { method = "Cash" });
+            Assert.Equal(HttpStatusCode.Created, paid.StatusCode);
         }
 
         var spent = await ownerClient.PostAsJsonAsync($"{Base(fund.Id)}/ledger-entries", new
@@ -91,7 +91,7 @@ public class YearEndSettlementApiTests(ApiTestHost host)
         var w = await YearWithSurplusAsync();
 
         var preview = await ReadAsync(await w.OwnerClient.GetAsync(Url(w, "/preview")));
-        Assert.Equal(80_000, preview.GetProperty("surplus").GetInt64());
+        Assert.Equal(180_000, preview.GetProperty("surplus").GetInt64());
         Assert.True(preview.GetProperty("canExecute").GetBoolean());
         Assert.Equal(3, preview.GetProperty("memberCount").GetInt32());
 
@@ -99,12 +99,12 @@ public class YearEndSettlementApiTests(ApiTestHost host)
         var done = await w.OwnerClient.PostAsJsonAsync(Url(w), new { surplusMethod = "PersonalBalance" });
         Assert.Equal(HttpStatusCode.Created, done.StatusCode);
         var lines = (await ReadAsync(done)).GetProperty("lines").EnumerateArray().ToArray();
-        Assert.Equal(2, lines.Length);
-        Assert.All(lines, line => Assert.Equal(40_000, line.GetProperty("amount").GetInt64()));
+        Assert.Equal(3, lines.Length);
+        Assert.All(lines, line => Assert.Equal(60_000, line.GetProperty("amount").GetInt64()));
 
         var mine = await ReadAsync(await w.AClient.GetAsync(Url(w)));
         Assert.Equal(1, mine.GetProperty("lines").GetArrayLength());
-        Assert.Equal(40_000, (await ReadAsync(await w.AClient.GetAsync($"{Base(w.Fund.Id)}/me/balance"))).GetProperty("balance").GetInt64());
+        Assert.Equal(60_000, (await ReadAsync(await w.AClient.GetAsync($"{Base(w.Fund.Id)}/me/balance"))).GetProperty("balance").GetInt64());
 
         await using var db = host.CreateDbContext();
         Assert.Equal(FundStatus.Archived, (await db.Funds.SingleAsync(item => item.Id == w.Fund.Id)).Status);
@@ -116,7 +116,7 @@ public class YearEndSettlementApiTests(ApiTestHost host)
     public async Task An_unsettled_event_blocks_the_year_end()
     {
         var w = await YearWithSurplusAsync();
-        Assert.Equal(HttpStatusCode.Created, (await w.OwnerClient.PostAsJsonAsync($"{Base(w.Fund.Id)}/events", new { name = "Dã ngoại", eventDate = "2026-12-20" })).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await w.OwnerClient.PostAsJsonAsync($"{Base(w.Fund.Id)}/events", new { name = "Dã ngoại", eventDate = "2099-01-01", listDeadline = "2099-01-01" })).StatusCode);
 
         var blocked = await w.OwnerClient.PostAsJsonAsync(Url(w), new { surplusMethod = "PersonalBalance" });
 
@@ -143,7 +143,7 @@ public class YearEndSettlementApiTests(ApiTestHost host)
         {
             ["charge"] = await w.OwnerClient.PostAsJsonAsync($"{Base(w.Fund.Id)}/charges", new { categoryId = w.IncomeCategoryId, title = "Mới", amountPerPerson = 10_000, dueDate = "2099-01-01" }),
             ["expense"] = await w.OwnerClient.PostAsJsonAsync($"{Base(w.Fund.Id)}/ledger-entries", new { eventId = (Guid?)null, categoryId = w.ExpenseCategoryId, title = "Chi", amount = 1_000, transactionDate = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(7)).ToString("yyyy-MM-dd"), attachmentIds = Array.Empty<Guid>() }),
-            ["event"] = await w.OwnerClient.PostAsJsonAsync($"{Base(w.Fund.Id)}/events", new { name = "Mới", eventDate = "2099-01-01" }),
+            ["event"] = await w.OwnerClient.PostAsJsonAsync($"{Base(w.Fund.Id)}/events", new { name = "Mới", eventDate = "2099-01-01", listDeadline = "2099-01-01" }),
             ["category"] = await w.OwnerClient.PostAsJsonAsync($"{Base(w.Fund.Id)}/categories", new { name = "Mới", type = "Income" }),
             ["member"] = await w.OwnerClient.PostAsJsonAsync($"{Base(w.Fund.Id)}/members", new { email = "new.student@example.com", fullName = "Học Sinh Mới" }),
             ["treasurer"] = await w.OwnerClient.PostAsJsonAsync($"{Base(w.Fund.Id)}/treasurers", new { memberId }),
@@ -158,17 +158,31 @@ public class YearEndSettlementApiTests(ApiTestHost host)
         Assert.Equal(HttpStatusCode.OK, refunded.StatusCode);
         Assert.Equal("settlement.line_processed", await CodeOfAsync(await w.OwnerClient.PostAsync(Url(w, $"/lines/{lineId}/refunded"), null)));
 
-        // TC-M14-05: học sinh còn số dư gửi yêu cầu rút, thủ quỹ xác nhận đã trả.
+        // TC-M14-05: quỹ đã Archived vẫn rút được số dư.
         await using (var db = host.CreateDbContext())
         {
             db.PersonalBalances.Add(new PersonalBalance(w.Fund.Id, w.A.Id) { Balance = 30_000 });
             await db.SaveChangesAsync();
         }
 
-        var requested = await w.AClient.PostAsync($"{Base(w.Fund.Id)}/me/withdrawal-requests", null);
-        Assert.Equal(HttpStatusCode.Created, requested.StatusCode);
-        var requestId = (await ReadAsync(await w.OwnerClient.GetAsync($"{Base(w.Fund.Id)}/withdrawal-requests"))).GetProperty("items")[0].GetProperty("id").GetGuid();
-        Assert.Equal(HttpStatusCode.OK, (await w.OwnerClient.PostAsync($"{Base(w.Fund.Id)}/withdrawal-requests/{requestId}/paid", null)).StatusCode);
+        var withdraw = await w.OwnerClient.PostAsJsonAsync($"{Base(w.Fund.Id)}/balances/{w.A.Id}/withdraw", new { amount = 30_000 });
+        Assert.Equal(HttpStatusCode.OK, withdraw.StatusCode);
+        Assert.Equal(0, (await ReadAsync(withdraw)).GetProperty("balance").GetInt64());
+    }
+
+    [Fact]
+    public async Task Someone_who_has_not_paid_every_general_charge_blocks_the_year_end()
+    {
+        var w = await YearWithSurplusAsync(everyonePaid: false);
+
+        var preview = await ReadAsync(await w.OwnerClient.GetAsync(Url(w, "/preview")));
+        Assert.False(preview.GetProperty("canExecute").GetBoolean());
+        var blocked = await w.OwnerClient.PostAsJsonAsync(Url(w), new { surplusMethod = "PersonalBalance" });
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, blocked.StatusCode);
+        Assert.Equal("year_end.unpaid_obligations", await CodeOfAsync(blocked));
+        await using var db = host.CreateDbContext();
+        Assert.Equal(FundStatus.Active, (await db.Funds.SingleAsync(item => item.Id == w.Fund.Id)).Status);
     }
 
     [Fact]
@@ -185,6 +199,6 @@ public class YearEndSettlementApiTests(ApiTestHost host)
         Assert.Single(results, response => response.StatusCode == HttpStatusCode.UnprocessableEntity);
         await using var db = host.CreateDbContext();
         Assert.Equal(1, await db.Settlements.CountAsync(item => item.FundId == w.Fund.Id && item.EventId == null));
-        Assert.Equal(80_000, await db.PersonalBalances.Where(item => item.FundId == w.Fund.Id).SumAsync(item => item.Balance));
+        Assert.Equal(180_000, await db.PersonalBalances.Where(item => item.FundId == w.Fund.Id).SumAsync(item => item.Balance));
     }
 }

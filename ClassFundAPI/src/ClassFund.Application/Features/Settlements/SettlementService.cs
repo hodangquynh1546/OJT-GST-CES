@@ -14,8 +14,8 @@ using ClassFund.Domain.Rules;
 namespace ClassFund.Application.Features.Settlements;
 
 /// <summary>
-/// M9 – Quyết toán sự kiện (FR-35 → FR-39, BR-21 → BR-24). Chỉ chia tiền thừa theo tỷ lệ số đã đóng (OQ-18);
-/// nghĩa vụ chưa đóng bị đóng lại (OQ-19); còn thanh toán chờ xác nhận thì chặn.
+/// M9 – Quyết toán sự kiện (FR-35 → FR-39, BR-21 → BR-24). Chỉ chia tiền thừa;
+/// nghĩa vụ chưa đóng của khoản thu đã đóng bị đóng lại (OQ-19). Chia ĐỀU theo đầu người vì mọi người còn lại đã đóng đủ.
 /// </summary>
 public interface ISettlementService
 {
@@ -46,7 +46,7 @@ public sealed class SettlementService(
         await EnsureExecutorAsync(fundId, cancellationToken);
         var fundEvent = await LoadEventAsync(fundId, eventId, cancellationToken);
         var calc = await CalculateAsync(fundId, fundEvent, cancellationToken);
-        var canExecute = fundEvent.Status == EventStatus.Completed && calc.PendingPaymentCount == 0;
+        var canExecute = fundEvent.Status == EventStatus.Completed;
         return new SettlementPreviewDto(
             fundEvent.Id,
             fundEvent.Name,
@@ -56,7 +56,6 @@ public sealed class SettlementService(
             calc.Totals.TotalExpense,
             calc.Totals.Balance,
             calc.Totals.Balance == 0 ? SettlementOutcome.Balanced : SettlementOutcome.Surplus,
-            calc.PendingPaymentCount,
             calc.UnpaidObligationCount,
             canExecute,
             calc.Shares.Select(share => new SettlementLineDto(null, share.UserId, calc.Names[share.UserId], share.Contributed, share.Amount, null)).ToArray());
@@ -89,13 +88,6 @@ public sealed class SettlementService(
                     }
 
                     var calc = await CalculateAsync(fundId, fundEvent, token);
-                    if (calc.PendingPaymentCount > 0)
-                    {
-                        throw new BusinessRuleException(
-                            SettlementErrors.PendingPaymentsCode,
-                            $"Còn {calc.PendingPaymentCount} thanh toán chờ xác nhận. Hãy xác nhận hoặc từ chối hết trước khi quyết toán.");
-                    }
-
                     var surplus = calc.Totals.Balance;
                     var outcome = surplus == 0 ? SettlementOutcome.Balanced : SettlementOutcome.Surplus;
                     if (surplus > 0 && surplusMethod is null)
@@ -325,7 +317,6 @@ public sealed class SettlementService(
         ScopeTotals Totals,
         IReadOnlyList<Share> Shares,
         IReadOnlyDictionary<Guid, string> Names,
-        int PendingPaymentCount,
         int UnpaidObligationCount);
 
     /// <summary>Tổng thu chi của sự kiện, phần mỗi người (người <c>IsFinal</c> đã đóng) và số thứ chặn / bị đóng.</summary>
@@ -351,16 +342,7 @@ public sealed class SettlementService(
         var contributed = paid.GroupBy(item => item.PayerUserId).ToDictionary(group => group.Key, group => group.Sum(item => item.Amount));
 
         var contributions = finalPeople.Select(person => new Contribution(person.Id, contributed.GetValueOrDefault(person.Id))).ToArray();
-        var shares = SettlementCalculator.Allocate(totals.Balance < 0 ? 0 : totals.Balance, contributions);
-
-        var pending = await db.CountAsync(
-            from payment in db.Query<Payment>()
-            where payment.Status == PaymentStatus.Submitted
-            join assignment in db.Query<ChargeAssignment>() on payment.AssignmentId equals assignment.Id
-            join charge in db.Query<Charge>() on assignment.ChargeId equals charge.Id
-            where charge.FundId == fundId && charge.EventId == fundEvent.Id
-            select payment.Id,
-            cancellationToken);
+        var shares = SettlementCalculator.AllocateEqually(totals.Balance < 0 ? 0 : totals.Balance, contributions);
 
         var unpaid = await db.CountAsync(
             from assignment in db.Query<ChargeAssignment>()
@@ -370,7 +352,7 @@ public sealed class SettlementService(
             select assignment.Id,
             cancellationToken);
 
-        return new Calculation(totals, shares, finalPeople.ToDictionary(person => person.Id, person => person.FullName), pending, unpaid);
+        return new Calculation(totals, shares, finalPeople.ToDictionary(person => person.Id, person => person.FullName), unpaid);
     }
 
     private async Task<Event> LoadEventAsync(Guid fundId, Guid eventId, CancellationToken cancellationToken) =>

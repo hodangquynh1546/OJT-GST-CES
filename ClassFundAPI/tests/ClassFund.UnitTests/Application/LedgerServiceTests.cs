@@ -137,6 +137,7 @@ public class LedgerServiceTests
     public async Task Event_expense_uses_event_balance_and_scope()
     {
         SeedIncome(400_000, _picnic.Id);
+        _picnic.Status = EventStatus.Completed; // chỉ ghi chi sau khi đóng danh sách
 
         var detail = await Service.CreateExpenseAsync(_ctx.Fund.Id, Expense(400_000, _gift.Id, _picnic.Id), default);
 
@@ -147,11 +148,22 @@ public class LedgerServiceTests
         Assert.Equal(_picnic.Id, log.EventId);
     }
 
+    [Fact]
+    public async Task An_open_event_accepts_no_expense_until_the_list_is_closed_BR20()
+    {
+        SeedIncome(400_000, _picnic.Id);
+
+        var error = await Assert.ThrowsAsync<BusinessRuleException>(() =>
+            Service.CreateExpenseAsync(_ctx.Fund.Id, Expense(100_000, _gift.Id, _picnic.Id), default));
+
+        Assert.Equal(EventStatusRules.ListNotClosedCode, error.Code);
+        Assert.Empty(_ctx.Db.Query<LedgerEntry>().Where(entry => entry.Type == LedgerType.Expense));
+    }
+
     [Theory]
-    [InlineData(EventStatus.Completed)]
     [InlineData(EventStatus.Settled)]
     [InlineData(EventStatus.Cancelled)]
-    public async Task Closed_event_accepts_no_new_expense_BR20(EventStatus status)
+    public async Task Settled_or_cancelled_event_accepts_no_new_expense_BR20(EventStatus status)
     {
         SeedIncome(400_000, _picnic.Id);
         _picnic.Status = status;
@@ -278,6 +290,7 @@ public class LedgerServiceTests
     public async Task Settled_event_ledger_is_locked_for_reversal()
     {
         SeedIncome(400_000, _picnic.Id);
+        _picnic.Status = EventStatus.Completed;
         var expense = await Service.CreateExpenseAsync(_ctx.Fund.Id, Expense(100_000, _gift.Id, _picnic.Id), default);
         _picnic.Status = EventStatus.Settled;
 

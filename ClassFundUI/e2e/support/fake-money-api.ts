@@ -7,10 +7,10 @@ import { AN, FakeAuthApi, FakeUser } from './fake-auth-api';
 export const FUND_ID = 'f1';
 export const OWNER_PERMISSIONS = [
   'Fund.View', 'Fund.Manage', 'Member.Manage', 'Treasurer.Manage', 'Category.Manage', 'Event.Manage', 'Event.Participate',
-  'Charge.Manage', 'Ledger.Manage', 'Payment.Submit', 'Payment.Confirm', 'Settlement.Execute', 'Balance.ViewOwn',
-  'Balance.Withdraw', 'Balance.Handle', 'Report.View', 'Audit.View',
+  'Charge.Manage', 'Ledger.Manage', 'Payment.Confirm', 'Settlement.Execute', 'Balance.ViewOwn',
+  'Balance.Handle', 'Report.View', 'Audit.View',
 ];
-export const STUDENT_PERMISSIONS = ['Fund.View', 'Event.Participate', 'Payment.Submit', 'Balance.ViewOwn', 'Balance.Withdraw'];
+export const STUDENT_PERMISSIONS = ['Fund.View', 'Event.Participate', 'Balance.ViewOwn', 'Balance.Withdraw'];
 
 export const owner: FakeUser = {
   ...AN,
@@ -90,6 +90,7 @@ interface FakeEvent {
   name: string;
   description: string | null;
   eventDate: string;
+  listDeadline: string;
   status: 'Open' | 'Completed' | 'Settled' | 'Cancelled';
   invitedCount: number;
   participantCount: number;
@@ -105,9 +106,8 @@ interface Participant {
   role: 'Owner' | 'Treasurer' | 'Student';
   paid: number;
   due: number;
-  paymentStatus: 'Paid' | 'Pending' | 'Unpaid' | 'NoCharge';
+  paymentStatus: 'Paid' | 'Unpaid' | 'NoCharge';
   hasSelfDeclared: boolean;
-  pendingPaymentCount: number;
 }
 
 export class FakeMoneyApi {
@@ -130,21 +130,23 @@ export class FakeMoneyApi {
       broom,
       entry({ title: 'In tài liệu ôn tập giữa kỳ', amount: 180_000, type: 'Expense', categoryId: 'c-study', categoryName: 'Học tập', attachmentCount: 1 }),
       entry({ title: 'Đặt xe 45 chỗ', amount: 4_800_000, type: 'Expense', eventId: 'e1', eventName: 'Dã ngoại Ba Vì', attachmentCount: 2, transactionDate: `${MONTH}17` }),
+      entry({ title: 'Thu: Liên hoan giữa kỳ', amount: 4_150_000, type: 'Income', source: 'Payment', eventId: 'e2', eventName: 'Liên hoan giữa kỳ', transactionDate: `${MONTH}10` }),
+      entry({ title: 'Chi: Nhà hàng', amount: 4_000_000, type: 'Expense', eventId: 'e2', eventName: 'Liên hoan giữa kỳ', transactionDate: `${MONTH}11` }),
       entry({ title: 'Thu: Phí dã ngoại', amount: 9_100_000, type: 'Income', source: 'Payment', eventId: 'e1', eventName: 'Dã ngoại Ba Vì', transactionDate: `${MONTH}16` }),
     ];
     this.events = [
-      { id: 'e1', name: 'Dã ngoại Ba Vì', description: 'Đi xe 45 chỗ, vé vào cổng, ăn trưa', eventDate: '2026-11-20', status: 'Open', invitedCount: 32, participantCount: 6, paidInFullCount: 2, myResponse: 'Pending', income: 9_100_000, expense: 4_800_000 },
-      { id: 'e2', name: 'Liên hoan giữa kỳ', description: 'Liên hoan cuối đợt thi giữa kỳ', eventDate: '2026-10-26', status: 'Completed', invitedCount: 32, participantCount: 28, paidInFullCount: 28, myResponse: 'Accepted', income: 4_150_000, expense: 4_000_000 },
-      { id: 'e3', name: 'Tham quan bảo tàng', description: 'Bảo tàng Lịch sử Quốc gia', eventDate: '2026-11-08', status: 'Settled', invitedCount: 32, participantCount: 30, paidInFullCount: 30, myResponse: 'Accepted', income: 3_000_000, expense: 1_860_000 },
-      { id: 'e4', name: 'Cắm trại hè', description: 'Hủy do thời tiết', eventDate: '2026-09-30', status: 'Cancelled', invitedCount: 32, participantCount: 0, paidInFullCount: 0, myResponse: 'Declined', income: 0, expense: 0 },
+      { id: 'e1', name: 'Dã ngoại Ba Vì', description: 'Đi xe 45 chỗ, vé vào cổng, ăn trưa', eventDate: '2099-02-20', listDeadline: '2099-02-10', status: 'Open', invitedCount: 32, participantCount: 6, paidInFullCount: 2, myResponse: 'Pending', income: 9_100_000, expense: 4_800_000 },
+      { id: 'e2', name: 'Liên hoan giữa kỳ', description: 'Liên hoan cuối đợt thi giữa kỳ', eventDate: '2026-10-26', listDeadline: '2026-10-26', status: 'Completed', invitedCount: 32, participantCount: 28, paidInFullCount: 28, myResponse: 'Accepted', income: 4_150_000, expense: 4_000_000 },
+      { id: 'e3', name: 'Tham quan bảo tàng', description: 'Bảo tàng Lịch sử Quốc gia', eventDate: '2026-11-08', listDeadline: '2026-11-08', status: 'Settled', invitedCount: 32, participantCount: 30, paidInFullCount: 30, myResponse: 'Accepted', income: 3_000_000, expense: 1_860_000 },
+      { id: 'e4', name: 'Cắm trại hè', description: 'Hủy do thời tiết', eventDate: '2026-09-30', listDeadline: '2026-09-30', status: 'Cancelled', invitedCount: 32, participantCount: 0, paidInFullCount: 0, myResponse: 'Declined', income: 0, expense: 0 },
     ];
     this.people = [
-      { userId: 'u-anh', fullName: 'Nguyễn Minh Anh', role: 'Owner', paid: 430_000, due: 430_000, paymentStatus: 'Paid', hasSelfDeclared: true, pendingPaymentCount: 0 },
-      { userId: 'u-ha', fullName: 'Lê Thu Hà', role: 'Student', paid: 430_000, due: 430_000, paymentStatus: 'Paid', hasSelfDeclared: false, pendingPaymentCount: 0 },
-      { userId: 'u-bao', fullName: 'Hoàng Gia Bảo', role: 'Student', paid: 350_000, due: 430_000, paymentStatus: 'Pending', hasSelfDeclared: false, pendingPaymentCount: 1 },
-      { userId: 'u-long', fullName: 'Phạm Đức Long', role: 'Student', paid: 350_000, due: 430_000, paymentStatus: 'Unpaid', hasSelfDeclared: false, pendingPaymentCount: 0 },
-      { userId: 'u-my', fullName: 'Bùi Thảo My', role: 'Student', paid: 0, due: 430_000, paymentStatus: 'Unpaid', hasSelfDeclared: false, pendingPaymentCount: 0 },
-      { userId: 'u-ngoc', fullName: 'Trịnh Bảo Ngọc', role: 'Student', paid: 0, due: 430_000, paymentStatus: 'Unpaid', hasSelfDeclared: false, pendingPaymentCount: 0 },
+      { userId: 'u-anh', fullName: 'Nguyễn Minh Anh', role: 'Owner', paid: 430_000, due: 430_000, paymentStatus: 'Paid', hasSelfDeclared: true },
+      { userId: 'u-ha', fullName: 'Lê Thu Hà', role: 'Student', paid: 430_000, due: 430_000, paymentStatus: 'Paid', hasSelfDeclared: false },
+      { userId: 'u-bao', fullName: 'Hoàng Gia Bảo', role: 'Student', paid: 350_000, due: 430_000, paymentStatus: 'Unpaid', hasSelfDeclared: false },
+      { userId: 'u-long', fullName: 'Phạm Đức Long', role: 'Student', paid: 350_000, due: 430_000, paymentStatus: 'Unpaid', hasSelfDeclared: false },
+      { userId: 'u-my', fullName: 'Bùi Thảo My', role: 'Student', paid: 0, due: 430_000, paymentStatus: 'Unpaid', hasSelfDeclared: false },
+      { userId: 'u-ngoc', fullName: 'Trịnh Bảo Ngọc', role: 'Student', paid: 0, due: 430_000, paymentStatus: 'Unpaid', hasSelfDeclared: false },
     ];
   }
 
@@ -216,6 +218,7 @@ export class FakeMoneyApi {
       name: event.name,
       description: event.description,
       eventDate: event.eventDate,
+      listDeadline: event.listDeadline,
       status: event.status,
       createdAt: '2026-11-01T03:00:00Z',
       completedAt: event.status === 'Open' ? null : '2026-11-18T03:00:00Z',
@@ -233,16 +236,17 @@ export class FakeMoneyApi {
       myCharges:
         event.myResponse === 'Accepted'
           ? [
-              { chargeId: 'ch1', title: 'Phí dã ngoại', amountDue: 350_000, dueDate: '2026-11-18', status: 'Unpaid' },
-              { chargeId: 'ch2', title: 'Tiền ăn trưa', amountDue: 80_000, dueDate: '2026-11-19', status: 'Paid' },
+              { chargeId: 'ch1', title: 'Phí dã ngoại', amountDue: 350_000, dueDate: null, status: 'Unpaid' },
+              { chargeId: 'ch2', title: 'Tiền ăn trưa', amountDue: 80_000, dueDate: null, status: 'Paid' },
             ]
           : [],
       charges: manage
         ? [
-            { id: 'ch1', title: 'Phí dã ngoại', purpose: 'Xe 45 chỗ, vé vào cổng', amountPerPerson: 350_000, dueDate: '2026-11-18', status: 'Open', paidCount: 4, pendingCount: 1, unpaidCount: 2 },
-            { id: 'ch2', title: 'Tiền ăn trưa', purpose: null, amountPerPerson: 80_000, dueDate: '2026-11-19', status: 'Open', paidCount: 2, pendingCount: 0, unpaidCount: 4 },
+            { id: 'ch1', title: 'Phí dã ngoại', purpose: 'Xe 45 chỗ, vé vào cổng', amountPerPerson: 350_000, dueDate: null, status: 'Open', paidCount: 4, unpaidCount: 2 },
+            { id: 'ch2', title: 'Tiền ăn trưa', purpose: null, amountPerPerson: 80_000, dueDate: null, status: 'Open', paidCount: 2, unpaidCount: 4 },
           ]
         : [],
+      exclusions: event.status === 'Open' ? [] : [{ userId: 'u-x', fullName: 'Bùi Thảo My', reason: 'Chưa đóng khoản nào khi đóng danh sách.', refundedAmount: 0, excludedAt: '2026-11-18T03:00:00Z' }, { userId: 'u-y', fullName: 'Phạm Đức Long', reason: 'Chưa đóng đủ các khoản thu khi đóng danh sách; số tiền đã đóng được hoàn vào số dư cá nhân.', refundedAmount: 350_000, excludedAt: '2026-11-18T03:00:00Z' }],
     };
   }
 
@@ -342,6 +346,7 @@ export class FakeMoneyApi {
           name: item.name,
           description: item.description,
           eventDate: item.eventDate,
+          listDeadline: item.listDeadline,
           status: item.status,
           invitedCount: item.invitedCount,
           participantCount: item.participantCount,
@@ -362,6 +367,7 @@ export class FakeMoneyApi {
         name: String(body!['name']),
         description: (body!['description'] as string | null) ?? null,
         eventDate: String(body!['eventDate']),
+        listDeadline: String(body!['listDeadline']),
         status: 'Open',
         invitedCount: 32,
         participantCount: 0,
@@ -396,11 +402,11 @@ export class FakeMoneyApi {
         return route.fulfill({ json: this.eventDetail(event) });
       }
       if (method === 'GET' && rest === '/participants') {
-        const visible = event.status === 'Open' ? this.people : this.people.filter((item) => item.paid > 0 || item.paymentStatus === 'Pending');
+        const visible = event.status === 'Open' ? this.people : this.people.filter((item) => item.paymentStatus === 'Paid');
         const status = query.get('paymentStatus');
         const items = status ? visible.filter((item) => item.paymentStatus === status) : visible;
         const count = (value: string) => visible.filter((item) => item.paymentStatus === value).length;
-        return route.fulfill({ json: { items, total: visible.length, paidCount: count('Paid'), pendingCount: count('Pending'), unpaidCount: count('Unpaid') } });
+        return route.fulfill({ json: { items, total: visible.length, paidCount: count('Paid'), unpaidCount: count('Unpaid') } });
       }
       const remind = /^\/participants\/([^/]+)\/remind$/.exec(rest);
       if (method === 'POST' && remind) {
@@ -414,18 +420,21 @@ export class FakeMoneyApi {
         this.reminded.add(person.userId);
         return route.fulfill({ json: { reminded: 1 } });
       }
-      if (method === 'GET' && rest === '/completion-preview') {
-        return route.fulfill({ json: this.preview() });
+      if (method === 'GET' && rest === '/close-list-preview') {
+        return route.fulfill({ json: this.preview(event) });
       }
-      if (method === 'POST' && rest === '/complete') {
-        const preview = this.preview();
+      if (method === 'POST' && rest === '/close-list') {
+        if (event.listDeadline > TODAY && !body?.['confirmEarly']) {
+          return this.problem(route, 422, 'event.list_deadline_not_reached', 'Chưa tới hạn đóng danh sách. Hãy xác nhận đóng sớm nếu bạn muốn đóng ngay.');
+        }
+        const preview = this.preview(event);
         event.status = 'Completed';
         event.participantCount = preview.remainingCount;
         return route.fulfill({ json: preview });
       }
       if (method === 'POST' && rest === '/cancel') {
         if (event.income > 0 || event.expense > 0) {
-          return this.problem(route, 422, 'event.has_money', 'Sự kiện đã có thu tiền hoặc ghi chi, không hủy được. Hãy kết thúc rồi quyết toán.');
+          return this.problem(route, 422, 'event.has_money', 'Sự kiện đã có thu tiền hoặc ghi chi, không hủy được. Hãy đóng danh sách rồi quyết toán.');
         }
         event.status = 'Cancelled';
         return route.fulfill({ json: this.eventDetail(event) });
@@ -435,12 +444,15 @@ export class FakeMoneyApi {
     return this.problem(route, 404, 'not_found', 'Không tìm thấy dữ liệu.');
   }
 
-  private preview() {
+  private preview(event: FakeEvent) {
+    const excluded = this.people.filter((item) => item.paymentStatus === 'Unpaid');
     return {
-      excluded: this.people.filter((item) => item.paid === 0 && item.paymentStatus === 'Unpaid').map(({ userId, fullName }) => ({ userId, fullName })),
-      underpaid: this.people.filter((item) => item.paid > 0 && item.paymentStatus === 'Unpaid').map(({ userId, fullName, due, paid }) => ({ userId, fullName, missing: due - paid })),
-      pendingPaymentCount: this.people.reduce((sum, item) => sum + item.pendingPaymentCount, 0),
-      remainingCount: this.people.filter((item) => item.paid > 0 || item.paymentStatus === 'Pending').length,
+      excluded: excluded.map(({ userId, fullName, paid }) => ({ userId, fullName, paid, refund: paid, reason: paid === 0 ? 'Chưa đóng khoản nào khi đóng danh sách.' : 'Chưa đóng đủ các khoản thu khi đóng danh sách; số tiền đã đóng được hoàn vào số dư cá nhân.' })),
+      remainingCount: this.people.filter((item) => item.paymentStatus === 'Paid').length,
+      openChargeCount: 2,
+      totalRefund: excluded.reduce((sum, item) => sum + item.paid, 0),
+      listDeadline: event.listDeadline,
+      beforeDeadline: event.listDeadline > TODAY,
     };
   }
 }

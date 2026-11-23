@@ -32,7 +32,7 @@ public sealed class ChargesController(IChargesService service) : ApiControllerBa
     public async Task<IActionResult> Create(Guid fundId, CreateChargeRequest request, CancellationToken cancellationToken) =>
         StatusCode(
             StatusCodes.Status201Created,
-            await service.CreateAsync(fundId, new CreateChargeInput(request.Title, request.Purpose, request.AmountPerPerson, request.DueDate!.Value, request.CategoryId!.Value), cancellationToken));
+            await service.CreateAsync(fundId, new CreateChargeInput(request.Title, request.Purpose, request.AmountPerPerson, request.DueDate, request.CategoryId!.Value), cancellationToken));
 
     [HttpGet("{chargeId:guid}/assignments")]
     [RequirePermission(Permissions.ChargeManage)]

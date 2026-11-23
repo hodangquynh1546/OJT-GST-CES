@@ -30,6 +30,31 @@ public sealed class Notification(Guid userId, Guid fundId, FinancialScope scope,
     public DateTimeOffset CreatedAt { get; init; } = createdAt;
 }
 
+/// <summary>
+/// Lịch sử nhắc đóng tiền (mỗi lần nhắc một dòng, append-only). <see cref="ReminderDate"/> là ngày Việt Nam của lần nhắc,
+/// dùng để nhắc tự động tối đa một lần mỗi (người, sự kiện, ngày).
+/// </summary>
+public sealed class PaymentReminder(Guid fundId, Guid? eventId, Guid? chargeId, Guid userId, ReminderKind kind, Guid? sentByUserId, DateTimeOffset sentAt, DateOnly reminderDate) : Entity
+{
+    public Guid FundId { get; init; } = fundId;
+
+    public Guid? EventId { get; init; } = eventId;
+
+    public Guid? ChargeId { get; init; } = chargeId;
+
+    /// <summary>Người được nhắc.</summary>
+    public Guid UserId { get; init; } = userId;
+
+    public ReminderKind Kind { get; init; } = kind;
+
+    /// <summary>Thủ quỹ bấm nhắc; null khi hệ thống nhắc tự động.</summary>
+    public Guid? SentByUserId { get; init; } = sentByUserId;
+
+    public DateTimeOffset SentAt { get; init; } = sentAt;
+
+    public DateOnly ReminderDate { get; init; } = reminderDate;
+}
+
 /// <summary>Nhật ký hoạt động (append-only, không sửa/xóa).</summary>
 public sealed class AuditLog(DateTimeOffset at, Guid? fundId, Guid? actorUserId, FinancialScope scope, Guid? eventId, string action, string? entityType, string? entityId) : Entity
 {

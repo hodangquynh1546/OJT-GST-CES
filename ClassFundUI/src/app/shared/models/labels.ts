@@ -36,9 +36,9 @@ export const PAYMENT_STATUS_LABEL: Record<PaymentStatus, string> = {
 export type AssignmentStatus = 'Unpaid' | 'AwaitingConfirmation' | 'Paid' | 'Excluded' | 'Cancelled';
 
 export const ASSIGNMENT_STATUS_LABEL: Record<AssignmentStatus, string> = {
-  Unpaid: 'Chưa đóng',
+  Unpaid: 'Chưa nộp',
   AwaitingConfirmation: 'Chờ xác nhận',
-  Paid: 'Đã đóng',
+  Paid: 'Đã nộp',
   Excluded: 'Bị loại khỏi sự kiện',
   Cancelled: 'Đã hủy',
 };

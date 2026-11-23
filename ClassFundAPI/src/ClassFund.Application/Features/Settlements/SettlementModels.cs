@@ -21,7 +21,6 @@ public sealed record SettlementPreviewDto(
     long TotalSpent,
     long Surplus,
     SettlementOutcome Outcome,
-    int PendingPaymentCount,
     int UnpaidObligationCount,
     bool CanExecute,
     IReadOnlyList<SettlementLineDto> Lines);
@@ -55,7 +54,6 @@ public sealed record YearEndPreviewDto(
     long Surplus,
     SettlementOutcome Outcome,
     int UnsettledEventCount,
-    int PendingPaymentCount,
     int OpenChargeCount,
     int UnpaidObligationCount,
     bool CanExecute,

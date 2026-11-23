@@ -171,7 +171,7 @@ public sealed class MembersService(
         var impact = await MeasureAsync(fundId, member.UserId, cancellationToken);
         var blocked = BlockedReason(member, impact);
 
-        return new RemovalPreviewDto(impact.Unpaid, impact.PendingPayments, impact.Balance, blocked is null, blocked);
+        return new RemovalPreviewDto(impact.Unpaid, impact.Balance, blocked is null, blocked);
     }
 
     public async Task<RemoveMemberResult> RemoveAsync(Guid fundId, Guid memberId, CancellationToken cancellationToken)
@@ -403,7 +403,7 @@ public sealed class MembersService(
 
     // ---------- Ngừng thành viên ----------
 
-    private sealed record Impact(int Unpaid, int PendingPayments, long Balance);
+    private sealed record Impact(int Unpaid, long Balance);
 
     private IQueryable<ChargeAssignment> UnpaidOpenAssignments(Guid fundId, Guid userId) =>
         from assignment in db.Query<ChargeAssignment>()
@@ -415,31 +415,22 @@ public sealed class MembersService(
     private async Task<Impact> MeasureAsync(Guid fundId, Guid userId, CancellationToken cancellationToken)
     {
         var unpaid = await db.CountAsync(UnpaidOpenAssignments(fundId, userId), cancellationToken);
-        var pending = await db.CountAsync(
-            from assignment in db.Query<ChargeAssignment>()
-            where assignment.UserId == userId && assignment.Status == AssignmentStatus.AwaitingConfirmation
-            join charge in db.Query<Charge>() on assignment.ChargeId equals charge.Id
-            where charge.FundId == fundId
-            select assignment,
-            cancellationToken);
         var balance = (await db.ToListAsync(
             db.Query<PersonalBalance>().Where(item => item.FundId == fundId && item.UserId == userId).Select(item => item.Balance),
             cancellationToken)).Sum();
 
-        return new Impact(unpaid, pending, balance);
+        return new Impact(unpaid, balance);
     }
 
     private static string? BlockedReason(FundMember member, Impact impact) =>
         member.Role == MemberRole.Owner ? MembersErrors.CannotRemoveOwnerMessage
         : member.Status != MemberStatus.Active ? MembersErrors.AlreadyRemovedMessage
         : impact.Balance > 0 ? MembersErrors.HasBalanceMessage
-        : impact.PendingPayments > 0 ? MembersErrors.PendingPaymentsMessage
         : null;
 
     private static string CodeFor(FundMember member, Impact impact) =>
         member.Role == MemberRole.Owner ? MembersErrors.CannotRemoveOwnerCode
-        : impact.Balance > 0 ? MembersErrors.HasBalanceCode
-        : MembersErrors.PendingPaymentsCode;
+        : MembersErrors.HasBalanceCode;
 
     // ---------- Chung ----------
 

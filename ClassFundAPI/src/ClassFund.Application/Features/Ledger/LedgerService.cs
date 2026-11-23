@@ -142,9 +142,12 @@ public sealed class LedgerService(
                         throw new NotFoundException();
                     }
 
-                    if (!EventStatusRules.AcceptsNewChargesAndExpenses(fundEvent.Status))
+                    if (!EventStatusRules.AcceptsExpenses(fundEvent.Status))
                     {
-                        throw new BusinessRuleException(LedgerErrors.EventClosed, LedgerErrors.EventClosedMessage);
+                        // Còn mở: chưa đóng danh sách nên chưa được ghi chi; đã quyết toán / hủy: sổ đã khóa.
+                        throw fundEvent.Status == EventStatus.Open
+                            ? new BusinessRuleException(EventStatusRules.ListNotClosedCode, EventStatusRules.ListNotClosedMessage)
+                            : new BusinessRuleException(LedgerErrors.EventClosed, LedgerErrors.EventClosedMessage);
                     }
 
                     eventName = fundEvent.Name;
@@ -235,7 +238,7 @@ public sealed class LedgerService(
                     if (original.EventId is { } eventId)
                     {
                         var fundEvent = await db.LockAsync<Event>(eventId, token) ?? throw new NotFoundException();
-                        if (!EventStatusRules.AcceptsPayments(fundEvent.Status))
+                        if (!EventStatusRules.AcceptsExpenses(fundEvent.Status))
                         {
                             throw new BusinessRuleException(LedgerErrors.ScopeLocked, LedgerErrors.ScopeLockedMessage);
                         }

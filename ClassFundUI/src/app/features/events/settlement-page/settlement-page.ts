@@ -26,7 +26,7 @@ import {
 } from '../events.models';
 
 /**
- * E-04 · Quyết toán sự kiện (FR-35 → FR-39). Thủ quỹ: số liệu tổng hợp, chọn cách trả tiền thừa, bảng chia theo tỷ lệ đã đóng,
+ * E-04 · Quyết toán sự kiện (FR-35 → FR-39). Thủ quỹ: số liệu tổng hợp, chọn cách trả tiền thừa, bảng chia đều theo đầu người,
  * quyết toán một lần; hoàn trực tiếp thì đánh dấu "Đã hoàn" từng người. Học sinh tham gia: xem phần của mình sau khi quyết toán.
  */
 @Component({
@@ -67,7 +67,7 @@ import {
           @if (done.lines.length) {
             <table class="grid">
               <thead>
-                <tr><th>Người tham gia</th><th class="num">Đã đóng</th><th class="num">Được nhận lại</th><th>Trạng thái</th>@if (canExecute()) { <th></th> }</tr>
+                <tr><th>Người tham gia</th><th class="num">Đã nộp</th><th class="num">Được nhận lại</th><th>Trạng thái</th>@if (canExecute()) { <th></th> }</tr>
               </thead>
               <tbody>
                 @for (line of done.lines; track line.userId) {
@@ -100,24 +100,18 @@ import {
         </div>
 
         @if (plan.status !== 'Completed') {
-          <div class="cf-alert cf-alert--warning">Chỉ quyết toán được khi sự kiện đã kết thúc.</div>
-        }
-        @if (plan.pendingPaymentCount > 0) {
-          <div class="cf-alert cf-alert--danger">
-            Còn <b>{{ plan.pendingPaymentCount }}</b> thanh toán chờ xác nhận. Hãy xác nhận hoặc từ chối hết rồi mới quyết toán.
-            <a [routerLink]="['/funds', fundId(), 'payments']">Mở hàng chờ xác nhận</a>
-          </div>
+          <div class="cf-alert cf-alert--warning">Chỉ quyết toán được khi sự kiện đã đóng danh sách.</div>
         }
         @if (plan.unpaidObligationCount > 0) {
           <div class="cf-alert">
-            Có <b>{{ plan.unpaidObligationCount }}</b> khoản chưa đóng sẽ được đóng lại khi quyết toán; không truy thu và không trừ vào phần của người khác.
+            Còn <b>{{ plan.unpaidObligationCount }}</b> khoản chưa nộp trong danh sách đã chốt. Hãy nhắc và tích “đã thu” cho đủ trước khi quyết toán.
           </div>
         }
 
         @if (plan.surplus > 0) {
           <section class="cf-card pad stack" aria-label="Cách xử lý tiền thừa">
             <h2>Cách xử lý tiền thừa</h2>
-            <p class="cf-muted">Tiền thừa luôn chia theo tỷ lệ số tiền mỗi người đã đóng cho sự kiện.</p>
+            <p class="cf-muted">Tiền thừa luôn chia đều theo đầu người trong danh sách đã chốt (làm tròn xuống bội 1.000 đ; phần lẻ dưới 1.000 đ không chia).</p>
             <div class="methods" role="radiogroup" aria-label="Cách xử lý tiền thừa">
               @for (option of methodOptions; track option) {
                 <label class="method">
@@ -133,21 +127,20 @@ import {
         }
 
         <section class="cf-card" aria-label="Bảng chia tiền thừa">
-          <div class="card-h"><h2>Chia theo tỷ lệ đã đóng</h2></div>
+          <div class="card-h"><h2>Chia đều theo đầu người</h2></div>
           <table class="grid">
             <thead>
-              <tr><th>Người tham gia</th><th class="num">Đã đóng</th><th class="num">Tỷ lệ</th><th class="num">Được nhận lại</th></tr>
+              <tr><th>Người tham gia</th><th class="num">Đã nộp</th><th class="num">Được nhận lại</th></tr>
             </thead>
             <tbody>
               @for (line of plan.lines; track line.userId) {
                 <tr>
                   <td>{{ line.fullName }}</td>
                   <td class="num">{{ line.contributed | vndMoney }}</td>
-                  <td class="num cf-muted">{{ ratio(line) }}</td>
                   <td class="num strong">{{ line.amount | vndMoney }}</td>
                 </tr>
               } @empty {
-                <tr><td colspan="4" class="cf-muted center">Chưa có người tham gia.</td></tr>
+                <tr><td colspan="3" class="cf-muted center">Chưa có người tham gia.</td></tr>
               }
             </tbody>
           </table>
@@ -165,7 +158,7 @@ import {
           Sự kiện chuyển sang "Đã quyết toán" và không quay lại được.
           @if (preview(); as plan) {
             @if (plan.surplus > 0) {
-              Tiền thừa <b>{{ plan.surplus | vndMoney }}</b> được chia cho {{ plan.lines.length }} người theo tỷ lệ đã đóng và
+              Tiền thừa <b>{{ plan.surplus | vndMoney }}</b> được chia đều cho {{ plan.lines.length }} người và
               {{ method() === 'PersonalBalance' ? 'cộng ngay vào số dư cá nhân.' : 'chờ bạn hoàn trực tiếp.' }}
             } @else {
               Thu chi vừa đủ, không có tiền thừa.
@@ -236,11 +229,6 @@ export class SettlementPage {
 
   constructor() {
     void this.load();
-  }
-
-  protected ratio(line: SettlementLine): string {
-    const total = this.preview()?.lines.reduce((sum, item) => sum + item.contributed, 0) ?? 0;
-    return total > 0 ? `${Math.round((line.contributed / total) * 1000) / 10}%` : '–';
   }
 
   private async load(): Promise<void> {

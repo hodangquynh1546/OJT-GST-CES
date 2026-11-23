@@ -386,3 +386,15 @@ p {
   &.ev-area { padding: 8px 12px; resize: vertical }
   &.ev-money { text-align: right }
 }
+
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.plain {
+  margin: 0;
+  padding-left: 18px;
+}
