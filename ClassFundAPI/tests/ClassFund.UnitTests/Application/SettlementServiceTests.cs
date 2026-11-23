@@ -123,6 +123,19 @@ public class SettlementServiceTests
     }
 
     [Fact]
+    public async Task An_event_refund_can_still_be_confirmed_after_the_fund_is_archived_BR37()
+    {
+        Join(_ctx.StudentA, 100_000);
+        Spend(50_000);
+        var result = await CreateService().ExecuteAsync(_ctx.Fund.Id, _event.Id, SurplusMethod.DirectRefund, default);
+        _ctx.Fund.Status = FundStatus.Archived;
+
+        var done = await CreateService().ConfirmRefundAsync(_ctx.Fund.Id, _event.Id, result.Lines.Single().Id!.Value, default);
+
+        Assert.Equal(SettlementLineStatus.Refunded, done.Status);
+    }
+
+    [Fact]
     public async Task Exactly_balanced_needs_no_method_and_creates_no_lines()
     {
         Join(_ctx.StudentA, 100_000);

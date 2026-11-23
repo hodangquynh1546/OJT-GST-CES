@@ -14,6 +14,8 @@ public static class SettlementErrors
     public const string MethodRequiredCode = "settlement.method_required";
     public const string MethodRequiredMessage = "Vui lòng chọn cách xử lý tiền thừa: hoàn trực tiếp hoặc cộng vào số dư.";
 
+    public const string YearEndPendingPaymentsCode = "year_end.pending_payments";
+
     public const string LineProcessedCode = "settlement.line_processed";
     public const string LineProcessedMessage = "Khoản hoàn này đã được xử lý.";
 }

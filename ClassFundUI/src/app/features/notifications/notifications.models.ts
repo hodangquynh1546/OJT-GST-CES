@@ -59,7 +59,8 @@ export function notificationLink(fundId: string, item: AppNotification): string[
     case 'EventUnpaidReminder':
       return item.eventId ? [...base, 'events', item.eventId] : [...base, 'events'];
     case 'SettlementResult':
-      return item.eventId ? [...base, 'events', item.eventId, 'settlement'] : [...base, 'events'];
+      // Tổng kết cuối năm (không có sự kiện): phần tiền thừa của tôi xem ở lịch sử số dư.
+      return item.eventId ? [...base, 'events', item.eventId, 'settlement'] : [...base, 'balance'];
     case 'BalanceCredited':
     case 'WithdrawalProcessed':
       return [...base, 'balance'];

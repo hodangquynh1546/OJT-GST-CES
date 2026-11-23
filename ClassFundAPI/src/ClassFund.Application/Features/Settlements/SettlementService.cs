@@ -262,7 +262,7 @@ public sealed class SettlementService(
         await db.InTransactionAsync(
             async token =>
             {
-                await EnsureFundActiveAsync(fundId, token);
+                // Không kiểm tra quỹ Active: sau tổng kết cuối năm vẫn xác nhận hoàn tiền được (BR-37).
                 var line = await db.LockAsync<SettlementLine>(lineId, token) ?? throw new NotFoundException();
                 var settlement = await db.FirstOrDefaultAsync(
                     db.Query<Settlement>().Where(item => item.Id == line.SettlementId && item.FundId == fundId && item.EventId == eventId),

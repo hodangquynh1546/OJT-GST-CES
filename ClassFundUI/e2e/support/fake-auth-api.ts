@@ -49,6 +49,14 @@ export class FakeAuthApi {
       this.session ? route.fulfill({ json: [] }) : this.problem(route, 401, 'unauthorized', 'Bạn chưa đăng nhập.'),
     );
     await this.page.route('**/api/v1/users/*/avatar', (route) => this.problem(route, 404, 'not_found', 'Không tìm thấy.'));
+    // Banner "Quỹ đã tổng kết" (M14) đọc trạng thái quỹ ở mọi màn; mặc định quỹ đang hoạt động, spec riêng đăng ký route sau nên được ưu tiên.
+    await this.page.route('**/api/v1/funds/*', (route) =>
+      route.request().method() === 'GET' && !new URL(route.request().url()).pathname.endsWith('/funds/new')
+        ? route.fulfill({
+            json: { id: 'f1', name: 'Lớp 10A1', schoolYear: '2026-2027', status: 'Active', createdAt: '2026-09-01T00:00:00Z', ownerName: 'Nguyễn Minh Anh', memberCount: 32, myRole: 'Student' },
+          })
+        : route.fallback(),
+    );
     // Chuông thông báo ở header (M11) gọi số chưa đọc ở mọi màn; spec riêng của N-01 đăng ký route sau nên được ưu tiên.
     await this.page.route('**/api/v1/funds/*/me/notifications/unread-count', (route) => route.fulfill({ json: { count: 0 } }));
   }

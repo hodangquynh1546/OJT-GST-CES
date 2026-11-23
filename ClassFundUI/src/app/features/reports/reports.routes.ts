@@ -1,8 +1,7 @@
 import { Routes } from '@angular/router';
 
-import { comingSoon } from '../../shared/components/coming-soon/coming-soon';
 
-/** M13 – Báo cáo (guard Report.View ở app.routes.ts). S-03 dùng chung E-03; S-05 thuộc M14 (quyết toán cuối năm). */
+/** M13 – Báo cáo (guard Report.View ở app.routes.ts). S-03 dùng chung E-03; S-05 (tổng kết cuối năm) thuộc M14. */
 export const REPORT_ROUTES: Routes = [
   {
     path: '',
@@ -17,5 +16,9 @@ export const REPORT_ROUTES: Routes = [
     data: { tab: 'students' },
     loadComponent: () => import('./reports-page/reports-page').then((m) => m.ReportsPage),
   },
-  { path: 'year-end', ...comingSoon('S-05', 'Tổng kết cuối năm') },
+  {
+    path: 'year-end',
+    title: 'Tổng kết cuối năm · ClassFund',
+    loadComponent: () => import('../year-end/year-end-page/year-end-page').then((m) => m.YearEndPage),
+  },
 ];

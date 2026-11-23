@@ -177,7 +177,7 @@ Nội bộ cho M3 (TD-10): `IEventInvitationService.InviteToOpenEventsAsync` –
 
 | Method | Path | Permission | FR | Trạng thái |
 |---|---|---|---|---|
-| GET | `/{f}/year-end-settlement/preview?surplusMethod=&allocation=` | `Settlement.Execute` | FR-53 | ⬜ |
-| POST | `/{f}/year-end-settlement` (một lần; quỹ → Archived) | `Settlement.Execute` | FR-53, FR-54 | ⬜ |
-| GET | `/{f}/year-end-settlement` | `Fund.View` | FR-53 | ⬜ |
-| POST | `/{f}/year-end-settlement/lines/{lineId}/refunded` | `Settlement.Execute` | FR-53 | ⬜ |
+| GET | `/{f}/year-end-settlement/preview` → tổng thu / chi / thừa quỹ chung, `unsettledEventCount`, `pendingPaymentCount`, `openChargeCount`, `unpaidObligationCount`, `canExecute`, `lines[]` (mọi thành viên Active, chia theo tỷ lệ đã đóng, OQ-19) | `Settlement.Execute` | FR-53 | ✅ |
+| POST | `/{f}/year-end-settlement` `{ surplusMethod?: DirectRefund \| PersonalBalance }` → 201; một lần, quỹ → Archived. 422 `year_end.open_events` / `year_end.pending_payments` / `settlement.method_required` / `year_end.already_closed` | `Settlement.Execute` | FR-53, FR-54 | ✅ |
+| GET | `/{f}/year-end-settlement` (học sinh chỉ nhận dòng của mình; chưa tổng kết → 404) | `Fund.View` | FR-53 | ✅ |
+| POST | `/{f}/year-end-settlement/lines/{lineId}/refunded` → ghi chi `Refund` quỹ chung (làm được khi quỹ Archived, BR-37); 409 `settlement.line_processed` | `Settlement.Execute` | FR-53 | ✅ |
